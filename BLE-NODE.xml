@@ -10,8 +10,8 @@
 ]>
 
 <targetDefinitions>
-  <board id="ble node">
-    <name>BLE NODE</name>
+  <board id="ble-node">
+    <name>BLE-NODE</name>
     <dbgIF>SWD</dbgIF>
     <dbgDEV>ST-Link</dbgDEV>
     <mcuId>stm32f091vctx</mcuId>
