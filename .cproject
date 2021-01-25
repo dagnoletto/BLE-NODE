@@ -221,12 +221,6 @@
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
 		<project id="BLE NODE.fr.ac6.managedbuild.target.gnu.cross.exe.338084584" name="Executable" projectType="fr.ac6.managedbuild.target.gnu.cross.exe"/>
 	</storageModule>
-	<storageModule moduleId="scannerConfiguration">
-		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		<scannerConfigBuildInfo instanceId="fr.ac6.managedbuild.config.gnu.cross.exe.debug.1387725842;fr.ac6.managedbuild.config.gnu.cross.exe.debug.1387725842.;fr.ac6.managedbuild.tool.gnu.cross.c.compiler.340070846;fr.ac6.managedbuild.tool.gnu.cross.c.compiler.input.c.629256948">
-			<autodiscovery enabled="false" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
-	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
 		<configuration artifactName="${ProjName}" configurationName="Debug">
@@ -234,4 +228,10 @@
 		</configuration>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
+	<storageModule moduleId="scannerConfiguration">
+		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		<scannerConfigBuildInfo instanceId="fr.ac6.managedbuild.config.gnu.cross.exe.debug.2063556763;fr.ac6.managedbuild.config.gnu.cross.exe.debug.2063556763.;fr.ac6.managedbuild.tool.gnu.cross.c.compiler.866991570;fr.ac6.managedbuild.tool.gnu.cross.c.compiler.input.c.2059163723">
+			<autodiscovery enabled="false" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+	</storageModule>
 </cproject>
