@@ -78,7 +78,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  HAL_RCC_DeInit(); /* DeInit RCC to put RCC to the reset state otherwise SystemClock_Config reports Error */
   /* USER CODE END Init */
 
   /* Configure the system clock */
