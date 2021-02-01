@@ -62,6 +62,7 @@ void Error_Handler(void);
 #define BLE_RST_GPIO_Port GPIOC
 #define BLE_IRQ_Pin GPIO_PIN_5
 #define BLE_IRQ_GPIO_Port GPIOC
+#define BLE_IRQ_EXTI_IRQn EXTI4_15_IRQn
 #define HEART_BEAT_Pin GPIO_PIN_3
 #define HEART_BEAT_GPIO_Port GPIOD
 #define BLE_CLK_Pin GPIO_PIN_3
