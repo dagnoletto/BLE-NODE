@@ -4,6 +4,7 @@
 /* Includes                                                     */
 /****************************************************************/
 #include "BLE_HAL.h"
+#include "main.h"
 
 
 /****************************************************************/
@@ -40,7 +41,7 @@
 /****************************************************************/
 void Clr_BluenrgMS_Reset_Pin(void)
 {
-
+	HAL_GPIO_WritePin( BLE_RST_GPIO_Port, BLE_RST_Pin, GPIO_PIN_RESET );
 }
 
 
@@ -53,7 +54,7 @@ void Clr_BluenrgMS_Reset_Pin(void)
 /****************************************************************/
 void Set_BluenrgMS_Reset_Pin(void)
 {
-
+	HAL_GPIO_WritePin( BLE_RST_GPIO_Port, BLE_RST_Pin, GPIO_PIN_SET );
 }
 
 

@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "Types.h"
 #include "TimeFunctions.h"
+#include "BluenrgMS.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,6 +93,7 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   TimeFunctions_Init();
+  Reset_BluenrgMS();
   /* USER CODE END 2 */
 
   /* Infinite loop */
