@@ -60,6 +60,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define BLE_RST_Pin GPIO_PIN_1
 #define BLE_RST_GPIO_Port GPIOC
+#define BLE_CS_Pin GPIO_PIN_4
+#define BLE_CS_GPIO_Port GPIOA
 #define BLE_IRQ_Pin GPIO_PIN_5
 #define BLE_IRQ_GPIO_Port GPIOC
 #define BLE_IRQ_EXTI_IRQn EXTI4_15_IRQn
