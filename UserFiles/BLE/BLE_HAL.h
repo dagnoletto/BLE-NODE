@@ -20,6 +20,7 @@
 /****************************************************************/
 void Clr_BluenrgMS_Reset_Pin(void);
 void Set_BluenrgMS_Reset_Pin(void);
+void Send_SPI_Frame_To_BluenrgMS(void);
 
 
 /****************************************************************/
