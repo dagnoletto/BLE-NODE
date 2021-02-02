@@ -40,10 +40,14 @@
 /****************************************************************/
 void Reset_BluenrgMS(void)
 {
+	uint32_t TimerResetActive = 0;
 	/* TODO: Ler e inserir flags para verificar se a interrupção
 	 * deve ser lida ou não */
 	Clr_BluenrgMS_Reset_Pin(); /* Put device in hardware reset state */
-	Wait_DelayUs( 500 );
+
+	/* The longest value of TResetActive is 94 ms */
+	while( !TimeBase_DelayMs( &TimerResetActive, 100UL, FALSE) );
+
 	Set_BluenrgMS_Reset_Pin(); /* Put device in running mode */
 }
 
