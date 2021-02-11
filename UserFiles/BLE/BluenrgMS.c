@@ -61,7 +61,7 @@ void Reset_BluenrgMS(void)
 /****************************************************************/
 void BluenrgMS_IRQ(void)
 {
-
+	Send_SPI_Frame_To_BluenrgMS();
 }
 
 

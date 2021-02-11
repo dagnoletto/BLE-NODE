@@ -1,39 +1,68 @@
 
 
-#ifndef BLUENRG_MS_DRIVER_H_
-#define BLUENRG_MS_DRIVER_H_
+#ifndef HCI_TRANSPORT_LAYER_H_
+#define HCI_TRANSPORT_LAYER_H_
 
 
 /****************************************************************/
 /* Includes                                                     */
 /****************************************************************/
-#include "Types.h"
-#include "BLE_HAL.h"
-#include "TimeFunctions.h"
-#include "hci_transport_layer.h"
+#include "hci.h"
 
 
 /****************************************************************/
 /* Type Defines                                                 */
 /****************************************************************/
-typedef struct
-{
-	HCI_SERIAL_EVENT_PCKT EventPacket;
-}__attribute__((packed)) BLUENRG_EVENT_PCKT;
-
-
+/* Those are the packet types defined in the Bluetooth Core Specification */
+/* The standard defines the UART Transport Layer in v5.2 Volume 4: Part A */
 typedef enum
 {
-	SPI_WRITE,
-	SPI_READ,
-}BLUENRG_COMMAND;
+	HCI_COMMAND_PACKET 			= 0x01,
+	HCI_ACL_DATA_PACKET 		= 0x02,
+	HCI_SYNCHRONOUS_DATA_PACKET = 0x03,
+	HCI_EVENT_PACKET			= 0x04,
+	HCI_ISO_DATA_PACKET 		= 0x05
+}HCI_PACKET_TYPE;
+
+
+typedef struct
+{
+	uint8_t PacketType;
+	HCI_COMMAND_PCKT CmdPacket;
+}__attribute__((packed)) HCI_SERIAL_COMMAND_PCKT;
+
+
+typedef struct
+{
+	uint8_t PacketType;
+	HCI_ACL_DATA_PCKT ACLDataPacket;
+}__attribute__((packed)) HCI_SERIAL_ACL_DATA_PCKT;
+
+
+typedef struct
+{
+	uint8_t PacketType;
+	HCI_SYNCHRONOUS_DATA_PCKT SyncDataPacket;
+}__attribute__((packed)) HCI_SERIAL_SYNCHRONOUS_DATA_PCKT;
+
+
+typedef struct
+{
+	uint8_t PacketType;
+	HCI_EVENT_PCKT EventPacket;
+}__attribute__((packed)) HCI_SERIAL_EVENT_PCKT;
+
+
+typedef struct
+{
+	uint8_t PacketType;
+	HCI_ISO_DATA_PCKT ISODataPacket;
+}__attribute__((packed)) HCI_SERIAL_ISO_DATA_PCKT;
 
 
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-void Reset_BluenrgMS(void);
-void BluenrgMS_IRQ(void);
 
 
 /****************************************************************/
@@ -46,7 +75,7 @@ void BluenrgMS_IRQ(void);
 /****************************************************************/
 
 
-#endif /* BLUENRG_MS_DRIVER_H_ */
+#endif /* HCI_TRANSPORT_LAYER_H_ */
 
 
 /****************************************************************/
