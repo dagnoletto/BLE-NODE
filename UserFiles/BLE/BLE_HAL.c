@@ -6,7 +6,6 @@
 #include "BLE_HAL.h"
 #include "main.h"
 #include "spi.h"
-#include "hci_transport_layer.h"
 
 
 /****************************************************************/
@@ -17,9 +16,6 @@
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-static uint8_t Data_TX[] = { 0xB0, 0, 0, 0, 0, 0 };
-static uint8_t Data_RX[] = { 0, 0, 0, 0, 0, 0, 0 };
-static HCI_SERIAL_EVENT_PCKT Teste;
 
 
 /****************************************************************/
@@ -35,6 +31,7 @@ static HCI_SERIAL_EVENT_PCKT Teste;
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
+static TRANSFER_DESCRIPTOR* LastTransferDescPtr = NULL;
 
 
 /****************************************************************/
@@ -64,19 +61,24 @@ void Set_BluenrgMS_Reset_Pin(void)
 
 
 /****************************************************************/
-/* Send_SPI_Frame_To_BluenrgMS()                                */
+/* Request_BluenrgMS_Frame_Transmission()            	        */
 /* Purpose: Send SPI message to BluenrgMS	    		    	*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void Send_SPI_Frame_To_BluenrgMS(void)
+uint8_t Request_BluenrgMS_Frame_Transmission(TRANSFER_DESCRIPTOR* TransferDescPtr)
 {
-	//HAL_SPI_TransmitReceive( &hspi1, &Data_TX[0], &Data_RX[0], 1, 100 );
+	if( HAL_SPI_TransmitReceive_DMA( &hspi1, TransferDescPtr->TxPtr, TransferDescPtr->RxPtr, TransferDescPtr->DataSize ) == HAL_OK )
+	{
+		LastTransferDescPtr = TransferDescPtr;
+		return (TRUE);
+	}else
+	{
+		LastTransferDescPtr = NULL;
+		return (FALSE);
+	}
 
-	Data_TX[0] = 0X0B;
-	//HAL_SPI_Receive( &hspi1, &Data_TX[0], 5, 100 );
-	HAL_SPI_TransmitReceive_DMA( &hspi1, &Data_TX[0], &/*Teste*/Data_RX[0], 5 );
 	//TODO: disable half complete for transmission and disable interrupt on
 	//completion if there is only one frame and the frame has no callback
 }
@@ -91,7 +93,8 @@ void Send_SPI_Frame_To_BluenrgMS(void)
 /****************************************************************/
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 {
-	volatile uint8_t i = 0;
+	__HAL_SPI_DISABLE(hspi);
+
 }
 
 
@@ -104,22 +107,31 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 /****************************************************************/
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
-	static volatile uint8_t i = 0;
-	Data_TX[0] = 0X0B;
-    /* Disable SPI Peripheral */
-    __HAL_SPI_DISABLE(hspi);
-	//HAL_SPI_DMAStop(&hspi1);
-	//SPI_CloseRxTx_ISR(&hspi1);
+	__HAL_SPI_DISABLE(hspi);
+
+	if( LastTransferDescPtr != NULL )
+	{
+		if( LastTransferDescPtr->CallBack != NULL )
+		{
+			if( LastTransferDescPtr->CallBackMode == CALL_BACK_AFTER_TRANSFER )
+			{
+				LastTransferDescPtr->CallBack( LastTransferDescPtr->RxPtr, TRANSFER_DONE );
+			}else
+			{
+				//TODO: put in the callback queue
+			}
+		}
+	}
 	//HAL_SPI_Receive( &hspi1, &Data_TX[0], 5, 100 );
 	//HAL_SPI_TransmitReceive_DMA( &hspi1, &Data_TX[0], &/*Teste*/Data_RX[0], 5 );
-//	if( Data_RX[3] != 0 && Data_RX[0] == 0x02 )
-//	{
-//		i = 0;
-//		HAL_SPI_TransmitReceive_DMA( &hspi1, &Data_TX[0], &/*Teste*/Data_RX[0], Data_RX[3] );
-//	}else
-//	{
-//		HAL_SPI_TransmitReceive_DMA( &hspi1, &Data_TX[0], &/*Teste*/Data_RX[0], 6 );
-//	}
+	//	if( Data_RX[3] != 0 && Data_RX[0] == 0x02 )
+	//	{
+	//		i = 0;
+	//		HAL_SPI_TransmitReceive_DMA( &hspi1, &Data_TX[0], &/*Teste*/Data_RX[0], Data_RX[3] );
+	//	}else
+	//	{
+	//		HAL_SPI_TransmitReceive_DMA( &hspi1, &Data_TX[0], &/*Teste*/Data_RX[0], 6 );
+	//	}
 }
 
 
@@ -132,7 +144,9 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 /****************************************************************/
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
-	volatile uint8_t i = 0;
+	__HAL_SPI_DISABLE(hspi);
+
+
 	//TODO: oque fazer nos erros?
 }
 
