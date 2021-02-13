@@ -9,8 +9,9 @@
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
-#define CTRL_WRITE 0x0A
-#define CTRL_READ  0x0B
+#define CTRL_WRITE 	  0x0A
+#define CTRL_READ  	  0x0B
+#define DEVICE_READY  0x02
 
 
 /****************************************************************/
@@ -36,7 +37,8 @@ typedef struct
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-static void BluenrgMS_Slave_Header_CallBack(SPI_SLAVE_HEADER* Header, TRANSFER_STATUS Status);
+static uint8_t BluenrgMS_Slave_Header_CallBack(SPI_SLAVE_HEADER* Header, TRANSFER_STATUS Status);
+static uint8_t Request_Slave_Header(void);
 
 
 /****************************************************************/
@@ -52,6 +54,10 @@ const SPI_MASTER_HEADER SPIMasterHeaderRead  = { .CTRL = CTRL_READ, .Dummy = {0,
 static SPI_SLAVE_HEADER SPISlaveHeader;
 static TRANSFER_DESCRIPTOR TXDesc[SIZE_OF_TX_FRAME_BUFFER];
 static BUFFER_POSITION_DESC TXBuffer[SIZE_OF_TX_FRAME_BUFFER];
+static BUFFER_POSITION_DESC* FreeBuffer;
+static BUFFER_POSITION_DESC* LastTransferBuf = NULL;
+static uint8_t WriteBufferSize = 0;
+static uint8_t ReadBufferSize = 0;
 
 
 /****************************************************************/
@@ -91,26 +97,11 @@ void Reset_BluenrgMS(void)
 /****************************************************************/
 void BluenrgMS_IRQ(void)
 {
-	static BUFFER_POSITION_DESC* FreeBuffer;
-
 	/* TODO: first test if there is an ongoing operation */
 	if( /*!transfer_Running */ !0)
 	{
 
-		FreeBuffer = BluenrgMS_Get_Free_Frame_Buffer();
-		if( FreeBuffer != NULL )
-		{
-			/* Load transmitting queue position */
-			FreeBuffer->TransferDescPtr->TxPtr = (uint8_t*)( &SPIMasterHeaderRead.CTRL );
-			FreeBuffer->TransferDescPtr->RxPtr = &SPISlaveHeader.READY;
-			FreeBuffer->TransferDescPtr->DataSize = sizeof(SPISlaveHeader); /* Put always the size of reading buffer to avoid writing in random memory */
-			FreeBuffer->TransferDescPtr->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-			FreeBuffer->TransferDescPtr->CallBack = (TransferCallBack)( &BluenrgMS_Slave_Header_CallBack );
-			if( BluenrgMS_Enqueue_Frame( FreeBuffer, 1 ) != TRUE ) /* We have things to read, so put the command int he fisrt position of the queue */
-			{
-				///TODO: signals the system there is an SPI_IRQ request pending or verify after at Other interrupts the pin
-			}
-		}else
+		if( Request_Slave_Header() == FALSE )
 		{
 			///TODO: signals the system there is an SPI_IRQ request pending or verify after at Other interrupts the pin
 		}
@@ -141,6 +132,36 @@ BUFFER_POSITION_DESC* BluenrgMS_Get_Free_Frame_Buffer(void)
 
 
 /****************************************************************/
+/* BluenrgMS_Get_Frame_Buffer_Head()                            */
+/* Purpose: Get the pointer of the head of transfer queue.	 	*/
+/* This is the transfer/buffer pointer that is going to be sent	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+BUFFER_POSITION_DESC* BluenrgMS_Get_Frame_Buffer_Head(void)
+{
+	//TODO: verificar se o buffer está habilitado para ser enviado e etc
+	//return NULL if no frame is available
+	return (&TXBuffer[0]);
+}
+
+
+/****************************************************************/
+/* BluenrgMS_Release_Frame_Buffer()                             */
+/* Purpose: Release the frame just processed.					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void BluenrgMS_Release_Frame_Buffer(BUFFER_POSITION_DESC* BuffPtr)
+{
+	//TODO: liberar o buffer na lista de transmissão
+	BuffPtr->TxStatus = 0;
+}
+
+
+/****************************************************************/
 /* BluenrgMS_Enqueue_Frame()            	                    */
 /* Purpose: Enqueue the new frame for transmission in the  		*/
 /* output buffer												*/
@@ -150,15 +171,19 @@ BUFFER_POSITION_DESC* BluenrgMS_Get_Free_Frame_Buffer(void)
 /****************************************************************/
 uint8_t BluenrgMS_Enqueue_Frame(BUFFER_POSITION_DESC* Buffer, uint8_t position)
 {
-	/* TODO: check the position is free, if no other ongoing transmission, so can request here
-	 * the buffer to be sent */
+	/* TODO: check the position is free, put the request in the desired position if possible
+	 * make the buffer reordering. Load the position and only after that
+	 * issue Request_BluenrgMS_Frame_Transmission if only one buffer is scheduled
+	 * for transmission
+	 */
 
-	if( Request_BluenrgMS_Frame_Transmission(Buffer->TransferDescPtr) )
-	{
+	//if( Request_BluenrgMS_Frame_Transmission(Buffer->TransferDescPtr) )
+	//{
+	Request_BluenrgMS_Frame_Transmission();
 		return (TRUE); /* TODO: avaliar se foi empilhado adequadamente */
-	}
+	//}
 
-	return (FALSE); /* TODO: avaliar se foi empilhado adequadamente */
+	//return (FALSE); /* TODO: avaliar se foi empilhado adequadamente */
 }
 
 
@@ -170,9 +195,85 @@ uint8_t BluenrgMS_Enqueue_Frame(BUFFER_POSITION_DESC* Buffer, uint8_t position)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void BluenrgMS_Slave_Header_CallBack(SPI_SLAVE_HEADER* Header, TRANSFER_STATUS Status)
+static uint8_t BluenrgMS_Slave_Header_CallBack(SPI_SLAVE_HEADER* Header, TRANSFER_STATUS Status)
 {
 	//TODO: fazer a leitura consecutiva neste ponto
+	if( Header->READY == DEVICE_READY )
+	{
+		Header->WBUF = WriteBufferSize;
+		Header->RBUF = ReadBufferSize;
+		/* TODO: enqueue new packet */
+		/* TODO: check IRQ pin as below */
+		/* do not release spi if the next command is a read */
+		//return (DO_NOT_RELEASE_SPI); /* SPI was already release and a new transfer was requested */
+	}else
+	{
+		WriteBufferSize = 0;
+		ReadBufferSize = 0;
+
+		if( Get_BluenrgMS_IRQ_Pin() ) /* Check if the IRQ pin is set */
+		{
+			/* Enqueue a new slave header read to check if device is ready */
+			Request_Slave_Header();
+		}
+	}
+
+	return (RELEASE_SPI);
+}
+
+
+/****************************************************************/
+/* Request_Slave_Header()                   			        */
+/* Purpose: Read the slave header								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Request_Slave_Header(void)
+{
+	FreeBuffer = BluenrgMS_Get_Free_Frame_Buffer();
+
+	if( FreeBuffer != NULL )
+	{
+		/* Load transmitting queue position */
+		FreeBuffer->TransferDescPtr->TxPtr = (uint8_t*)( &SPIMasterHeaderRead.CTRL );
+		FreeBuffer->TransferDescPtr->RxPtr = &SPISlaveHeader.READY;
+		FreeBuffer->TransferDescPtr->DataSize = sizeof(SPISlaveHeader); /* Put always the size of reading buffer to avoid writing in random memory */
+		FreeBuffer->TransferDescPtr->CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		FreeBuffer->TransferDescPtr->CallBack = (TransferCallBack)( &BluenrgMS_Slave_Header_CallBack );
+		if( BluenrgMS_Enqueue_Frame( FreeBuffer, 1 ) != FALSE ) /* We have things to read, so put the command in the first position of the queue */
+		{
+			return (TRUE);
+		}
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Set_BluenrgMS_Last_Sent_Frame_Buffer()                       */
+/* Purpose: Set the pointer of last sent frame buffer			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Set_BluenrgMS_Last_Sent_Frame_Buffer(BUFFER_POSITION_DESC* Buf)
+{
+	LastTransferBuf = Buf;
+}
+
+
+/****************************************************************/
+/* Get_BluenrgMS_Last_Sent_Frame_Buffer()                       */
+/* Purpose: Get the pointer of last sent frame buffer			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+BUFFER_POSITION_DESC* Get_BluenrgMS_Last_Sent_Frame_Buffer(void)
+{
+	return ( LastTransferBuf );
 }
 
 

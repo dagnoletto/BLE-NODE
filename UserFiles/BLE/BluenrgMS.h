@@ -30,13 +30,20 @@ typedef enum
 
 typedef enum
 {
+	DO_NOT_RELEASE_SPI = 0,   /* The return of a SPI transaction callback does not allow SPI communication release */
+	RELEASE_SPI 	   = 1	  /* The return of a SPI transaction callback will release SPI communication */
+}SPI_RELEASE;
+
+
+typedef enum
+{
 	TRANSFER_DONE 		= 0, /* Transfer was successful */
 	TRANSFER_DEV_ERROR  = 1, /* Some error occurred with the hardware */
 	TRANSFER_TIMEOUT 	= 2  /* Could not within timeout */
 }TRANSFER_STATUS;
 
 
-typedef void (*TransferCallBack)(void* Header, uint8_t Status);
+typedef uint8_t (*TransferCallBack)(void* Header, uint8_t Status);
 
 
 typedef struct
@@ -63,10 +70,16 @@ typedef struct
 void Reset_BluenrgMS(void);
 void BluenrgMS_IRQ(void);
 BUFFER_POSITION_DESC* BluenrgMS_Get_Free_Frame_Buffer(void);
+BUFFER_POSITION_DESC* BluenrgMS_Get_Frame_Buffer_Head(void);
+void BluenrgMS_Release_Frame_Buffer(BUFFER_POSITION_DESC* BuffPtr);
+void Set_BluenrgMS_Last_Sent_Frame_Buffer(BUFFER_POSITION_DESC* Buf);
+BUFFER_POSITION_DESC* Get_BluenrgMS_Last_Sent_Frame_Buffer(void);
 uint8_t BluenrgMS_Enqueue_Frame(BUFFER_POSITION_DESC* Buffer, uint8_t position);
 extern void Clr_BluenrgMS_Reset_Pin(void);
 extern void Set_BluenrgMS_Reset_Pin(void);
-extern uint8_t Request_BluenrgMS_Frame_Transmission(TRANSFER_DESCRIPTOR* TransferDescPtr);
+extern uint8_t Get_BluenrgMS_IRQ_Pin(void);
+extern void Release_BluenrgMS_SPI(void);
+extern uint8_t Request_BluenrgMS_Frame_Transmission(void);
 
 
 /****************************************************************/
