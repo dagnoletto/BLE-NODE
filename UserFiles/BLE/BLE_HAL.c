@@ -86,30 +86,35 @@ void Release_BluenrgMS_SPI(void)
 
 
 /****************************************************************/
-/* Request_BluenrgMS_Frame_Transmission()            	        */
+/* Send_BluenrgMS_SPI_Frame()            				        */
 /* Purpose: Send SPI message to BluenrgMS	    		    	*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Request_BluenrgMS_Frame_Transmission(void)
+uint8_t Send_BluenrgMS_SPI_Frame(uint8_t* TxPtr, uint8_t* RxPtr, uint8_t DataSize)
 {
-	BUFFER_POSITION_DESC* Buf = BluenrgMS_Get_Frame_Buffer_Head();
+	HAL_StatusTypeDef status = HAL_SPI_TransmitReceive_DMA( &hspi1, TxPtr, RxPtr, DataSize );
 
-	if( Buf != NULL )
+	if( status != HAL_OK )
 	{
-		HAL_StatusTypeDef status = HAL_SPI_TransmitReceive_DMA( &hspi1, Buf->TransferDescPtr->TxPtr, Buf->TransferDescPtr->RxPtr, Buf->TransferDescPtr->DataSize );
-
-		if( status == HAL_OK )
-		{
-			Set_BluenrgMS_Last_Sent_Frame_Buffer( Buf );
-			return (TRUE);
-		}
+		return (FALSE);
 	}
 
-	Release_BluenrgMS_SPI();
-	Set_BluenrgMS_Last_Sent_Frame_Buffer( NULL );
-	return (FALSE);
+	return (TRUE);
+}
+
+
+/****************************************************************/
+/* HAL_SPI_TxRxCpltCallback()        	                        */
+/* Purpose: DMA TX and RX complete callback			 	    	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+	BluenrgMS_SPI_Frame_Transfer_Status( TRANSFER_DONE );
 }
 
 
@@ -123,47 +128,6 @@ uint8_t Request_BluenrgMS_Frame_Transmission(void)
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 {
 	Release_BluenrgMS_SPI();
-
-}
-
-
-/****************************************************************/
-/* HAL_SPI_TxRxCpltCallback()        	                        */
-/* Purpose: DMA TX and RX complete callback			 	    	*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-	SPI_RELEASE ReleaseSPI = RELEASE_SPI;
-	BUFFER_POSITION_DESC* LastBuf = Get_BluenrgMS_Last_Sent_Frame_Buffer();
-
-	if( LastBuf != NULL )
-	{
-		TRANSFER_DESCRIPTOR* Transfer = LastBuf->TransferDescPtr;
-
-		if( Transfer->CallBack != NULL )
-		{
-			if( Transfer->CallBackMode == CALL_BACK_AFTER_TRANSFER )
-			{
-				ReleaseSPI = Transfer->CallBack( Transfer->RxPtr, TRANSFER_DONE );
-			}else
-			{
-				//TODO: put in the callback queue
-			}
-		}
-
-		BluenrgMS_Release_Frame_Buffer( LastBuf );
-	}
-
-	if( ReleaseSPI == RELEASE_SPI )
-	{
-		Release_BluenrgMS_SPI();
-	}
-
-	Request_BluenrgMS_Frame_Transmission();
-
 }
 
 
@@ -177,8 +141,6 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
 	Release_BluenrgMS_SPI();
-
-
 	//TODO: oque fazer nos erros?
 }
 

@@ -43,6 +43,14 @@ typedef enum
 }TRANSFER_STATUS;
 
 
+typedef enum
+{
+	BUFFER_FREE 		= 0,
+	BUFFER_FULL 		= 1,
+	BUFFER_TRANSMITTING = 2
+}BUFFER_STATUS;
+
+
 typedef uint8_t (*TransferCallBack)(void* Header, uint8_t Status);
 
 
@@ -59,8 +67,10 @@ typedef struct
 
 typedef struct
 {
-	int8_t TxStatus; /* It indicates the status/place in the queue: if 0, it is being transmitted, if 1, will be sent next. If < 0, it is not available  */
+	uint8_t Status; /* It indicates the BUFFER_STATUS */
 	TRANSFER_DESCRIPTOR* TransferDescPtr;
+	void* Next;
+	void* Prev;
 }BUFFER_POSITION_DESC;
 
 
@@ -69,17 +79,14 @@ typedef struct
 /****************************************************************/
 void Reset_BluenrgMS(void);
 void BluenrgMS_IRQ(void);
-BUFFER_POSITION_DESC* BluenrgMS_Get_Free_Frame_Buffer(void);
-BUFFER_POSITION_DESC* BluenrgMS_Get_Frame_Buffer_Head(void);
-void BluenrgMS_Release_Frame_Buffer(BUFFER_POSITION_DESC* BuffPtr);
-void Set_BluenrgMS_Last_Sent_Frame_Buffer(BUFFER_POSITION_DESC* Buf);
-BUFFER_POSITION_DESC* Get_BluenrgMS_Last_Sent_Frame_Buffer(void);
-uint8_t BluenrgMS_Enqueue_Frame(BUFFER_POSITION_DESC* Buffer, uint8_t position);
+void BluenrgMS_SPI_Frame_Transfer_Status(TRANSFER_STATUS status);
+uint8_t BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);
+
 extern void Clr_BluenrgMS_Reset_Pin(void);
 extern void Set_BluenrgMS_Reset_Pin(void);
 extern uint8_t Get_BluenrgMS_IRQ_Pin(void);
 extern void Release_BluenrgMS_SPI(void);
-extern uint8_t Request_BluenrgMS_Frame_Transmission(void);
+extern uint8_t Send_BluenrgMS_SPI_Frame(uint8_t* TxPtr, uint8_t* RxPtr, uint8_t DataSize);
 
 
 /****************************************************************/
