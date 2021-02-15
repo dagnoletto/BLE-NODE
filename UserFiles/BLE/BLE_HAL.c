@@ -114,7 +114,7 @@ uint8_t Send_BluenrgMS_SPI_Frame(uint8_t* TxPtr, uint8_t* RxPtr, uint8_t DataSiz
 /****************************************************************/
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
-	BluenrgMS_SPI_Frame_Transfer_Status( TRANSFER_DONE );
+	Status_BluenrgMS_SPI_Frame( TRANSFER_DONE );
 }
 
 

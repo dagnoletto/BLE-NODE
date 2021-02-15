@@ -30,25 +30,10 @@ typedef enum
 
 typedef enum
 {
-	DO_NOT_RELEASE_SPI = 0,   /* The return of a SPI transaction callback does not allow SPI communication release */
-	RELEASE_SPI 	   = 1	  /* The return of a SPI transaction callback will release SPI communication */
-}SPI_RELEASE;
-
-
-typedef enum
-{
 	TRANSFER_DONE 		= 0, /* Transfer was successful */
 	TRANSFER_DEV_ERROR  = 1, /* Some error occurred with the hardware */
 	TRANSFER_TIMEOUT 	= 2  /* Could not within timeout */
 }TRANSFER_STATUS;
-
-
-typedef enum
-{
-	BUFFER_FREE 		= 0,
-	BUFFER_FULL 		= 1,
-	BUFFER_TRANSMITTING = 2
-}BUFFER_STATUS;
 
 
 typedef uint8_t (*TransferCallBack)(void* Header, uint8_t Status);
@@ -59,19 +44,9 @@ typedef struct
 	uint8_t* TxPtr;
 	uint8_t* RxPtr;
 	uint8_t DataSize;
-	//uint32_t TransferTimeout; /*TODO Is it needed? */
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
 }TRANSFER_DESCRIPTOR;
-
-
-typedef struct
-{
-	uint8_t Status; /* It indicates the BUFFER_STATUS */
-	TRANSFER_DESCRIPTOR* TransferDescPtr;
-	void* Next;
-	void* Prev;
-}BUFFER_POSITION_DESC;
 
 
 /****************************************************************/
@@ -79,14 +54,13 @@ typedef struct
 /****************************************************************/
 void Reset_BluenrgMS(void);
 void BluenrgMS_IRQ(void);
-void BluenrgMS_SPI_Frame_Transfer_Status(TRANSFER_STATUS status);
+extern uint8_t Send_BluenrgMS_SPI_Frame(uint8_t* TxPtr, uint8_t* RxPtr, uint8_t DataSize);
+void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status);
 uint8_t BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);
-
 extern void Clr_BluenrgMS_Reset_Pin(void);
 extern void Set_BluenrgMS_Reset_Pin(void);
 extern uint8_t Get_BluenrgMS_IRQ_Pin(void);
 extern void Release_BluenrgMS_SPI(void);
-extern uint8_t Send_BluenrgMS_SPI_Frame(uint8_t* TxPtr, uint8_t* RxPtr, uint8_t DataSize);
 
 
 /****************************************************************/

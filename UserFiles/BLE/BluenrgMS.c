@@ -34,6 +34,22 @@ typedef struct
 }SPI_SLAVE_HEADER;
 
 
+typedef enum
+{
+	BUFFER_FREE 		= 0,
+	BUFFER_FULL 		= 1,
+	BUFFER_TRANSMITTING = 2
+}BUFFER_STATUS;
+
+
+typedef struct
+{
+	uint8_t Status; /* It indicates the BUFFER_STATUS */
+	TRANSFER_DESCRIPTOR* TransferDescPtr;
+	void* Next;
+}BUFFER_POSITION_DESC;
+
+
 typedef struct
 {
 	uint8_t AllowedWriteSize;
@@ -44,6 +60,13 @@ typedef struct
 	TRANSFER_DESCRIPTOR TXDesc[SIZE_OF_TX_FRAME_BUFFER];
 	BUFFER_POSITION_DESC TXBuffer[SIZE_OF_TX_FRAME_BUFFER];
 }BUFFER_MANAGEMENT;
+
+
+typedef enum
+{
+	DO_NOT_RELEASE_SPI = 0,   /* The return of a SPI transaction callback does not allow SPI communication release */
+	RELEASE_SPI 	   = 1	  /* The return of a SPI transaction callback will release SPI communication */
+}SPI_RELEASE;
 
 
 /****************************************************************/
@@ -111,11 +134,9 @@ static void BluenrgMS_Init_Buffer_Manager(void)
 
 	BufferManager.BufferHead = &BufferManager.TXBuffer[0]; /* The head always points to the buffer to be transmitted first */
 	BufferManager.BufferHead->Next = &BufferManager.TXBuffer[0]; /* Points to the next buffer for transmission */
-	BufferManager.BufferHead->Prev = &BufferManager.TXBuffer[0]; /* Points to the last buffer */
 
 	BufferManager.BufferTail = &BufferManager.TXBuffer[0]; /* The tail always points to last filled buffer */
 	BufferManager.BufferTail->Next = &BufferManager.TXBuffer[0]; /* Points to the next free buffer */
-	BufferManager.BufferTail->Prev = &BufferManager.TXBuffer[0]; /* Points to the last buffer */
 
 	BufferManager.AllowedWriteSize = 0;
 	BufferManager.SizeToRead = 0;
@@ -135,12 +156,10 @@ void BluenrgMS_IRQ(void)
 	/* TODO: first test if there is an ongoing operation */
 	if( /*!transfer_Running */ !0)
 	{
-
 		if( Request_Slave_Header() == FALSE )
 		{
 			///TODO: signals the system there is an SPI_IRQ request pending or verify after at Other interrupts the pin
 		}
-
 	}else
 	{
 		/* ///TODO signals the data read back during the last operation might be use full, check after tx complete */
@@ -152,7 +171,7 @@ void BluenrgMS_IRQ(void)
 
 /****************************************************************/
 /* BluenrgMS_Get_Frame_Buffer_Head()                            */
-/* Purpose: Get the pointer of the head of transfer queue.	 	*/
+/* Purpose: Get the pointer of the head of the transfer queue.	*/
 /* This is the transfer/buffer pointer that is going to be sent	*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
@@ -172,7 +191,7 @@ static TRANSFER_DESCRIPTOR* BluenrgMS_Get_Frame_Buffer_Head(void)
 
 /****************************************************************/
 /* BluenrgMS_Release_Frame_Buffer()                             */
-/* Purpose: Release the frame head.								*/
+/* Purpose: Release the transfer buffer head.					*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
@@ -209,14 +228,16 @@ static void BluenrgMS_Release_Frame_Buffer(void)
 uint8_t BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index)
 {
 	/* TODO: THIS PROCEDURE CANNOT BE INTERRUPTED BY SPI INTERRUPTS */
-	/* BufferTail always represents the next available free buffer. If NULL, means
-	 * all buffers are busy and transfer cannot be scheduled */
+	/* BufferTail always represents the last filled buffer.
+	 * BufferHead always represents the first filled buffer.
+	 * BufferTail->Next points to a free buffer, otherwise is NULL if free buffers could not be found */
 
+	/* Check if the next buffer after tail is available */
 	BUFFER_POSITION_DESC* BufferPtr = BufferManager.BufferTail->Next;
 
 	if( BufferPtr != NULL )
 	{
-		if( BufferPtr->Status == BUFFER_FREE ) /* Is, indeed, free */
+		if( BufferPtr->Status == BUFFER_FREE ) /* Check if buffer is free */
 		{
 
 			*( BufferPtr->TransferDescPtr ) = *TransferDescPtr; /* Occupy this buffer */
@@ -225,71 +246,64 @@ uint8_t BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buf
 
 			/* Search for next free buffer */
 			BufferPtr->Next = BluenrgMS_Search_For_Free_Buffer();
-			BufferPtr->Prev = BufferManager.BufferTail;
 			BufferManager.BufferTail = BufferPtr;
 
-			if( BufferManager.NumberOfFilledBuffers > 1 ) /* When more that one buffer is loaded, it is possible to reorder */
+			if( BufferManager.NumberOfFilledBuffers > 1 ) /* When more than one buffer is loaded, it is possible to reorder */
 			{
-				BUFFER_POSITION_DESC* ParentBuffer = BufferManager.BufferHead;
-				BUFFER_POSITION_DESC* DesiredBuffer = BufferManager.BufferHead;
-
-				if( buffer_index < 0 ){ buffer_index = 0; }
-				else if( buffer_index > (SIZE_OF_TX_FRAME_BUFFER - 1) ){ buffer_index = (SIZE_OF_TX_FRAME_BUFFER - 1); }
-
-				if( ( buffer_index == 0 ) && ( BufferManager.BufferHead->Status == BUFFER_TRANSMITTING ) )
+				/* Makes no sense to reorder if desired position is higher than actual buffer usage */
+				if( buffer_index < ( BufferManager.NumberOfFilledBuffers - 1 ) )
 				{
-					/* Cannot interfere with the head being transmitted */
-					buffer_index = 1;
-				}
+					BUFFER_POSITION_DESC* ParentBuffer = BufferManager.BufferHead;
+					BUFFER_POSITION_DESC* DesiredBuffer = BufferManager.BufferHead;
+					BUFFER_POSITION_DESC* BeforeDesired = BufferManager.BufferHead;
 
-				/* There exists positions filled in the buffer, trace the path */
-				int8_t filled_index;
-				for ( filled_index = 0; filled_index < SIZE_OF_TX_FRAME_BUFFER; filled_index++ )
-				{
-					if( filled_index == buffer_index )
+					if( buffer_index < 0 ){ buffer_index = 0; }
+					else if( buffer_index > (SIZE_OF_TX_FRAME_BUFFER - 1) ){ buffer_index = (SIZE_OF_TX_FRAME_BUFFER - 1); }
+
+					if( ( buffer_index == 0 ) && ( BufferManager.BufferHead->Status == BUFFER_TRANSMITTING ) )
 					{
-						DesiredBuffer = ParentBuffer;
+						/* Cannot interfere with the head being transmitted */
+						buffer_index = 1;
 					}
-					if( ParentBuffer->Next != BufferManager.BufferTail )
+
+					if( buffer_index < ( BufferManager.NumberOfFilledBuffers - 1 ) )
 					{
-						ParentBuffer = ParentBuffer->Next;
-					}else
-					{
-						break;
+						/* There exists positions filled in the buffer, trace the path */
+						for ( int8_t filled_index = 0; filled_index < SIZE_OF_TX_FRAME_BUFFER; filled_index++ )
+						{
+							if( filled_index == buffer_index )
+							{
+								DesiredBuffer = ParentBuffer;
+							}else if( filled_index == ( buffer_index - 1 ) )
+							{
+								BeforeDesired = ParentBuffer;
+							}
+							if( ParentBuffer->Next == BufferManager.BufferTail )
+							{
+								break;
+							}else
+							{
+								ParentBuffer = ParentBuffer->Next;
+							}
+						}
+
+						/* The parent buffer do not point to Tail anymore, but to the "Tail.Next": */
+						ParentBuffer->Next = BufferManager.BufferTail->Next;
+						BufferManager.BufferTail->Next = DesiredBuffer;
+
+						if( BeforeDesired != DesiredBuffer )
+						{
+							BeforeDesired->Next = BufferManager.BufferTail;
+						}
+
+						if( buffer_index == 0 ) /* If the tails wants to become the head */
+						{
+							BufferManager.BufferHead = BufferManager.BufferTail;
+						}
+
+						BufferManager.BufferTail = ParentBuffer;
 					}
 				}
-
-//				if( buffer_index <= filled_index )
-//				{
-//
-//					//TODO: CORRIGIR ISSO, NÃO FUNCIONA EM TODAS AS SITUAÇÕES
-//
-//					/* It only makes sense to reorder buffers if desired position is lower or equal the actual buffer usage */
-//					/* The parent buffer do not point to Tail anymore, but to the "Next" Tail: */
-//					ParentBuffer->Next = BufferManager.BufferTail->Next;
-//
-//					/* The "Next" and "Prev" for Tail is not the Free buffer, but it is the position it is taking over */
-//					BufferManager.BufferTail->Next = DesiredBuffer;
-//
-//					if( DesiredBuffer->Prev != DesiredBuffer )
-//					{
-//						BufferManager.BufferTail->Prev = DesiredBuffer->Prev;
-//					}else
-//					{
-//						BufferManager.BufferTail->Prev = BufferManager.BufferTail;
-//					}
-//
-//					/* The Desire buffer "Prev" now should point to the one that comes before it  */
-//					DesiredBuffer->Prev = BufferManager.BufferTail;
-//
-//					if( BufferManager.BufferHead == DesiredBuffer )
-//					{
-//						BufferManager.BufferHead = BufferManager.BufferTail;
-//					}
-//
-//					BufferManager.BufferTail = ParentBuffer;
-//				}
-
 			}else
 			{
 				Request_BluenrgMS_Frame_Transmission();
@@ -306,12 +320,12 @@ uint8_t BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buf
 
 /****************************************************************/
 /* Request_BluenrgMS_Frame_Transmission()            	        */
-/* Purpose: Send SPI message to BluenrgMS	    		    	*/
+/* Purpose: Request buffer transmission.	    		    	*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void Request_BluenrgMS_Frame_Transmission(void)
+static void Request_BluenrgMS_Frame_Transmission(void)
 {
 	TRANSFER_DESCRIPTOR* TransferDescPtr = BluenrgMS_Get_Frame_Buffer_Head();
 
@@ -326,13 +340,13 @@ void Request_BluenrgMS_Frame_Transmission(void)
 
 
 /****************************************************************/
-/* BluenrgMS_SPI_Frame_Transfer_Status()         	     		*/
+/* Status_BluenrgMS_SPI_Frame()         	     				*/
 /* Purpose: SPI transfer completed in hardware	    		   	*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void BluenrgMS_SPI_Frame_Transfer_Status(TRANSFER_STATUS status)
+void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status)
 {
 	SPI_RELEASE ReleaseSPI = RELEASE_SPI;
 	TRANSFER_DESCRIPTOR* TransferDescPtr = BluenrgMS_Get_Frame_Buffer_Head();
@@ -371,7 +385,9 @@ void BluenrgMS_SPI_Frame_Transfer_Status(TRANSFER_STATUS status)
 /****************************************************************/
 static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void)
 {
-	//TODO: quem sabe pode ser melhorado para encontrar buffer livre mais rápido
+	/* Search for an available free buffer. This function is not optimized
+	 * in the sense it could start from a speculative index based on current
+	 * buffer usage to more quickly find a buffer. */
 	for ( int8_t i = 0; i < SIZE_OF_TX_FRAME_BUFFER; i++ )
 	{
 		if( BufferManager.TXBuffer[i].Status == BUFFER_FREE )
@@ -440,7 +456,7 @@ static uint8_t BluenrgMS_Slave_Header_CallBack(SPI_SLAVE_HEADER* Header, TRANSFE
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Request_Slave_Header(void)
+static uint8_t Request_Slave_Header(void)
 {
 	TRANSFER_DESCRIPTOR TransferDesc;
 
@@ -453,7 +469,6 @@ uint8_t Request_Slave_Header(void)
 
 	/* We need to know if we have to read or how much we can write, so put the command in the first position of the queue */
 	return ( BluenrgMS_Enqueue_Frame( &TransferDesc, 1 ) );
-
 }
 
 
