@@ -146,5 +146,18 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 
 
 /****************************************************************/
+/* BluenrgMS_Error()               	                            */
+/* Purpose: Called whenever the device has a problem	  		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void BluenrgMS_Error(BLUENRG_ERROR_CODES Errorcode)
+{
+	Reset_BluenrgMS();
+}
+
+
+/****************************************************************/
 /* End of file	                                                */
 /****************************************************************/

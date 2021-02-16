@@ -12,6 +12,8 @@
 #define CTRL_WRITE 	  0x0A
 #define CTRL_READ  	  0x0B
 #define DEVICE_READY  0x02
+#define LOCAL_TX_BYTE_BUFFER_SIZE 255 /* Minimum value is 127 */
+#define LOCAL_RX_BYTE_BUFFER_SIZE 255 /* Minimum value is 127 */
 
 
 /****************************************************************/
@@ -54,7 +56,7 @@ typedef struct
 {
 	uint8_t AllowedWriteSize;
 	uint8_t SizeToRead;
-	uint8_t NumberOfFilledBuffers;
+	int8_t NumberOfFilledBuffers;
 	BUFFER_POSITION_DESC* BufferHead; /* The head always points to the buffer to be transmitted first */
 	BUFFER_POSITION_DESC* BufferTail; /* The tail always points to a free buffer */
 	TRANSFER_DESCRIPTOR TXDesc[SIZE_OF_TX_FRAME_BUFFER];
@@ -72,13 +74,12 @@ typedef enum
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-static uint8_t BluenrgMS_Slave_Header_CallBack(SPI_SLAVE_HEADER* Header, TRANSFER_STATUS Status);
-static uint8_t Request_Slave_Header(void);
+static uint8_t BluenrgMS_Slave_Header_CallBack(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status);
+static void Request_Slave_Header(void);
 static void BluenrgMS_Init_Buffer_Manager(void);
-static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void);
-static void Request_BluenrgMS_Frame_Transmission(void);
-static TRANSFER_DESCRIPTOR* BluenrgMS_Get_Frame_Buffer_Head(void);
-static void BluenrgMS_Release_Frame_Buffer(void);
+inline static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void) __attribute__((always_inline));
+inline static void Request_BluenrgMS_Frame_Transmission(void) __attribute__((always_inline));
+inline static void BluenrgMS_Release_Frame_Buffer(void) __attribute__((always_inline));
 
 
 /****************************************************************/
@@ -93,6 +94,10 @@ const SPI_MASTER_HEADER SPIMasterHeaderWrite = { .CTRL = CTRL_WRITE, .Dummy = {0
 const SPI_MASTER_HEADER SPIMasterHeaderRead  = { .CTRL = CTRL_READ, .Dummy = {0,0,0,} };
 static SPI_SLAVE_HEADER SPISlaveHeader;
 static BUFFER_MANAGEMENT BufferManager;
+static uint8_t TXBytes[LOCAL_TX_BYTE_BUFFER_SIZE];
+static uint8_t RXBytes[LOCAL_RX_BYTE_BUFFER_SIZE];
+static uint32_t TimerResetActive = 0;
+static uint8_t ResetBluenrgMSRequest = TRUE;
 
 
 /****************************************************************/
@@ -104,16 +109,53 @@ static BUFFER_MANAGEMENT BufferManager;
 /****************************************************************/
 void Reset_BluenrgMS(void)
 {
-	uint32_t TimerResetActive = 0;
-
 	BluenrgMS_Init_Buffer_Manager();
 
 	Clr_BluenrgMS_Reset_Pin(); /* Put device in hardware reset state */
 
-	/* The longest value of TResetActive is 94 ms */
-	while( !TimeBase_DelayMs( &TimerResetActive, 100UL, FALSE) );
+	ResetBluenrgMSRequest = TRUE;
+	TimerResetActive = 0;
+}
 
-	Set_BluenrgMS_Reset_Pin(); /* Put device in running mode */
+
+/****************************************************************/
+/* Run_BluenrgMS()               	                            */
+/* Purpose: Continuous function call to run the BluenrgMS  		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Run_BluenrgMS(void)
+{
+	if( ResetBluenrgMSRequest )
+	{
+		BluenrgMS_Init_Buffer_Manager();
+
+		Clr_BluenrgMS_Reset_Pin(); /* Put device in hardware reset state */
+
+		/* The longest value of TResetActive is 94 ms */
+		if( TimeBase_DelayMs( &TimerResetActive, 100UL, FALSE) )
+		{
+			Set_BluenrgMS_Reset_Pin(); /* Put device in running mode */
+			ResetBluenrgMSRequest = FALSE;
+		}
+	}else
+	{
+
+	}
+}
+
+
+/****************************************************************/
+/* BluenrgMS_Error()               	                            */
+/* Purpose: Called whenever the device has a problem	  		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void BluenrgMS_Error(BLUENRG_ERROR_CODES Errorcode)
+{
+	Reset_BluenrgMS();
 }
 
 
@@ -153,39 +195,8 @@ static void BluenrgMS_Init_Buffer_Manager(void)
 /****************************************************************/
 void BluenrgMS_IRQ(void)
 {
-	/* TODO: first test if there is an ongoing operation */
-	if( /*!transfer_Running */ !0)
-	{
-		if( Request_Slave_Header() == FALSE )
-		{
-			///TODO: signals the system there is an SPI_IRQ request pending or verify after at Other interrupts the pin
-		}
-	}else
-	{
-		/* ///TODO signals the data read back during the last operation might be use full, check after tx complete */
-		// Apesar que ser for um comando de escrita o bluenrg não vai "descarregar os dados" e sim enviar um lixo no
-		//spi de retorno
-	}
-}
-
-
-/****************************************************************/
-/* BluenrgMS_Get_Frame_Buffer_Head()                            */
-/* Purpose: Get the pointer of the head of the transfer queue.	*/
-/* This is the transfer/buffer pointer that is going to be sent	*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static TRANSFER_DESCRIPTOR* BluenrgMS_Get_Frame_Buffer_Head(void)
-{
-	if( BufferManager.BufferHead->Status != BUFFER_FREE )
-	{
-		BufferManager.BufferHead->Status = BUFFER_TRANSMITTING;
-
-		return ( BufferManager.BufferHead->TransferDescPtr );
-	}
-	return ( NULL );
+	/* There is something to read, so enqueue a Slave_Header Request to see how many bytes to read */
+	Request_Slave_Header();
 }
 
 
@@ -198,22 +209,15 @@ static TRANSFER_DESCRIPTOR* BluenrgMS_Get_Frame_Buffer_Head(void)
 /****************************************************************/
 static void BluenrgMS_Release_Frame_Buffer(void)
 {
-	if( BufferManager.BufferHead->Status == BUFFER_TRANSMITTING )
+	BufferManager.BufferHead->Status = BUFFER_FREE;
+	BufferManager.NumberOfFilledBuffers--;
+
+	if( BufferManager.BufferTail->Next == NULL )
 	{
-		BUFFER_POSITION_DESC* NewHead;
-
-		BufferManager.BufferHead->Status = BUFFER_FREE;
-		BufferManager.NumberOfFilledBuffers--;
-
-		if( BufferManager.BufferTail->Next == NULL )
-		{
-			BufferManager.BufferTail->Next = BufferManager.BufferHead;
-		}
-
-		NewHead = BufferManager.BufferHead->Next;
-
-		BufferManager.BufferHead = NewHead;
+		BufferManager.BufferTail->Next = BufferManager.BufferHead;
 	}
+
+	BufferManager.BufferHead = BufferManager.BufferHead->Next;
 }
 
 
@@ -225,12 +229,14 @@ static void BluenrgMS_Release_Frame_Buffer(void)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index)
+FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index)
 {
 	/* TODO: THIS PROCEDURE CANNOT BE INTERRUPTED BY SPI INTERRUPTS */
 	/* BufferTail always represents the last filled buffer.
 	 * BufferHead always represents the first filled buffer.
 	 * BufferTail->Next points to a free buffer, otherwise is NULL if free buffers could not be found */
+
+	FRAME_ENQUEUE_STATUS Status;
 
 	/* Check if the next buffer after tail is available */
 	BUFFER_POSITION_DESC* BufferPtr = BufferManager.BufferTail->Next;
@@ -251,7 +257,9 @@ uint8_t BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buf
 			if( BufferManager.NumberOfFilledBuffers > 1 ) /* When more than one buffer is loaded, it is possible to reorder */
 			{
 				/* Makes no sense to reorder if desired position is higher than actual buffer usage */
-				if( buffer_index < ( BufferManager.NumberOfFilledBuffers - 1 ) )
+				int8_t LastFilledPosition = BufferManager.NumberOfFilledBuffers - 1;
+
+				if( buffer_index < LastFilledPosition )
 				{
 					BUFFER_POSITION_DESC* ParentBuffer = BufferManager.BufferHead;
 					BUFFER_POSITION_DESC* DesiredBuffer = BufferManager.BufferHead;
@@ -302,19 +310,36 @@ uint8_t BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buf
 						}
 
 						BufferManager.BufferTail = ParentBuffer;
+
+						Status.EnqueuedAtIndex = buffer_index;
+					}else
+					{
+						Status.EnqueuedAtIndex = LastFilledPosition;
 					}
+				}else
+				{
+					Status.EnqueuedAtIndex = LastFilledPosition;
 				}
 			}else
 			{
 				Request_BluenrgMS_Frame_Transmission();
+
+				Status.EnqueuedAtIndex = 0;
 			}
 
-			return (TRUE);
+			Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
+
+			return (Status);
 
 		}
 	}
 
-	return ( FALSE ); /* Could no enqueue the transfer */
+	Status.EnqueuedAtIndex = -1; /* Could not enqueue the frame */
+	Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
+
+	BluenrgMS_Error( MESSAGE_QUEUE_IS_FULL );
+
+	return ( Status ); /* Could not enqueue the transfer */
 }
 
 
@@ -327,10 +352,12 @@ uint8_t BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buf
 /****************************************************************/
 static void Request_BluenrgMS_Frame_Transmission(void)
 {
-	TRANSFER_DESCRIPTOR* TransferDescPtr = BluenrgMS_Get_Frame_Buffer_Head();
-
-	if( TransferDescPtr != NULL )
+	if( BufferManager.BufferHead->Status == BUFFER_FULL )
 	{
+		TRANSFER_DESCRIPTOR* TransferDescPtr = BufferManager.BufferHead->TransferDescPtr;
+
+		BufferManager.BufferHead->Status = BUFFER_TRANSMITTING;
+
 		if( Send_BluenrgMS_SPI_Frame( TransferDescPtr->TxPtr, TransferDescPtr->RxPtr, TransferDescPtr->DataSize ) == FALSE )
 		{
 			Release_BluenrgMS_SPI();
@@ -349,18 +376,19 @@ static void Request_BluenrgMS_Frame_Transmission(void)
 void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status)
 {
 	SPI_RELEASE ReleaseSPI = RELEASE_SPI;
-	TRANSFER_DESCRIPTOR* TransferDescPtr = BluenrgMS_Get_Frame_Buffer_Head();
 
-	if( TransferDescPtr != NULL && status == TRANSFER_DONE )
+	if( BufferManager.BufferHead->Status == BUFFER_TRANSMITTING )
 	{
+		TRANSFER_DESCRIPTOR* TransferDescPtr = BufferManager.BufferHead->TransferDescPtr;
+
 		if( TransferDescPtr->CallBack != NULL )
 		{
 			if( TransferDescPtr->CallBackMode == CALL_BACK_AFTER_TRANSFER )
 			{
-				ReleaseSPI = TransferDescPtr->CallBack( TransferDescPtr->RxPtr, TRANSFER_DONE );
+				ReleaseSPI = TransferDescPtr->CallBack( TransferDescPtr, status );
 			}else
 			{
-				//TODO: put in the callback queue
+				//TODO: put in the callback queue: the transfer and data must be copied in order to release the transfer buffer below
 			}
 		}
 
@@ -407,9 +435,11 @@ static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t BluenrgMS_Slave_Header_CallBack(SPI_SLAVE_HEADER* Header, TRANSFER_STATUS Status)
+static uint8_t BluenrgMS_Slave_Header_CallBack(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status)
 {
 	//TODO: fazer a leitura consecutiva neste ponto
+	SPI_SLAVE_HEADER* Header = (SPI_SLAVE_HEADER*)( Transfer->RxPtr );
+
 	if( Header->READY == DEVICE_READY )
 	{
 		BufferManager.AllowedWriteSize = Header->WBUF;
@@ -428,10 +458,12 @@ static uint8_t BluenrgMS_Slave_Header_CallBack(SPI_SLAVE_HEADER* Header, TRANSFE
 			//TODO: verify if there are commands to write and if there have datalength equal or lower the ammount available
 		}else
 		{
-			//TODO: if there are still commands to process, make a header read to know when device has allowed more data transfer
-			//if (has commands on buffer)
-			/* Enqueue a new slave header read to check when device allows more data */
-			Request_Slave_Header();
+			/* If there are still commands to process, make a header read to know when device has allowed more data transfer */
+			if (BufferManager.NumberOfFilledBuffers)
+			{
+				/* Enqueue a new slave header read to check when device allows more data */
+				Request_Slave_Header();
+			}
 		}
 	}else
 	{
@@ -456,7 +488,7 @@ static uint8_t BluenrgMS_Slave_Header_CallBack(SPI_SLAVE_HEADER* Header, TRANSFE
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Request_Slave_Header(void)
+static void Request_Slave_Header(void)
 {
 	TRANSFER_DESCRIPTOR TransferDesc;
 
@@ -468,7 +500,7 @@ static uint8_t Request_Slave_Header(void)
 	TransferDesc.CallBack = (TransferCallBack)( &BluenrgMS_Slave_Header_CallBack );
 
 	/* We need to know if we have to read or how much we can write, so put the command in the first position of the queue */
-	return ( BluenrgMS_Enqueue_Frame( &TransferDesc, 1 ) );
+	BluenrgMS_Enqueue_Frame( &TransferDesc, 0 );
 }
 
 

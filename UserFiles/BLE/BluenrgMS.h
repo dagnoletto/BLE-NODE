@@ -49,14 +49,30 @@ typedef struct
 }TRANSFER_DESCRIPTOR;
 
 
+typedef struct
+{
+	int8_t EnqueuedAtIndex; /* If negative, means that frame was not enqueued */
+	int8_t NumberOfEnqueuedFrames;
+}FRAME_ENQUEUE_STATUS;
+
+
+typedef enum
+{
+	DEVICE_CONDITION_NOT_EXPECTED   = 0, /* The device is in a not expected state */
+	MESSAGE_QUEUE_IS_FULL 			= 1	 /* The message queue buffer is full. */
+}BLUENRG_ERROR_CODES;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
 void Reset_BluenrgMS(void);
+void Run_BluenrgMS(void);
 void BluenrgMS_IRQ(void);
 extern uint8_t Send_BluenrgMS_SPI_Frame(uint8_t* TxPtr, uint8_t* RxPtr, uint8_t DataSize);
+extern void BluenrgMS_Error(BLUENRG_ERROR_CODES Errorcode);
 void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status);
-uint8_t BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);
+FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);
 extern void Clr_BluenrgMS_Reset_Pin(void);
 extern void Set_BluenrgMS_Reset_Pin(void);
 extern uint8_t Get_BluenrgMS_IRQ_Pin(void);
