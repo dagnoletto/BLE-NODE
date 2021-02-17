@@ -43,7 +43,7 @@ typedef struct
 {
 	uint8_t* TxPtr;
 	uint8_t* RxPtr;
-	uint8_t DataSize;
+	uint16_t DataSize;
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
 }TRANSFER_DESCRIPTOR;
@@ -58,8 +58,10 @@ typedef struct
 
 typedef enum
 {
-	DEVICE_CONDITION_NOT_EXPECTED   = 0, /* The device is in a not expected state */
-	MESSAGE_QUEUE_IS_FULL 			= 1	 /* The message queue buffer is full. */
+	DEVICE_CONDITION_NOT_EXPECTED   = 0,  /* The device is in a not expected state */
+	MESSAGE_QUEUE_IS_FULL 			= 1,  /* The message queue buffer is full. */
+	READ_ARGS_ERROR		 			= 2,  /* The read process could not start because of error in the reading arguments. */
+	UNKNOWN_ERROR		 			= 3   /* Unknown error. */
 }BLUENRG_ERROR_CODES;
 
 
@@ -69,10 +71,10 @@ typedef enum
 void Reset_BluenrgMS(void);
 void Run_BluenrgMS(void);
 void BluenrgMS_IRQ(void);
-extern uint8_t Send_BluenrgMS_SPI_Frame(uint8_t* TxPtr, uint8_t* RxPtr, uint8_t DataSize);
+extern uint8_t Send_BluenrgMS_SPI_Frame(uint8_t* TxPtr, uint8_t* RxPtr, uint16_t DataSize);
 extern void BluenrgMS_Error(BLUENRG_ERROR_CODES Errorcode);
 void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status);
-FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);
+FRAME_ENQUEUE_STATUS BluenrgMS_Add_Message(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);
 extern void Clr_BluenrgMS_Reset_Pin(void);
 extern void Set_BluenrgMS_Reset_Pin(void);
 extern uint8_t Get_BluenrgMS_IRQ_Pin(void);
