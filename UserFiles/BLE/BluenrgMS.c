@@ -12,9 +12,8 @@
 #define CTRL_WRITE 	  0x0A
 #define CTRL_READ  	  0x0B
 #define DEVICE_READY  0x02
-#define LOCAL_TX_BYTE_BUFFER_SIZE 255 /* Minimum value is 127 */
-#define LOCAL_RX_BYTE_BUFFER_SIZE 255 /* Minimum value is 127 */
-#define MAXIMUM_SIZE_OF_HCI_HEADER	4 /* TODO: verificar o maior tamanho possível de um header de HCI */
+#define LOCAL_TX_BYTE_BUFFER_SIZE ( 255 ) /* Minimum value is 127 */
+#define LOCAL_RX_BYTE_BUFFER_SIZE ( 255 ) /* Minimum value is 127 */
 
 
 /****************************************************************/
@@ -41,7 +40,8 @@ typedef enum
 {
 	BUFFER_FREE 		= 0,
 	BUFFER_FULL 		= 1,
-	BUFFER_TRANSMITTING = 2
+	BUFFER_TRANSMITTING = 2,
+	BUFFER_PAUSED 		= 3
 }BUFFER_STATUS;
 
 
@@ -57,7 +57,11 @@ typedef struct
 {
 	uint8_t Status; /* It indicates the BUFFER_STATUS */
 	uint8_t TransferMode; /* It indicates the SPI_TRANSFER_MODE */
+	uint8_t* TxPtr;
+	uint8_t* RxPtr;
 	uint16_t RemainingBytes;
+	uint16_t Counter;
+	uint16_t BytesPerformedLastTime;
 	TRANSFER_DESCRIPTOR* TransferDescPtr;
 	void* Next;
 }BUFFER_POSITION_DESC;
@@ -88,7 +92,8 @@ typedef enum
 static uint8_t BluenrgMS_Slave_Header_CallBack(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status);
 static void Request_Slave_Header(void);
 static void BluenrgMS_Init_Buffer_Manager(void);
-static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode);
+static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index,
+		uint8_t* DataPtr, SPI_TRANSFER_MODE TransferMode);
 inline static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void) __attribute__((always_inline));
 static void Request_BluenrgMS_Frame_Transmission(void);
 inline static void BluenrgMS_Release_Frame_Buffer(void) __attribute__((always_inline));
@@ -104,6 +109,7 @@ inline static void BluenrgMS_Release_Frame_Buffer(void) __attribute__((always_in
 /****************************************************************/
 const SPI_MASTER_HEADER SPIMasterHeaderWrite = { .CTRL = CTRL_WRITE, .Dummy = {0,0,0,} };
 const SPI_MASTER_HEADER SPIMasterHeaderRead  = { .CTRL = CTRL_READ, .Dummy = {0,0,0,} };
+const uint8_t DummyByteTX = 0;
 static SPI_SLAVE_HEADER SPISlaveHeader;
 static BUFFER_MANAGEMENT BufferManager;
 static uint8_t TXBytes[LOCAL_TX_BYTE_BUFFER_SIZE];
@@ -243,7 +249,7 @@ static void BluenrgMS_Release_Frame_Buffer(void)
 FRAME_ENQUEUE_STATUS BluenrgMS_Add_Message(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index)
 {
 	/* External calls are always write calls. Read calls are triggered by IRQ pin. */
-	FRAME_ENQUEUE_STATUS Status = BluenrgMS_Enqueue_Frame(TransferDescPtr, buffer_index, SPI_WRITE);
+	FRAME_ENQUEUE_STATUS Status = BluenrgMS_Enqueue_Frame(TransferDescPtr, buffer_index, TransferDescPtr->DataPtr, SPI_WRITE);
 
 	/* This is the first successfully enqueued write message, so, request transmission */
 	if( ( Status.EnqueuedAtIndex == 0 ) && ( BufferManager.NumberOfFilledBuffers == 1 ) )
@@ -264,7 +270,7 @@ FRAME_ENQUEUE_STATUS BluenrgMS_Add_Message(TRANSFER_DESCRIPTOR* TransferDescPtr,
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode)
+static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, uint8_t* DataPtr, SPI_TRANSFER_MODE TransferMode)
 {
 	/* TODO: THIS PROCEDURE CANNOT BE INTERRUPTED BY SPI INTERRUPTS */
 	/* BufferTail always represents the last filled buffer.
@@ -285,10 +291,27 @@ static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* Transfe
 			BufferPtr->Status = BUFFER_FULL;
 			BufferPtr->TransferMode = TransferMode;
 			BufferPtr->RemainingBytes = TransferDescPtr->DataSize;
+			BufferPtr->Counter = 0;
+			BufferPtr->BytesPerformedLastTime = 0;
+			BufferPtr->Next = BluenrgMS_Search_For_Free_Buffer();
+
+			if( TransferMode == SPI_HEADER_READ )
+			{
+				BufferPtr->TxPtr = (uint8_t*)&SPIMasterHeaderRead.CTRL;
+				BufferPtr->RxPtr = TransferDescPtr->DataPtr;
+			}else if( TransferMode == SPI_WRITE )
+			{
+				BufferPtr->TxPtr = TransferDescPtr->DataPtr;
+				BufferPtr->RxPtr = &RXBytes[0]; /*TODO: if DMA do not increment RX address, a single address could be used instead Dummy read bytes. We need a dummy valid buffer to avoid writing to invalid memory positions */
+			}else
+			{
+				/* The slave header always precede the read operation, so we don't need a full valid TX dummy buffer */
+				BufferPtr->TxPtr = (uint8_t*)&DummyByteTX; /* TODO: if DMA do not increment TX address, tha same value will be sent. Dummy write bytes */
+				BufferPtr->RxPtr = TransferDescPtr->DataPtr;
+			}
 			BufferManager.NumberOfFilledBuffers++;
 
 			/* Search for next free buffer */
-			BufferPtr->Next = BluenrgMS_Search_For_Free_Buffer();
 			BufferManager.BufferTail = BufferPtr;
 
 			if( BufferManager.NumberOfFilledBuffers > 1 ) /* When more than one buffer is loaded, it is possible to reorder */
@@ -387,20 +410,20 @@ static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* Transfe
 /****************************************************************/
 static void Request_BluenrgMS_Frame_Transmission(void)
 {
-	TRANSFER_DESCRIPTOR* TransferDescPtr = BufferManager.BufferHead->TransferDescPtr;
+	uint16_t DataSize;
+	uint8_t* TXDataPtr;
 
 	CheckBufferHead:
 
 	if( BufferManager.BufferHead->Status != BUFFER_FREE )
 	{
-		TransferDescPtr = BufferManager.BufferHead->TransferDescPtr;
-
 		switch( BufferManager.BufferHead->TransferMode )
 		{
 
 		case SPI_WRITE:
 			if( BufferManager.AllowedWriteSize == 0 )
 			{
+				BufferManager.BufferHead->Status = BUFFER_PAUSED; /* It allows a Request_Header to be put before the current write transfer */
 				/* No write size available this moment, so send a header read request first to check if write buffer is non-zero */
 				Request_Slave_Header();
 				goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
@@ -409,13 +432,48 @@ static void Request_BluenrgMS_Frame_Transmission(void)
 				/* We can write the data, but check if all data can be sent at once or not */
 				if( BufferManager.BufferHead->RemainingBytes > BufferManager.AllowedWriteSize )
 				{
+					if( BufferManager.BufferHead->Counter > 0 )
+					{
+
+					}else
+					{
+						DataSize = BufferManager.AllowedWriteSize;
+						TXDataPtr = BufferManager.BufferHead->TxPtr;
+
+						for( uint16_t i = 0; i < BufferManager.BufferHead->BytesPerformedLastTime; i++ )
+						{
+							*( TXDataPtr + i ) = *( TXDataPtr + i + 1 );
+						}
+
+						BufferManager.BufferHead->TxPtr += BufferManager.BufferHead->Counter;
+						TXDataPtr = BufferManager.BufferHead->TxPtr;
+
+						*TXDataPtr = CTRL_WRITE;
+						BufferManager.BufferHead->RemainingBytes -= DataSize;
+						BufferManager.BufferHead->Counter += DataSize;
+						BufferManager.BufferHead->BytesPerformedLastTime = DataSize;
+
+						BufferManager.AllowedWriteSize = 0; /* Just to signal another header read after this transfer */
+						/* The additional byte is related to the write control byte at the beginning of the frame */
+
+						DataSize++;
+					}
 					/* TODO: FLAG THE PARTIAL TRANSFER AND SAVE THE BYTE WHERE THE WRITE CODE IS PLACED AT. */
+				}else
+				{
+					/* The additional byte is related to the write control byte at the beginning of the frame */
+					DataSize = BufferManager.BufferHead->RemainingBytes + 1;
+					BufferManager.BufferHead->RemainingBytes = 0; /* To signal the transfer is complete */
 				}
 			}
 			break;
 
 		case SPI_READ:
-			if( ( BufferManager.SizeToRead == 0 ) || ( TransferDescPtr->DataSize < ( BufferManager.SizeToRead + MAXIMUM_SIZE_OF_HCI_HEADER ) ) )
+
+			DataSize = BufferManager.BufferHead->RemainingBytes;
+			TXDataPtr = BufferManager.BufferHead->TxPtr;
+
+			if( ( BufferManager.SizeToRead == 0 ) || ( DataSize < BufferManager.SizeToRead ) )
 			{
 				/* If Size to read is zero or available buffer size is lower than the necessary, trigger an Error because we do not consider
 				 * partial transfer at transport layer. Also, the read is always triggered by BluenrgMS IRQ pin. So, it is expected SizeToRead to be non zero
@@ -434,6 +492,9 @@ static void Request_BluenrgMS_Frame_Transmission(void)
 
 		case SPI_HEADER_READ:
 			/* No restrictions about SPI header read since it is used to get slave status */
+			DataSize = BufferManager.BufferHead->RemainingBytes;
+			TXDataPtr = BufferManager.BufferHead->TxPtr;
+
 			break;
 
 		default:
@@ -447,7 +508,7 @@ static void Request_BluenrgMS_Frame_Transmission(void)
 
 		BufferManager.BufferHead->Status = BUFFER_TRANSMITTING;
 
-		if( Send_BluenrgMS_SPI_Frame( TransferDescPtr->TxPtr, TransferDescPtr->RxPtr, TransferDescPtr->DataSize ) == FALSE )
+		if( Send_BluenrgMS_SPI_Frame( TXDataPtr, BufferManager.BufferHead->RxPtr, DataSize ) == FALSE )
 		{
 			Release_BluenrgMS_SPI();
 		}
@@ -527,7 +588,7 @@ static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void)
 static uint8_t BluenrgMS_Slave_Header_CallBack(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status)
 {
 	//TODO: fazer a leitura consecutiva neste ponto
-	SPI_SLAVE_HEADER* Header = (SPI_SLAVE_HEADER*)( Transfer->RxPtr );
+	SPI_SLAVE_HEADER* Header = (SPI_SLAVE_HEADER*)( Transfer->DataPtr );
 
 	if( Header->READY == DEVICE_READY )
 	{
@@ -582,14 +643,13 @@ static void Request_Slave_Header(void)
 	TRANSFER_DESCRIPTOR TransferDesc;
 
 	/* Load transmitting queue position */
-	TransferDesc.TxPtr = (uint8_t*)( &SPIMasterHeaderRead.CTRL );
-	TransferDesc.RxPtr = &SPISlaveHeader.READY;
+	TransferDesc.DataPtr = &SPISlaveHeader.READY;
 	TransferDesc.DataSize = sizeof(SPISlaveHeader); /* Put always the size of reading buffer to avoid writing in random memory */
 	TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
 	TransferDesc.CallBack = (TransferCallBack)( &BluenrgMS_Slave_Header_CallBack );
 
 	/* We need to know if we have to read or how much we can write, so put the command in the first position of the queue */
-	BluenrgMS_Enqueue_Frame( &TransferDesc, 0, SPI_HEADER_READ );
+	BluenrgMS_Enqueue_Frame( &TransferDesc, 0, (uint8_t*)( &SPIMasterHeaderRead.CTRL ), SPI_HEADER_READ );
 }
 
 

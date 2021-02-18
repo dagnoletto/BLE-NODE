@@ -41,8 +41,7 @@ typedef uint8_t (*TransferCallBack)(void* Header, uint8_t Status);
 
 typedef struct
 {
-	uint8_t* TxPtr;
-	uint8_t* RxPtr;
+	uint8_t* DataPtr;
 	uint16_t DataSize;
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
