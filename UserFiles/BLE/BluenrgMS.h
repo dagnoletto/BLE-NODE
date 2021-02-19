@@ -64,13 +64,21 @@ typedef enum
 }BLUENRG_ERROR_CODES;
 
 
+typedef enum
+{
+	SPI_HEADER_READ  = 0, /* The operation will be a header read, that is, both TX and RX buffers have valid data */
+	SPI_WRITE 		 = 1, /* The bytes will be transferred from the host to the controller (BluenrgMS). The RX buffer values can be discarded */
+	SPI_READ  		 = 2  /* The bytes will be transferred from the controller (BluenrgMS) to the host. The write TX buffer is made of dummy bytes */
+}SPI_TRANSFER_MODE;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
 void Reset_BluenrgMS(void);
 void Run_BluenrgMS(void);
 void BluenrgMS_IRQ(void);
-extern uint8_t Send_BluenrgMS_SPI_Frame(uint8_t* TxPtr, uint8_t* RxPtr, uint16_t DataSize);
+extern uint8_t Send_BluenrgMS_SPI_Frame(SPI_TRANSFER_MODE Mode, uint8_t* TxPtr, uint8_t* RxPtr, uint16_t DataSize);
 extern void BluenrgMS_Error(BLUENRG_ERROR_CODES Errorcode);
 void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status);
 FRAME_ENQUEUE_STATUS BluenrgMS_Add_Message(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);

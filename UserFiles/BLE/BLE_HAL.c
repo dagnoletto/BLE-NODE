@@ -92,7 +92,7 @@ void Release_BluenrgMS_SPI(void)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Send_BluenrgMS_SPI_Frame(uint8_t* TxPtr, uint8_t* RxPtr, uint16_t DataSize)
+uint8_t Send_BluenrgMS_SPI_Frame(SPI_TRANSFER_MODE Mode, uint8_t* TxPtr, uint8_t* RxPtr, uint16_t DataSize)
 {
 	HAL_StatusTypeDef status = HAL_SPI_TransmitReceive_DMA( &hspi1, TxPtr, RxPtr, DataSize );
 
