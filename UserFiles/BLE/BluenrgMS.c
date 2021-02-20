@@ -12,7 +12,7 @@
 #define CTRL_WRITE 	  0x0A
 #define CTRL_READ  	  0x0B
 #define DEVICE_READY  0x02
-#define LOCAL_TX_BYTE_BUFFER_SIZE ( 255 ) /* Minimum value is 127 */
+#define LOCAL_TX_BYTE_BUFFER_SIZE ( 255 ) /* Minimum value is 127 *//* TODO: incluir a quantidade do header */
 #define LOCAL_RX_BYTE_BUFFER_SIZE ( 255 ) /* Minimum value is 127 */
 
 
@@ -88,6 +88,7 @@ static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* Transfe
 inline static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void) __attribute__((always_inline));
 static void Request_BluenrgMS_Frame_Transmission(void);
 inline static void BluenrgMS_Release_Frame_Buffer(void) __attribute__((always_inline));
+static FRAME_ENQUEUE_STATUS BluenrgMS_Add_RX_Handler(uint16_t DataSize, int8_t buffer_index);
 
 
 /****************************************************************/
@@ -421,8 +422,10 @@ static void Request_BluenrgMS_Frame_Transmission(void)
 		{
 
 		case SPI_WRITE:
-			if( BufferManager.AllowedWriteSize == 0 )
+			/* When the write is called for the first time, the slave header read is requested to update AllowedWriteSize */
+			if( ( BufferManager.AllowedWriteSize == 0 ) || ( BufferManager.BufferHead->Status == BUFFER_FULL ) )
 			{
+				BufferManager.BufferHead->Status = BUFFER_PAUSED;
 				Request_Slave_Header();
 				goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
 			}else
@@ -526,23 +529,37 @@ void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status)
 
 		/* The write is the only operation that can take more than one transfer */
 		if( ( BufferManager.BufferHead->TransferMode == SPI_WRITE ) &&
-			( status == TRANSFER_DONE ) &&
-			( BufferManager.BufferHead->RemainingBytes != 0 ) )
+				( status == TRANSFER_DONE ) &&
+				( BufferManager.BufferHead->RemainingBytes != 0 ) )
 		{
+
 			/* The operation is write, the last transfer was OK but we still have remaining bytes */
 			BufferManager.BufferHead->Status = BUFFER_PAUSED;
+			Release_BluenrgMS_SPI();
+
 		}else
 		{
 			TRANSFER_DESCRIPTOR* TransferDescPtr = BufferManager.BufferHead->TransferDescPtr;
 
+			/* Check if SPI_WRITE ended */
 			if( ( BufferManager.BufferHead->TransferMode == SPI_WRITE ) && ( BufferManager.BufferHead->RemainingBytes == 0 ) )
 			{
 				if( TransferDescPtr->DataSize == BufferManager.BufferHead->BytesPerformedLastTime )
 				{
-					/* TODO: The operation was done in a single transfer. Adjust only the data pointer. */
+					/* The operation was done in a single transfer. Adjust only the data pointer. */
+					/* This is to avoid the CTRL_WRITE byte */
+					TransferDescPtr->DataPtr = BufferManager.BufferHead->TxPtr + 1;
 				}else
 				{
-					/* TODO: The operation was done in several transfers, shift the last performed bytes */
+					/* The operation was done in several transfers, shift the last performed bytes */
+					uint8_t* TXDataPtr = BufferManager.BufferHead->TxPtr;
+
+					/* Shift last sent bytes to the left to overwrite the CTRL_WRITE byte */
+					/* The allocated buffer memory must be one byte longer to hold both user data and CTRL_WRITE byte */
+					for( uint16_t i = 0; i < BufferManager.BufferHead->BytesPerformedLastTime; i++ )
+					{
+						*( TXDataPtr + i ) = *( TXDataPtr + i + 1 );
+					}
 				}
 			}
 
@@ -560,27 +577,26 @@ void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status)
 				/* TODO: Deallocates used memory here */
 			}
 
+			/* After a read or write we should always release the SPI. For the following reasons: */
+			/*
+			 * After read: all read is done in a single transfer, so we don't need to keep active after ending it.
+			 * After write: after a write, the system should issue a header read to see if more bytes can be sent. In order
+			 * to do it, the SPI must be released.
+			 *
+			 * After a header read, the system can release the SPI if nothing is going to happen after that or must
+			 * keep it selected if the next operation is a read. In general, after a header read done due to IRQ pin,
+			 * the host should keep SPI selected to read the data (if module is ready, of course).
+			 */
+			if( ( BufferManager.BufferHead->TransferMode == SPI_WRITE ) || ( BufferManager.BufferHead->TransferMode == SPI_READ ) )
+			{
+				Release_BluenrgMS_SPI();
+
+			}else if( ReleaseSPI == RELEASE_SPI )
+			{
+				Release_BluenrgMS_SPI();
+			}
+
 			BluenrgMS_Release_Frame_Buffer();
-		}
-
-		/* After a read or write we should always release the SPI. For the following reasons: */
-		/*
-		 * After read: all read is done in a single transfer, so no need to keep active after ending it.
-		 * After write: after a write, the system should issue a header read to see if more bytes can be sent. In order
-		 * to do it, the SPI must be released.
-		 *
-		 * After a header read, the system can release the SPI if nothing is going to happen after that or must
-		 * keep it selected if the next operation is a read. In general, after a header read done due to IRQ pin,
-		 * the host should keep SPI selected to read the data (if module is ready, of course).
-		 */
-		if( BufferManager.BufferHead->TransferMode == SPI_WRITE || BufferManager.BufferHead->TransferMode == SPI_READ )
-		{
-			ReleaseSPI = RELEASE_SPI;
-		}
-
-		if( ReleaseSPI == RELEASE_SPI )
-		{
-			Release_BluenrgMS_SPI();
 		}
 
 		Request_BluenrgMS_Frame_Transmission();
@@ -621,36 +637,42 @@ static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void)
 /****************************************************************/
 static uint8_t BluenrgMS_Slave_Header_CallBack(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status)
 {
-	//TODO: fazer a leitura consecutiva neste ponto
 	SPI_SLAVE_HEADER* Header = (SPI_SLAVE_HEADER*)( Transfer->DataPtr );
 
 	if( Header->READY == DEVICE_READY )
 	{
 		BufferManager.AllowedWriteSize = Header->WBUF;
 		BufferManager.SizeToRead = Header->RBUF;
-		/* TODO: enqueue new packet */
-		/* TODO: check IRQ pin as below */
-		/* do not release spi if the next command is a read */
-		//return (DO_NOT_RELEASE_SPI); /* SPI was already release and a new transfer was requested */
 
-		if( BufferManager.SizeToRead != 0 ) /* Read operation has the higher priority */
+		/* Read operation has higher priority: it can pause an uncompleted write transaction to read available bytes in the module */
+		/* TODO: If the ongoing write should be finished first before the read, we should simply enqueue a read here and in the
+		   Request_BluenrgMS_Frame_Transmission function we should make sure to enqueue a read request before the reading. */
+		if( BufferManager.SizeToRead != 0 )
 		{
-			/* TODO: enqueue new cmd do not release spi if the next command is a read */
+			BufferManager.AllowedWriteSize = 0; /* Just to make sure that an ongoing write transaction will request the header before restart */
+
+			/* Enqueue a read command at the second buffer position (index == 1) and do not release the SPI */
+			BluenrgMS_Add_RX_Handler( BufferManager.SizeToRead, 1 );
+
 			return (DO_NOT_RELEASE_SPI); /* For the read operation, keeps device asserted and send dummy bytes MOSI */
-		}else if( BufferManager.AllowedWriteSize != 0 )
-		{
-			//TODO: verify if there are commands to write and if there have datalength equal or lower the ammount available
 		}else
 		{
-			/* If there are still commands to process, make a header read to know when device has allowed more data transfer */
-			if (BufferManager.NumberOfFilledBuffers)
+			/* TODO: Talvez colocar um proteção ou um tempo aleatório para uma nova tentativa ao invés de imediatamente
+			 * requisitar uma outra leitura, pois pode ficar indo e voltado freneticamente da interrupção caso o dispositivo
+			 * não tenha SizeToRead tão logo (ou nunca). Fazer isto no loop principal e não aqui nesta interrupção. Fazer isso
+			 * em função da quantidade de buffers agendados para transmissão: se só 1 (este) estiver agendado, poderá ser requisitado
+			 * um tempo mais tarde. Caso o buffer esteja com mais de um, pode ser requisitado aqui */
+			if( Get_BluenrgMS_IRQ_Pin() ) /* Check if the IRQ pin is set */
 			{
-				/* Enqueue a new slave header read to check when device allows more data */
+				/* Enqueue a new slave header read to check if device has bytes to read */
 				Request_Slave_Header();
 			}
 		}
 	}else
 	{
+		/* TODO: Talvez colocar um proteção ou um tempo aleatório para uma nova tentativa ao invés de imediatamente
+		 * requisitar uma outra leitura, pois pode ficar indo e voltado freneticamente da interrupção caso o dispositivo
+		 * não fique DEVICE_READY tão logo (ou nunca). Fazer isto no loop principal e não aqui nesta interrupção. */
 		BufferManager.AllowedWriteSize = 0;
 		BufferManager.SizeToRead = 0;
 
@@ -684,6 +706,30 @@ static void Request_Slave_Header(void)
 
 	/* We need to know if we have to read or how much we can write, so put the command in the first position of the queue */
 	BluenrgMS_Enqueue_Frame( &TransferDesc, 0, SPI_HEADER_READ );
+}
+
+
+/****************************************************************/
+/* BluenrgMS_Add_RX_Handler()     	   	                	    */
+/* Purpose: Add RX handler to the transmitting queue			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static FRAME_ENQUEUE_STATUS BluenrgMS_Add_RX_Handler(uint16_t DataSize, int8_t buffer_index)
+{
+	TRANSFER_DESCRIPTOR TransferDesc;
+
+	/* Load transmitting queue position */
+	TransferDesc.DataPtr = &RXBytes[0];/* TODO: buscar na aplicação os dados para alocar */
+	TransferDesc.DataSize = DataSize;
+	TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+	TransferDesc.CallBack = (TransferCallBack)( &BluenrgMS_Slave_Header_CallBack );
+
+	/* Read calls are triggered by IRQ pin. */
+	FRAME_ENQUEUE_STATUS Status = BluenrgMS_Enqueue_Frame(&TransferDesc, buffer_index, SPI_READ);
+
+	return ( Status );
 }
 
 
