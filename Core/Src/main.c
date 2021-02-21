@@ -108,6 +108,9 @@ int main(void)
 	  Run_BluenrgMS();
 	  if( TimeBase_DelayMs( &Timer, 1000UL, TRUE ) )
 	  {
+		  uint8_t Vector[5] = {0,1,2,3,4};
+		  LE_Set_Advertising_Data( sizeof(Vector), &Vector[0] );
+
 		  HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 	  }
   }

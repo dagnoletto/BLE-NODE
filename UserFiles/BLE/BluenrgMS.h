@@ -10,6 +10,7 @@
 #include "Types.h"
 #include "TimeFunctions.h"
 #include "hci_transport_layer.h"
+#include <stdlib.h>
 
 
 /****************************************************************/
@@ -60,7 +61,9 @@ typedef enum
 	DEVICE_CONDITION_NOT_EXPECTED   = 0,  /* The device is in a not expected state */
 	MESSAGE_QUEUE_IS_FULL 			= 1,  /* The message queue buffer is full. */
 	READ_ARGS_ERROR		 			= 2,  /* The read process could not start because of error in the reading arguments. */
-	UNKNOWN_ERROR		 			= 3   /* Unknown error. */
+	RECEPTION_ERROR					= 3,  /* Some error occurred due to device hardware or timeout during reception */
+	NO_MEMORY_AVAILABLE				= 4,  /* Could not allocate memory */
+	UNKNOWN_ERROR		 			= 5   /* Unknown error. */
 }BLUENRG_ERROR_CODES;
 
 
@@ -82,10 +85,13 @@ extern uint8_t Send_BluenrgMS_SPI_Frame(SPI_TRANSFER_MODE Mode, uint8_t* TxPtr, 
 extern void BluenrgMS_Error(BLUENRG_ERROR_CODES Errorcode);
 void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status);
 FRAME_ENQUEUE_STATUS BluenrgMS_Add_Message(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);
+void BluenrgMS_Configure_Receive_CallBack(TRANSFER_CALL_BACK_MODE* CallBackMode, HCI_PACKET_TYPE PacketType, uint8_t* DataPtr);
 extern void Clr_BluenrgMS_Reset_Pin(void);
 extern void Set_BluenrgMS_Reset_Pin(void);
 extern uint8_t Get_BluenrgMS_IRQ_Pin(void);
 extern void Release_BluenrgMS_SPI(void);
+extern uint8_t* BluenrgMS_Allocate_Memory(uint16_t DataSize);
+extern void BluenrgMS_Deallocate_Memory(uint8_t* DataPtr);
 
 
 /****************************************************************/
