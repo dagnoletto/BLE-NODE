@@ -50,15 +50,16 @@ typedef struct
 {
 	uint8_t Status; /* It indicates the BUFFER_STATUS */
 	uint8_t TransferMode; /* It indicates the SPI_TRANSFER_MODE */
+	uint8_t TransferStatus; /* It indicates the TRANSFER_STATUS */
 	uint8_t* TxPtr;
 	uint8_t* RxPtr;
 	uint8_t* AllocatedMem;
 	uint16_t RemainingBytes;
 	uint16_t Counter;
 	uint16_t BytesPerformedLastTime;
-	TRANSFER_DESCRIPTOR* TransferDescPtr;
 	void* Next;
-}BUFFER_POSITION_DESC;
+	TRANSFER_DESCRIPTOR TransferDesc;
+}BUFFER_DESC;
 
 
 typedef struct
@@ -66,11 +67,29 @@ typedef struct
 	uint16_t AllowedWriteSize;
 	uint16_t SizeToRead;
 	int8_t NumberOfFilledBuffers;
-	BUFFER_POSITION_DESC* BufferHead; /* The head always points to the buffer to be transmitted first */
-	BUFFER_POSITION_DESC* BufferTail; /* The tail always points to a free buffer */
-	TRANSFER_DESCRIPTOR TXDesc[SIZE_OF_TX_FRAME_BUFFER];
-	BUFFER_POSITION_DESC TXBuffer[SIZE_OF_TX_FRAME_BUFFER];
+	BUFFER_DESC* BufferHead; /* The head always points to the buffer to be transmitted first */
+	BUFFER_DESC* BufferTail; /* The tail always points to a free buffer */
+	BUFFER_DESC Buffer[SIZE_OF_FRAME_BUFFER];
 }BUFFER_MANAGEMENT;
+
+
+typedef struct
+{
+	uint8_t Status; /* It indicates the BUFFER_STATUS */
+	uint8_t TransferStatus; /* It indicates the TRANSFER_STATUS */
+	uint8_t* AllocatedMem;
+	void* Next;
+	TRANSFER_DESCRIPTOR TransferDesc;
+}CALLBACK_DESC;
+
+
+typedef struct
+{
+	int8_t NumberOfFilledBuffers;
+	CALLBACK_DESC* CallBackHead; /* The head always points to the callback to be handled first */
+	CALLBACK_DESC* CallBackTail; /* The tail always points to a free callback */
+	CALLBACK_DESC CallBack[SIZE_OF_CALLBACK_BUFFER];
+}CALLBACK_MANAGEMENT;
 
 
 typedef enum
@@ -83,18 +102,21 @@ typedef enum
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-static uint8_t BluenrgMS_Slave_Header_CallBack(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status);
-static uint8_t BluenrgMS_Slave_Read_CallBack(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status);
-static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status);
+static uint8_t BluenrgMS_Slave_Header_CallBack(TRANSFER_DESCRIPTOR* Transfer, uint16_t DataSize, TRANSFER_STATUS Status);
+static uint8_t BluenrgMS_Slave_Read_CallBack(TRANSFER_DESCRIPTOR* Transfer, uint16_t DataSize, TRANSFER_STATUS Status);
+static uint8_t Receiver_Multiplexer(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
 static void Request_Slave_Header(void);
 static void BluenrgMS_Init_Buffer_Manager(void);
 static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode);
-inline static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void) __attribute__((always_inline));
-static void Request_BluenrgMS_Frame_Transmission(void);
+inline static BUFFER_DESC* BluenrgMS_Search_For_Free_Buffer(void) __attribute__((always_inline));
 inline static void BluenrgMS_Release_Frame_Buffer(void) __attribute__((always_inline));
+inline static void Release_CallBack(void) __attribute__((always_inline));
+inline static CALLBACK_DESC* Search_For_Free_CallBack(void) __attribute__((always_inline));
+static void Request_BluenrgMS_Frame_Transmission(void);
 static FRAME_ENQUEUE_STATUS BluenrgMS_Add_RX_Handler(uint16_t DataSize, int8_t buffer_index);
 static uint8_t* Allocate_Memory(TRANSFER_DESCRIPTOR* TransferDescPtr, uint16_t DataSize);
 static void Deallocate_Memory(TRANSFER_DESCRIPTOR* TransferDescPtr);
+static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer);
 
 
 /****************************************************************/
@@ -110,6 +132,7 @@ const SPI_MASTER_HEADER SPIMasterHeaderRead  = { .CTRL = CTRL_READ, .Dummy = {0,
 const uint8_t DummyByteTX = 0;
 static SPI_SLAVE_HEADER SPISlaveHeader;
 static BUFFER_MANAGEMENT BufferManager;
+static CALLBACK_MANAGEMENT CallBackManager;
 static uint8_t TXBytes[LOCAL_TX_BYTE_BUFFER_SIZE];
 static uint8_t RXBytes[LOCAL_RX_BYTE_BUFFER_SIZE];
 static uint8_t LocalBytes[SIZE_OF_LOCAL_MEMORY_BUFFER];
@@ -161,7 +184,19 @@ void Run_BluenrgMS(void)
 		}
 	}else
 	{
+		if( CallBackManager.CallBackHead->Status != BUFFER_FREE )
+		{
+			/* TODO: if another message uses the same function callback, it can be called by the interrupt handler, overwriting the function being treated here. Just think of it.  */
+			TRANSFER_DESCRIPTOR* TransferDescPtr = &CallBackManager.CallBackHead->TransferDesc;
 
+			TransferDescPtr->CallBack( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, CallBackManager.CallBackHead->TransferStatus );
+
+			/* Returns the original allocated memory to data pointer */
+			TransferDescPtr->DataPtr = CallBackManager.CallBackHead->AllocatedMem;
+			Deallocate_Memory( TransferDescPtr );
+
+			Release_CallBack();
+		}
 	}
 }
 
@@ -188,30 +223,46 @@ __attribute__((weak)) void BluenrgMS_Error(BLUENRG_ERROR_CODES Errorcode)
 /****************************************************************/
 static void BluenrgMS_Init_Buffer_Manager(void)
 {
-	for( int8_t i = 0; i < SIZE_OF_TX_FRAME_BUFFER; i++ )
+	for( int8_t i = 0; i < SIZE_OF_FRAME_BUFFER; i++ )
 	{
 		if(FirstBluenrgMSReset)
 		{
-			BufferManager.TXDesc[i].DataPtr = NULL;
+			BufferManager.Buffer[i].TransferDesc.DataPtr = NULL;
 		}else
 		{
-			BufferManager.TXDesc[i].DataPtr = BufferManager.TXBuffer[i].AllocatedMem;
-			Deallocate_Memory( &BufferManager.TXDesc[i] );
+			BufferManager.Buffer[i].TransferDesc.DataPtr = BufferManager.Buffer[i].AllocatedMem;
+			Deallocate_Memory( &BufferManager.Buffer[i].TransferDesc );
 		}
-		BufferManager.TXBuffer[i].AllocatedMem = NULL;
-		BufferManager.TXBuffer[i].TransferDescPtr = &BufferManager.TXDesc[i];
-		BufferManager.TXBuffer[i].Status = BUFFER_FREE; /* Buffer is free */
+		BufferManager.Buffer[i].AllocatedMem = NULL;
+		BufferManager.Buffer[i].Status = BUFFER_FREE; /* Buffer is free */
 	}
 
-	BufferManager.BufferHead = &BufferManager.TXBuffer[0]; /* The head always points to the buffer to be transmitted first */
-	BufferManager.BufferHead->Next = &BufferManager.TXBuffer[0]; /* Points to the next buffer for transmission */
+	BufferManager.BufferHead = &BufferManager.Buffer[0]; /* The head always points to the buffer to be transmitted first */
+	BufferManager.BufferHead->Next = &BufferManager.Buffer[0]; /* Points to the next buffer for transmission */
 
-	BufferManager.BufferTail = &BufferManager.TXBuffer[0]; /* The tail always points to last filled buffer */
-	BufferManager.BufferTail->Next = &BufferManager.TXBuffer[0]; /* Points to the next free buffer */
+	BufferManager.BufferTail = &BufferManager.Buffer[0]; /* The tail always points to last filled buffer */
+	BufferManager.BufferTail->Next = &BufferManager.Buffer[0]; /* Points to the next free buffer */
 
 	BufferManager.AllowedWriteSize = 0;
 	BufferManager.SizeToRead = 0;
 	BufferManager.NumberOfFilledBuffers = 0;
+
+
+	/* Callback buffer reset */
+	for( int8_t i = 0; i < SIZE_OF_CALLBACK_BUFFER; i++ )
+	{
+		CallBackManager.CallBack[i].AllocatedMem = NULL;
+		CallBackManager.CallBack[i].Status = BUFFER_FREE; /* Buffer is free */
+	}
+
+	CallBackManager.CallBackHead = &CallBackManager.CallBack[0]; /* The head always points to the callback to be handled first */
+	CallBackManager.CallBackHead->Next = &CallBackManager.CallBack[0]; /* Points to the next callback for handling */
+
+	CallBackManager.CallBackTail = &CallBackManager.CallBack[0]; /* The tail always points to last filled callback */
+	CallBackManager.CallBackTail->Next = &CallBackManager.CallBack[0]; /* Points to the next free callback */
+
+	CallBackManager.NumberOfFilledBuffers = 0;
+
 	FirstBluenrgMSReset = FALSE;
 }
 
@@ -253,13 +304,13 @@ static void BluenrgMS_Release_Frame_Buffer(void)
 
 
 /****************************************************************/
-/* BluenrgMS_Add_Message()         	   	                	    */
-/* Purpose: Add message to the transmitting queue				*/
+/* BluenrgMS_Add_Frame()         	 		              	    */
+/* Purpose: Add HCI packet to the transmitting queue			*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-FRAME_ENQUEUE_STATUS BluenrgMS_Add_Message(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index)
+FRAME_ENQUEUE_STATUS BluenrgMS_Add_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index)
 {
 	FRAME_ENQUEUE_STATUS Status;
 	uint8_t* DataPtr = TransferDescPtr->DataPtr; /* Save the caller's data pointer */
@@ -302,6 +353,91 @@ FRAME_ENQUEUE_STATUS BluenrgMS_Add_Message(TRANSFER_DESCRIPTOR* TransferDescPtr,
 
 
 /****************************************************************/
+/* Release_CallBack()                     				        */
+/* Purpose: Release the callback head.							*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Release_CallBack(void)
+{
+	CallBackManager.CallBackHead->Status = BUFFER_FREE;
+	CallBackManager.NumberOfFilledBuffers--;
+
+	if( CallBackManager.CallBackTail->Next == NULL )
+	{
+		CallBackManager.CallBackTail->Next = CallBackManager.CallBackHead;
+	}
+
+	CallBackManager.CallBackHead = CallBackManager.CallBackHead->Next;
+}
+
+
+/****************************************************************/
+/* Enqueue_CallBack()            	   			                */
+/* Purpose: Enqueue a new callback for asynchronous handling	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer)
+{
+	/* TODO: THIS PROCEDURE CANNOT BE INTERRUPTED BY SPI INTERRUPTS? */
+	/* CallBackTail always represents the last filled callback.
+	 * CallBackHead always represents the first filled callback.
+	 * CallBackTail->Next points to a free callback, otherwise is NULL if free callback could not be found */
+
+	/* Check if the next callback after tail is available */
+	CALLBACK_DESC* CallBackPtr = CallBackManager.CallBackTail->Next;
+
+	if( CallBackPtr != NULL )
+	{
+		if( CallBackPtr->Status == BUFFER_FREE ) /* Check if buffer is free */
+		{
+
+			CallBackPtr->TransferDesc = Buffer->TransferDesc; /* Occupy this buffer */
+			CallBackPtr->Status = BUFFER_FULL;
+			CallBackPtr->Next = Search_For_Free_CallBack();
+
+			CallBackPtr->TransferStatus = Buffer->TransferStatus;
+			CallBackPtr->AllocatedMem = Buffer->AllocatedMem;
+
+			CallBackManager.NumberOfFilledBuffers++;
+
+			CallBackManager.CallBackTail = CallBackPtr;
+
+			return (TRUE);
+		}
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Search_For_Free_CallBack()           		                */
+/* Purpose: Find free callback or return NULL					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static CALLBACK_DESC* Search_For_Free_CallBack(void)
+{
+	/* Search for an available free callback. This function is not optimized
+	 * in the sense it could start from a speculative index based on current
+	 * callback usage to more quickly find a buffer. */
+	for ( int8_t i = 0; i < SIZE_OF_CALLBACK_BUFFER; i++ )
+	{
+		if( CallBackManager.CallBack[i].Status == BUFFER_FREE )
+		{
+			return ( &CallBackManager.CallBack[i] );
+		}
+	}
+	return ( NULL );
+}
+
+
+/****************************************************************/
 /* BluenrgMS_Enqueue_Frame()            	                    */
 /* Purpose: Enqueue the new frame for transmission in the  		*/
 /* output buffer												*/
@@ -319,14 +455,14 @@ static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* Transfe
 	FRAME_ENQUEUE_STATUS Status;
 
 	/* Check if the next buffer after tail is available */
-	BUFFER_POSITION_DESC* BufferPtr = BufferManager.BufferTail->Next;
+	BUFFER_DESC* BufferPtr = BufferManager.BufferTail->Next;
 
 	if( BufferPtr != NULL )
 	{
 		if( BufferPtr->Status == BUFFER_FREE ) /* Check if buffer is free */
 		{
 
-			*( BufferPtr->TransferDescPtr ) = *TransferDescPtr; /* Occupy this buffer */
+			BufferPtr->TransferDesc = *TransferDescPtr; /* Occupy this buffer */
 			BufferPtr->Status = BUFFER_FULL;
 			BufferPtr->TransferMode = TransferMode;
 			BufferPtr->RemainingBytes = TransferDescPtr->DataSize;
@@ -362,12 +498,12 @@ static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* Transfe
 
 				if( buffer_index < LastFilledPosition )
 				{
-					BUFFER_POSITION_DESC* ParentBuffer = BufferManager.BufferHead;
-					BUFFER_POSITION_DESC* DesiredBuffer = BufferManager.BufferHead;
-					BUFFER_POSITION_DESC* BeforeDesired = BufferManager.BufferHead;
+					BUFFER_DESC* ParentBuffer = BufferManager.BufferHead;
+					BUFFER_DESC* DesiredBuffer = BufferManager.BufferHead;
+					BUFFER_DESC* BeforeDesired = BufferManager.BufferHead;
 
 					if( buffer_index < 0 ){ buffer_index = 0; }
-					else if( buffer_index > (SIZE_OF_TX_FRAME_BUFFER - 1) ){ buffer_index = (SIZE_OF_TX_FRAME_BUFFER - 1); }
+					else if( buffer_index > (SIZE_OF_FRAME_BUFFER - 1) ){ buffer_index = (SIZE_OF_FRAME_BUFFER - 1); }
 
 					if( buffer_index == 0 ) /* The new transfer wants to be the head of the queue */
 					{
@@ -385,7 +521,7 @@ static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* Transfe
 					if( buffer_index < ( BufferManager.NumberOfFilledBuffers - 1 ) )
 					{
 						/* There exists positions filled in the buffer, trace the path */
-						for ( int8_t filled_index = 0; filled_index < SIZE_OF_TX_FRAME_BUFFER; filled_index++ )
+						for ( int8_t filled_index = 0; filled_index < SIZE_OF_FRAME_BUFFER; filled_index++ )
 						{
 							if( filled_index == buffer_index )
 							{
@@ -443,7 +579,7 @@ static FRAME_ENQUEUE_STATUS BluenrgMS_Enqueue_Frame(TRANSFER_DESCRIPTOR* Transfe
 	Status.EnqueuedAtIndex = -1; /* Could not enqueue the frame */
 	Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
 
-	BluenrgMS_Error( MESSAGE_QUEUE_IS_FULL );
+	BluenrgMS_Error( QUEUE_IS_FULL );
 
 	return ( Status ); /* Could not enqueue the transfer */
 }
@@ -574,9 +710,11 @@ void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status)
 	{
 		SPI_RELEASE ReleaseSPI = RELEASE_SPI;
 
+		BufferManager.BufferHead->TransferStatus = status;
+
 		/* The write is the only operation that can take more than one transfer */
 		if( ( BufferManager.BufferHead->TransferMode == SPI_WRITE ) &&
-				( status == TRANSFER_DONE ) &&
+				( BufferManager.BufferHead->TransferStatus == TRANSFER_DONE ) &&
 				( BufferManager.BufferHead->RemainingBytes != 0 ) )
 		{
 
@@ -586,7 +724,7 @@ void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status)
 
 		}else
 		{
-			TRANSFER_DESCRIPTOR* TransferDescPtr = BufferManager.BufferHead->TransferDescPtr;
+			TRANSFER_DESCRIPTOR* TransferDescPtr = &BufferManager.BufferHead->TransferDesc;
 
 			/* Check if SPI_WRITE ended */
 			if( ( BufferManager.BufferHead->TransferMode == SPI_WRITE ) && ( BufferManager.BufferHead->RemainingBytes == 0 ) )
@@ -613,32 +751,72 @@ void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status)
 			if( TransferDescPtr->CallBack != NULL ) /* We have callback */
 			{
 
-				/* TODO: pode haver um problema de acesso mútuo se um mesmo callback estiver sendo processado e forma assíncrona e for chamado
+				/* TODO: pode haver um problema de acesso mútuo se um mesmo callback estiver sendo processado de forma assíncrona e for chamado
 				 * dentro da interrupção */
 
 				if( TransferDescPtr->CallBackMode == CALL_BACK_AFTER_TRANSFER )
 				{
-					ReleaseSPI = TransferDescPtr->CallBack( TransferDescPtr, status );
-					if( BufferManager.BufferHead->TransferMode == SPI_WRITE )
+					if( BufferManager.BufferHead->TransferMode == SPI_HEADER_READ )
 					{
-						/* TODO: Deallocates used memory here */
-					}else if( BufferManager.BufferHead->TransferMode == SPI_READ )
+
+						ReleaseSPI = TransferDescPtr->CallBack( TransferDescPtr, TransferDescPtr->DataSize, BufferManager.BufferHead->TransferStatus );
+
+						/* The SPI_HEADER_READ must not be deallocated since its memory is not dynamic. Just "lies" that memory is freed. */
+						BufferManager.BufferHead->AllocatedMem = NULL;
+						TransferDescPtr->DataPtr = NULL;
+
+					}else if( BufferManager.BufferHead->TransferMode == SPI_WRITE )
 					{
+
+						TransferDescPtr->CallBack( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, BufferManager.BufferHead->TransferStatus );
+
+						/* Returns the original allocated memory to data pointer */
+						TransferDescPtr->DataPtr = BufferManager.BufferHead->AllocatedMem;
+						Deallocate_Memory( TransferDescPtr );
+
+					}else /* SPI_READ */
+					{
+
+						/* Read a first time to check what to do with the data */
+						TransferDescPtr->CallBack( TransferDescPtr, TransferDescPtr->DataSize, BufferManager.BufferHead->TransferStatus );
+
 						/* The SPI read enqueues the multiplexer function after the first read  */
 						if( TransferDescPtr->CallBackMode == CALL_BACK_AFTER_TRANSFER )
 						{
 							/* Call the second time (now is the multiplexer function) */
-							ReleaseSPI = TransferDescPtr->CallBack( TransferDescPtr, status );
-							/* The multiplexer already deallocates memory, we don't need to it here */
+							TransferDescPtr->CallBack( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, BufferManager.BufferHead->TransferStatus );
+							/* Returns the original allocated memory to data pointer */
+							TransferDescPtr->DataPtr = BufferManager.BufferHead->AllocatedMem;
+							Deallocate_Memory( TransferDescPtr );
 						}else
 						{
 							/* The multiplex function will be called asynchronously */
-							//TODO: put in the callback queue: the transfer and data must be copied in order to release the transfer buffer below
+							/* Put in the callback queue: the transfer and data must be copied in order to release the transfer buffer */
+							if( Enqueue_CallBack( BufferManager.BufferHead ) != TRUE )
+							{
+								/* Returns the original allocated memory to data pointer */
+								TransferDescPtr->DataPtr = BufferManager.BufferHead->AllocatedMem;
+								Deallocate_Memory( TransferDescPtr );
+								BluenrgMS_Error( QUEUE_IS_FULL );
+							}
+							/* This is not a real deallocation, because the callback queue might still be using the pointer. It is just to free the buffer for new allocation */
+							BufferManager.BufferHead->AllocatedMem = NULL;
+							TransferDescPtr->DataPtr = NULL;
 						}
 					}
 				}else
 				{
-					//TODO: put in the callback queue: the transfer and data must be copied in order to release the transfer buffer below
+					/* Put in the callback queue: the transfer and data must be copied in order to release the transfer buffer */
+					if( Enqueue_CallBack( BufferManager.BufferHead ) != TRUE )
+					{
+						/* Returns the original allocated memory to data pointer */
+						TransferDescPtr->DataPtr = BufferManager.BufferHead->AllocatedMem;
+						Deallocate_Memory( TransferDescPtr );
+						BluenrgMS_Error( QUEUE_IS_FULL );
+					}
+					/* This is not a real deallocation, because the callback queue might still be using the pointer. It is just to free the buffer for new allocation */
+					BufferManager.BufferHead->AllocatedMem = NULL;
+					TransferDescPtr->DataPtr = NULL;
 				}
 			}else
 			{
@@ -681,16 +859,16 @@ void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void)
+static BUFFER_DESC* BluenrgMS_Search_For_Free_Buffer(void)
 {
 	/* Search for an available free buffer. This function is not optimized
 	 * in the sense it could start from a speculative index based on current
 	 * buffer usage to more quickly find a buffer. */
-	for ( int8_t i = 0; i < SIZE_OF_TX_FRAME_BUFFER; i++ )
+	for ( int8_t i = 0; i < SIZE_OF_FRAME_BUFFER; i++ )
 	{
-		if( BufferManager.TXBuffer[i].Status == BUFFER_FREE )
+		if( BufferManager.Buffer[i].Status == BUFFER_FREE )
 		{
-			return ( &BufferManager.TXBuffer[i] );
+			return ( &BufferManager.Buffer[i] );
 		}
 	}
 	return ( NULL );
@@ -705,7 +883,7 @@ static BUFFER_POSITION_DESC* BluenrgMS_Search_For_Free_Buffer(void)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t BluenrgMS_Slave_Header_CallBack(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status)
+static uint8_t BluenrgMS_Slave_Header_CallBack(TRANSFER_DESCRIPTOR* Transfer, uint16_t DataSize, TRANSFER_STATUS Status)
 {
 	SPI_SLAVE_HEADER* Header = (SPI_SLAVE_HEADER*)( Transfer->DataPtr );
 
@@ -764,7 +942,7 @@ static uint8_t BluenrgMS_Slave_Header_CallBack(TRANSFER_DESCRIPTOR* Transfer, TR
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t BluenrgMS_Slave_Read_CallBack(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status)
+static uint8_t BluenrgMS_Slave_Read_CallBack(TRANSFER_DESCRIPTOR* Transfer, uint16_t DataSize, TRANSFER_STATUS Status)
 {
 	Transfer->CallBackMode = CALL_BACK_BUFFERED;
 	Transfer->CallBack = (TransferCallBack)( &Receiver_Multiplexer ); /* Call the multiplexer do decode the message */
@@ -826,18 +1004,33 @@ static void Request_Slave_Header(void)
 /****************************************************************/
 static FRAME_ENQUEUE_STATUS BluenrgMS_Add_RX_Handler(uint16_t DataSize, int8_t buffer_index)
 {
+	FRAME_ENQUEUE_STATUS Status;
 	TRANSFER_DESCRIPTOR TransferDesc;
 
-	/* Load transmitting queue position */
-	TransferDesc.DataPtr = &RXBytes[0];/* TODO: buscar na aplicação os dados para alocar */
-	TransferDesc.DataSize = DataSize;
-	TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
-	TransferDesc.CallBack = (TransferCallBack)( &BluenrgMS_Slave_Read_CallBack );
+	/* Load queue position */
+	TransferDesc.DataPtr = NULL; /* Just for the allocate function to know that it is free */
+	if( Allocate_Memory( &TransferDesc, DataSize ) != NULL )
+	{
+		TransferDesc.DataSize = DataSize;
+		TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		TransferDesc.CallBack = (TransferCallBack)( &BluenrgMS_Slave_Read_CallBack );
 
-	/* Read calls are triggered by IRQ pin. */
-	FRAME_ENQUEUE_STATUS Status = BluenrgMS_Enqueue_Frame(&TransferDesc, buffer_index, SPI_READ);
+		/* Read calls are triggered by IRQ pin. */
+		Status = BluenrgMS_Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ );
 
-	/* TODO: se não for possível alocar no buffer, liberar a memória alocada!!! */
+		if( Status.EnqueuedAtIndex < 0 )
+		{
+			/* It was not possible to enqueue the frame, so dispose allocated memory  */
+			Deallocate_Memory( &TransferDesc );
+		}
+	}else
+	{
+		Status.EnqueuedAtIndex = -1; /* Memory could'nt be allocated */
+		Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
+
+		BluenrgMS_Error( NO_MEMORY_AVAILABLE );
+	}
+
 	return ( Status );
 }
 
@@ -850,7 +1043,7 @@ static FRAME_ENQUEUE_STATUS BluenrgMS_Add_RX_Handler(uint16_t DataSize, int8_t b
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STATUS Status)
+static uint8_t Receiver_Multiplexer(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 {
 
 	if( Status != TRANSFER_DONE )
@@ -858,10 +1051,8 @@ static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* Transfer, TRANSFER_STAT
 		BluenrgMS_Error( RECEPTION_ERROR );
 	}else
 	{
-		/* Parse and decode the message. Call the specific handling functions. */
+		HCI_Receive( DataPtr, DataSize );
 	}
-
-	/* TODO: deallocates used memory */
 
 	return (RELEASE_SPI);
 }

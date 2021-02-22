@@ -15,7 +15,7 @@
 
 
 /****************************************************************/
-/* Type Defines                                                 */
+/* Type Defines (Packet structure)                              */
 /****************************************************************/
 typedef union
 {
@@ -76,10 +76,16 @@ typedef struct
 }__attribute__((packed)) HCI_ISO_DATA_PCKT;
 
 
+typedef enum
+{
+	ERRO_TESTE = 0, //todo: finalizar
+}BLUETOOTH_ERROR_CODES;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-uint8_t LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
+BLUETOOTH_ERROR_CODES LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
 
 
 /****************************************************************/

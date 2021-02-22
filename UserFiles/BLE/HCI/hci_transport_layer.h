@@ -11,7 +11,7 @@
 
 
 /****************************************************************/
-/* Type Defines                                                 */
+/* Type Defines (Packet structure)                              */
 /****************************************************************/
 /* Those are the packet types defined in the Bluetooth Core Specification */
 /* The standard defines the UART Transport Layer in v5.2 Volume 4: Part A */
@@ -61,8 +61,49 @@ typedef struct
 
 
 /****************************************************************/
+/* Type Defines (For driver interface)                          */
+/****************************************************************/
+typedef enum
+{
+	CALL_BACK_AFTER_TRANSFER = 0,   /* Just after transfer is executed, callback is called */
+	CALL_BACK_BUFFERED 		 = 1	/* The callback is buffered and is called asynchronously during software execution  */
+}TRANSFER_CALL_BACK_MODE;
+
+
+typedef enum
+{
+	TRANSFER_DONE 		= 0, /* Transfer was successful */
+	TRANSFER_DEV_ERROR  = 1, /* Some error occurred with the hardware */
+	TRANSFER_TIMEOUT 	= 2  /* Could not respond within timeout */
+}TRANSFER_STATUS;
+
+
+typedef uint8_t (*TransferCallBack)(void* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
+
+
+typedef struct
+{
+	uint8_t* DataPtr;
+	uint16_t DataSize;
+	TRANSFER_CALL_BACK_MODE CallBackMode;
+	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
+}TRANSFER_DESCRIPTOR;
+
+
+typedef struct
+{
+	int8_t EnqueuedAtIndex; /* If negative, means that frame was not enqueued */
+	int8_t NumberOfEnqueuedFrames;
+}FRAME_ENQUEUE_STATUS;
+
+
+/****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+extern BLUETOOTH_ERROR_CODES HCI_Transmit(void* DataPtr, uint16_t DataSize,
+		   	   	   	   	   	   	   	   	  TRANSFER_CALL_BACK_MODE CallBackMode,
+										  TransferCallBack CallBack);
+extern void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize);
 
 
 /****************************************************************/
