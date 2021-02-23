@@ -94,7 +94,23 @@ void Release_Bluenrg(void)
 /****************************************************************/
 uint8_t Bluenrg_Send_Frame(SPI_TRANSFER_MODE Mode, uint8_t* TxPtr, uint8_t* RxPtr, uint16_t DataSize)
 {
-	HAL_StatusTypeDef status = HAL_SPI_TransmitReceive_DMA( &hspi1, TxPtr, RxPtr, DataSize );
+	HAL_StatusTypeDef status = HAL_ERROR;
+
+	switch( Mode )
+	{
+	case SPI_WRITE:
+		/* We must only use transmitting pointer to avoid reading back some garbage back to host memory */
+		status = HAL_SPI_Transmit_DMA( &hspi1, TxPtr, DataSize );
+		break;
+
+	case SPI_HEADER_READ:
+	case SPI_HEADER_WRITE:
+	case SPI_READ:
+		/* In this case the system will either handle a fixed amount of TX and RX bytes ( SPI_HEADER_READ )
+		 * or an amount of read bytes with dummy bytes being sent. We don't need to worry with dummy bytes sent. */
+		status = HAL_SPI_TransmitReceive_DMA( &hspi1, TxPtr, RxPtr, DataSize );
+		break;
+	}
 
 	if( status != HAL_OK )
 	{
@@ -113,6 +129,19 @@ uint8_t Bluenrg_Send_Frame(SPI_TRANSFER_MODE Mode, uint8_t* TxPtr, uint8_t* RxPt
 /* Description:													*/
 /****************************************************************/
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+	Bluenrg_Frame_Status( TRANSFER_DONE );
+}
+
+
+/****************************************************************/
+/* HAL_SPI_TxCpltCallback()        	                        	*/
+/* Purpose: DMA TX complete callback			 	    		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 {
 	Bluenrg_Frame_Status( TRANSFER_DONE );
 }
@@ -155,7 +184,7 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 void Bluenrg_Error(BLUENRG_ERROR_CODES Errorcode)
 {
 	/* TODO: Be careful when reseting the device because ongoing
-	 * callbacks might have their contexts destroyed */
+	 * callbacks might have their contexts destroyed. */
 	Reset_Bluenrg();
 }
 

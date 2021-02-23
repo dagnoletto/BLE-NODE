@@ -35,8 +35,9 @@ typedef enum
 typedef enum
 {
 	SPI_HEADER_READ  = 0, /* The operation will be a header read, that is, both TX and RX buffers have valid data */
-	SPI_WRITE 		 = 1, /* The bytes will be transferred from the host to the controller (Bluenrg). The RX buffer values can be discarded */
-	SPI_READ  		 = 2  /* The bytes will be transferred from the controller (Bluenrg) to the host. The write TX buffer is made of dummy bytes */
+	SPI_HEADER_WRITE = 1, /* The operation will be a header write, that is, both TX and RX buffers have valid data */
+	SPI_WRITE 		 = 2, /* The bytes will be transferred from the host to the controller (Bluenrg). The RX buffer values can be discarded */
+	SPI_READ  		 = 3  /* The bytes will be transferred from the controller (Bluenrg) to the host. The write TX buffer is made of dummy bytes */
 }SPI_TRANSFER_MODE;
 
 
