@@ -3,9 +3,8 @@
 /****************************************************************/
 /* Includes                                                     */
 /****************************************************************/
-#include "hci.h"
 #include "hci_transport_layer.h"
-#include "BluenrgMS.h"
+#include "Bluenrg.h"
 
 
 /****************************************************************/
@@ -54,7 +53,7 @@ BLUETOOTH_ERROR_CODES HCI_Transmit(void* DataPtr, uint16_t DataSize,
 	TransferDesc.DataPtr = (uint8_t*)DataPtr;
 	TransferDesc.DataSize = DataSize;
 
-	if( BluenrgMS_Add_Frame( &TransferDesc, 7 ).EnqueuedAtIndex < 0 )
+	if( Bluenrg_Add_Frame( &TransferDesc, 7 ).EnqueuedAtIndex < 0 )
 	{
 		return (0); //TODO: return erro: finalizar
 	}

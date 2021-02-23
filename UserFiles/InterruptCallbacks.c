@@ -3,8 +3,8 @@
 /****************************************************************/
 /* Includes                                                     */
 /****************************************************************/
+#include "Bluenrg.h"
 #include "InterruptCallbacks.h"
-#include "BluenrgMS.h"
 
 
 /****************************************************************/
@@ -43,7 +43,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if( GPIO_Pin == BLE_IRQ_Pin )
 	{
-		BluenrgMS_IRQ();
+		Bluenrg_IRQ();
 	}
 
 	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_Pin);

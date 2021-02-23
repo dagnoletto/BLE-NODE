@@ -1,7 +1,7 @@
 
 
-#ifndef BLUENRG_MS_DRIVER_H_
-#define BLUENRG_MS_DRIVER_H_
+#ifndef BLUENRG_DRIVER_H_
+#define BLUENRG_DRIVER_H_
 
 
 /****************************************************************/
@@ -16,8 +16,6 @@
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
-#define SIZE_OF_FRAME_BUFFER 	8
-#define SIZE_OF_CALLBACK_BUFFER 4
 
 
 /****************************************************************/
@@ -37,28 +35,28 @@ typedef enum
 typedef enum
 {
 	SPI_HEADER_READ  = 0, /* The operation will be a header read, that is, both TX and RX buffers have valid data */
-	SPI_WRITE 		 = 1, /* The bytes will be transferred from the host to the controller (BluenrgMS). The RX buffer values can be discarded */
-	SPI_READ  		 = 2  /* The bytes will be transferred from the controller (BluenrgMS) to the host. The write TX buffer is made of dummy bytes */
+	SPI_WRITE 		 = 1, /* The bytes will be transferred from the host to the controller (Bluenrg). The RX buffer values can be discarded */
+	SPI_READ  		 = 2  /* The bytes will be transferred from the controller (Bluenrg) to the host. The write TX buffer is made of dummy bytes */
 }SPI_TRANSFER_MODE;
 
 
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-void Reset_BluenrgMS(void);
-void Run_BluenrgMS(void);
-void BluenrgMS_IRQ(void);
-extern uint8_t Send_BluenrgMS_SPI_Frame(SPI_TRANSFER_MODE Mode, uint8_t* TxPtr, uint8_t* RxPtr, uint16_t DataSize);
-extern void BluenrgMS_Error(BLUENRG_ERROR_CODES Errorcode);
-void Status_BluenrgMS_SPI_Frame(TRANSFER_STATUS status);
-void BluenrgMS_Configure_Receive_CallBack(TRANSFER_CALL_BACK_MODE* CallBackMode, HCI_PACKET_TYPE PacketType, uint8_t* DataPtr);
-FRAME_ENQUEUE_STATUS BluenrgMS_Add_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);
-extern void Clr_BluenrgMS_Reset_Pin(void);
-extern void Set_BluenrgMS_Reset_Pin(void);
-extern uint8_t Get_BluenrgMS_IRQ_Pin(void);
-extern void Release_BluenrgMS_SPI(void);
-extern uint8_t* BluenrgMS_Allocate_Memory(uint16_t DataSize);
-extern void BluenrgMS_Deallocate_Memory(uint8_t* DataPtr);
+void Reset_Bluenrg(void);
+void Run_Bluenrg(void);
+void Bluenrg_IRQ(void);
+void Release_Bluenrg(void);
+uint8_t Bluenrg_Send_Frame(SPI_TRANSFER_MODE Mode, uint8_t* TxPtr, uint8_t* RxPtr, uint16_t DataSize);
+void Bluenrg_Frame_Status(TRANSFER_STATUS status);
+void Bluenrg_Error(BLUENRG_ERROR_CODES Errorcode);
+void Bluenrg_CallBack_Config(TRANSFER_CALL_BACK_MODE* CallBackMode, HCI_PACKET_TYPE PacketType, uint8_t* DataPtr);
+FRAME_ENQUEUE_STATUS Bluenrg_Add_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);
+void Clr_Bluenrg_Reset_Pin(void);
+void Set_Bluenrg_Reset_Pin(void);
+uint8_t Get_Bluenrg_IRQ_Pin(void);
+uint8_t* Bluenrg_malloc_Request(uint16_t DataSize);
+void Bluenrg_free_Request(uint8_t* DataPtr);
 
 
 /****************************************************************/
@@ -66,7 +64,7 @@ extern void BluenrgMS_Deallocate_Memory(uint8_t* DataPtr);
 /****************************************************************/
 
 
-#endif /* BLUENRG_MS_DRIVER_H_ */
+#endif /* BLUENRG_DRIVER_H_ */
 
 
 /****************************************************************/

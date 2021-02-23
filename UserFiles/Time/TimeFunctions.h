@@ -17,14 +17,14 @@
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-extern void TimeFunctions_Init(void);
-extern uint32_t TimeBase_DelayMs( uint32_t* ui32Buffer, uint32_t ui32Time,
+void TimeFunctions_Init(void);
+uint32_t TimeBase_DelayMs( uint32_t* ui32Buffer, uint32_t ui32Time,
 		uint32_t ui32Reset);
-extern uint32_t TimeBase_DelayMsV2( uint32_t* ui32Buffer, uint32_t ui32Time,
+uint32_t TimeBase_DelayMsV2( uint32_t* ui32Buffer, uint32_t ui32Time,
 		uint32_t* ui32RunTime, uint32_t ui32Reset);
-extern uint8_t TimerON( uint32_t* Counter, uint32_t Time, uint8_t Input );
-extern uint8_t TimerOFF( uint32_t* Counter, uint32_t Time, uint8_t Input );
-extern void Wait_DelayUs(uint32_t us);
+uint8_t TimerON( uint32_t* Counter, uint32_t Time, uint8_t Input );
+uint8_t TimerOFF( uint32_t* Counter, uint32_t Time, uint8_t Input );
+void Wait_DelayUs(uint32_t us);
 
 
 /****************************************************************/

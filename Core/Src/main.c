@@ -18,6 +18,7 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include "Bluenrg.h"
 #include "main.h"
 #include "crc.h"
 #include "dma.h"
@@ -28,7 +29,6 @@
 /* USER CODE BEGIN Includes */
 #include "Types.h"
 #include "TimeFunctions.h"
-#include "BluenrgMS.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,7 +95,7 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   TimeFunctions_Init();
-  Reset_BluenrgMS();
+  Reset_Bluenrg();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -105,7 +105,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  Run_BluenrgMS();
+	  Run_Bluenrg();
 	  if( TimeBase_DelayMs( &Timer, 1000UL, TRUE ) )
 	  {
 		  uint8_t Vector[5] = {0,1,2,3,4};

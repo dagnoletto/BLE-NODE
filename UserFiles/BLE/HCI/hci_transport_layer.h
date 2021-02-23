@@ -100,10 +100,12 @@ typedef struct
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-extern BLUETOOTH_ERROR_CODES HCI_Transmit(void* DataPtr, uint16_t DataSize,
+BLUETOOTH_ERROR_CODES HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		   	   	   	   	   	   	   	   	  TRANSFER_CALL_BACK_MODE CallBackMode,
 										  TransferCallBack CallBack);
-extern void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize);
+void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize);
+int8_t HCI_Get_Max_Transfer_Queue_Size(void);
+int8_t HCI_Get_Max_CallBack_Queue_Size(void);
 
 
 /****************************************************************/
