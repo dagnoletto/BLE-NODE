@@ -655,7 +655,7 @@ static void Request_Frame(void)
 					 * whenever this code is reached. */
 					/* Here we consider that all read bytes belongs to the same information being reported. That is, when a read is available, it is assumed
 				that all bytes regarding to a packet type (HCI event packet, for example) will be transferred in a single read transfer. The Bluenrg does
-				specify a read transfer protocol(? TODO) to deal with partial transfer at transport layer. The maximum parameter size according to BLE is
+				specify a read transfer protocol to deal with partial transfer at transport layer. The maximum parameter size according to BLE is
 				one byte long. So, the maximum message size will be 255 bytes excluding the header size. However, the ACL_Data_Packet has a data length
 				parameter of 16 bits long. Therefore, for ACL_Data_Packets in the future, a transport protocol might be needed. */
 
@@ -1048,6 +1048,12 @@ static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 /****************************************************************/
 static uint8_t Receiver_Multiplexer(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 {
+	//static uint8_t FunctionBusy = FALSE;
+	//uint8_t CallerGoAhead;
+
+	//TODO: implementar
+	//EnterCritical();
+	//ExitCritical();
 
 	if( Status != TRANSFER_DONE )
 	{

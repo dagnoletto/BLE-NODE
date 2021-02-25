@@ -28,6 +28,7 @@
 /* USER CODE BEGIN Includes */
 #include "Types.h"
 #include "TimeFunctions.h"
+#include "Bluenrg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,7 +48,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+volatile uint8_t SR_reg;               /* Current value of the PRIMASK register */
+volatile uint8_t SR_lock = 0x00U;      /* Lock */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
