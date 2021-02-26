@@ -1050,7 +1050,8 @@ static void Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode)
 	TransferDesc.DataPtr = &SPISlaveHeader.READY;
 	TransferDesc.DataSize = sizeof(SPISlaveHeader); /* Put always the size of reading buffer to avoid writing in random memory */
 	TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
-	/* The callback function is fixed, there is no need to configure */
+	/* The callback function MUST be configured, although not used in this case */
+	TransferDesc.CallBack = (TransferCallBack)(&Slave_Header_CallBack);
 
 	/* We need to know if we have to read or how much we can write, so put the command in the first position of the queue */
 	Enqueue_Frame( &TransferDesc, 0, HeaderMode );
@@ -1075,7 +1076,9 @@ static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 	{
 		TransferDesc.DataSize = DataSize;
 		TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		/* The callback function is fixed at reception, configuration is not need */
+
+		/* The callback function MUST be configured, although not used in this case */
+		TransferDesc.CallBack = (TransferCallBack)(&Bluenrg_CallBack_Config);
 
 		/* Read calls are triggered by IRQ pin. */
 		Status = Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ );
