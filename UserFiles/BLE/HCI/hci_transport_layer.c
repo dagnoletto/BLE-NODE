@@ -71,7 +71,7 @@ BLUETOOTH_ERROR_CODES HCI_Transmit(void* DataPtr, uint16_t DataSize,
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize)
+void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 {
 
 }
