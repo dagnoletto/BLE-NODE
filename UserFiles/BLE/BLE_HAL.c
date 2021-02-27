@@ -86,6 +86,19 @@ void Release_Bluenrg(void)
 
 
 /****************************************************************/
+/* Bluenrg_Abort_Transfer()        	    		                */
+/* Purpose: Abort any ongoing SPI transfer.			    		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Bluenrg_Abort_Transfer(void)
+{
+	HAL_SPI_Abort(&hspi1);
+}
+
+
+/****************************************************************/
 /* Bluenrg_Send_Frame()            					        	*/
 /* Purpose: Send SPI frame to Bluenrg.	    		    		*/
 /* Parameters: none				         						*/
@@ -183,8 +196,6 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 /****************************************************************/
 void Bluenrg_Error(BLUENRG_ERROR_CODES Errorcode)
 {
-	/* TODO: Be careful when reseting the device because ongoing
-	 * callbacks might have their contexts destroyed. */
 	Reset_Bluenrg();
 }
 

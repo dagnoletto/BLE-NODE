@@ -157,6 +157,13 @@ static uint8_t LocalMemoryUsed = FALSE;
 /****************************************************************/
 void Reset_Bluenrg(void)
 {
+	/* Abort any ongoing transmission */
+	/* This function MUST NOT trigger any interrupt or procedure
+	 *  that would call Bluenrg_Frame_Status */
+	Bluenrg_Abort_Transfer();
+
+	Release_Bluenrg();
+
 	Clr_Bluenrg_Reset_Pin(); /* Put device in hardware reset state */
 
 	ResetBluenrgRequest = TRUE;
@@ -215,8 +222,6 @@ void Run_Bluenrg(void)
 /****************************************************************/
 static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE TransferMode)
 {
-	//TODO: analisar o efeito do reset BLE no processamento dos callbacks: como a memória será liberada de um callback que já estava executando durante o reset
-
 	int8_t NumberOfCallbacksPerCall = SIZE_OF_CALLBACK_BUFFER/2; /* To avoid being blocked by too much callbacks to process */
 
 	TRANSFER_DESCRIPTOR* TransferDescPtr;
@@ -224,8 +229,6 @@ static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE 
 
 	while( ( ManagerPtr->CallBackHead->Status == BUFFER_FULL ) && ( NumberOfCallbacksPerCall > 0 ) )
 	{
-		ManagerPtr->CallBackHead->Status = BUFFER_TRANSMITTING;
-
 		TransferDescPtr = &ManagerPtr->CallBackHead->TransferDesc;
 		Status = ManagerPtr->CallBackHead->TransferStatus;
 
@@ -309,20 +312,51 @@ static void Init_Buffer_Manager(void)
 /****************************************************************/
 static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr)
 {
-	//TODO: analisar o efeito do reset BLE no processamento dos callbacks: como a memória será liberada de um callback que já estava executando durante o reset
-	/* Callback buffer reset */
+	/* This strange procedure is used to avoid losing context in the cases where the Bluenrg is issued while the system is serving a callback */
+
+	int8_t indexbuffhead = 0;
+	CALLBACK_DESC* FreeBuffer;
+
 	for( int8_t i = 0; i < SIZE_OF_CALLBACK_BUFFER; i++ )
 	{
-		ManagerPtr->CallBack[i].Status = BUFFER_FREE; /* Buffer is free */
+		if( FirstBluenrgReset )
+		{
+			ManagerPtr->CallBack[i].Status = BUFFER_FREE; /* Buffer is free */
+			ManagerPtr->CallBack[i].TransferDesc.DataPtr = NULL;
+		}else if( &ManagerPtr->CallBack[i] == ManagerPtr->CallBackHead )
+		{
+			if( ManagerPtr->CallBackHead->Status == BUFFER_FULL ) /* The buffer is being or will be handled */
+			{
+				indexbuffhead = i;
+			}else
+			{
+				ManagerPtr->CallBack[i].Status = BUFFER_FREE; /* Buffer is free */
+				Internal_free( &ManagerPtr->CallBack[i].TransferDesc );
+			}
+		}else
+		{
+			ManagerPtr->CallBack[i].Status = BUFFER_FREE; /* Buffer is free */
+			Internal_free( &ManagerPtr->CallBack[i].TransferDesc );
+		}
 	}
 
-	ManagerPtr->CallBackHead = &ManagerPtr->CallBack[0]; /* The head always points to the callback to be handled first */
-	ManagerPtr->CallBackHead->Next = &ManagerPtr->CallBack[0]; /* Points to the next callback for handling */
+	ManagerPtr->CallBackHead = &ManagerPtr->CallBack[indexbuffhead]; /* The head always points to the callback to be handled first */
 
-	ManagerPtr->CallBackTail = &ManagerPtr->CallBack[0]; /* The tail always points to last filled callback */
-	ManagerPtr->CallBackTail->Next = &ManagerPtr->CallBack[0]; /* Points to the next free callback */
+	if( ManagerPtr->CallBackHead->Status == BUFFER_FREE )
+	{
+		FreeBuffer = &ManagerPtr->CallBack[indexbuffhead];
+		ManagerPtr->NumberOfFilledBuffers = 0;
+	}else
+	{
+		FreeBuffer = Search_For_Free_CallBack( ManagerPtr );
+		ManagerPtr->NumberOfFilledBuffers = 1;
+	}
 
-	ManagerPtr->NumberOfFilledBuffers = 0;
+	ManagerPtr->CallBackHead->Next = FreeBuffer; /* Points to the next callback for handling */
+
+	ManagerPtr->CallBackTail = &ManagerPtr->CallBack[indexbuffhead]; /* The tail always points to last filled callback */
+
+	ManagerPtr->CallBackTail->Next = FreeBuffer; /* Points to the next free callback */
 }
 
 
@@ -1110,33 +1144,25 @@ static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 /****************************************************************/
 static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS Status)
 {
-	static uint8_t FunctionFree = TRUE;
-	uint8_t GoAheadCaller = FALSE;
+	static volatile uint8_t Acquire = 0;
 
 	EnterCritical(); /* Critical section enter */
 
-	if( FunctionFree )
+	Acquire++;
+
+	if( Acquire != 1 )
 	{
-		FunctionFree = FALSE;
-		GoAheadCaller = TRUE;
+		ExitCritical(); /* Critical section exit */
+		return (FALSE);
 	}
 
 	ExitCritical(); /* Critical section exit */
 
-	if( GoAheadCaller )
-	{
-		HCI_Receive( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, Status );
+	HCI_Receive( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, Status );
 
-		EnterCritical(); /* Critical section enter */
+	Acquire = 0;
 
-		FunctionFree = TRUE;
-
-		ExitCritical(); /* Critical section exit */
-
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (TRUE);
 }
 
 
@@ -1150,33 +1176,26 @@ static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSF
 /****************************************************************/
 static uint8_t Transmitter_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS Status)
 {
-	static uint8_t FunctionFree = TRUE;
-	uint8_t GoAheadCaller = FALSE;
+	static volatile uint8_t Acquire = 0;
 
 	EnterCritical(); /* Critical section enter */
 
-	if( FunctionFree )
+	Acquire++;
+
+	if( Acquire != 1 )
 	{
-		FunctionFree = FALSE;
-		GoAheadCaller = TRUE;
+		ExitCritical(); /* Critical section exit */
+		return (FALSE);
 	}
 
 	ExitCritical(); /* Critical section exit */
 
-	if( GoAheadCaller )
-	{
-		TransferDescPtr->CallBack( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, Status );
+	TransferDescPtr->CallBack( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, Status );
 
-		EnterCritical(); /* Critical section enter */
+	Acquire = 0;
 
-		FunctionFree = TRUE;
+	return (TRUE);
 
-		ExitCritical(); /* Critical section exit */
-
-		return (TRUE);
-	}
-
-	return (FALSE);
 }
 
 

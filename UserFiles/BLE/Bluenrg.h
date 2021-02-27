@@ -48,6 +48,7 @@ void Reset_Bluenrg(void);
 void Run_Bluenrg(void);
 void Bluenrg_IRQ(void);
 void Release_Bluenrg(void);
+void Bluenrg_Abort_Transfer(void);
 uint8_t Bluenrg_Send_Frame(SPI_TRANSFER_MODE Mode, uint8_t* TxPtr, uint8_t* RxPtr, uint16_t DataSize);
 void Bluenrg_Frame_Status(TRANSFER_STATUS status);
 void Bluenrg_Error(BLUENRG_ERROR_CODES Errorcode);
