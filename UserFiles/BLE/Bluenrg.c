@@ -109,10 +109,10 @@ typedef enum
 static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_TRANSFER_MODE HeaderMode, TRANSFER_STATUS Status);
 static uint8_t Transmitter_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS Status);
 static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS Status);
-static void Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode);
+static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priority);
 static void Init_Buffer_Manager(void);
 static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr);
-static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode);
+static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode, uint8_t Priority);
 inline static BUFFER_DESC* Search_For_Free_Frame(void) __attribute__((always_inline));
 inline static void Release_Frame(void) __attribute__((always_inline));
 static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* ManagerPtr);
@@ -146,6 +146,11 @@ static uint32_t TimerResetActive = 0;
 static uint8_t ResetBluenrgRequest = TRUE;
 static uint8_t FirstBluenrgReset = TRUE;
 static uint8_t LocalMemoryUsed = FALSE;
+static volatile uint8_t BlockFrameHead = 0;
+static volatile uint8_t BlockRequestFrame = 0;
+static volatile uint8_t FrameHeadRelease = 0;
+static volatile uint8_t FrameHeadReleaseRequest = 0;
+static volatile uint8_t FrameEnqueueSignal = 0;
 
 
 /****************************************************************/
@@ -313,7 +318,6 @@ static void Init_Buffer_Manager(void)
 static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr)
 {
 	/* This strange procedure is used to avoid losing context in the cases where the Bluenrg is issued while the system is serving a callback */
-
 	int8_t indexbuffhead = 0;
 	CALLBACK_DESC* FreeBuffer;
 
@@ -370,7 +374,7 @@ static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr)
 void Bluenrg_IRQ(void)
 {
 	/* There is something to read, so enqueue a Slave_Header Request to see how many bytes to read */
-	Request_Slave_Header( SPI_HEADER_READ );
+	Request_Slave_Header( SPI_HEADER_READ, 1 );
 	Request_Frame();
 }
 
@@ -384,6 +388,34 @@ void Bluenrg_IRQ(void)
 /****************************************************************/
 static void Release_Frame(void)
 {
+	EnterCritical(); /* Critical section enter */
+
+	FrameHeadRelease++;
+
+	if( FrameHeadRelease != 1 )
+	{
+		ExitCritical(); /* Critical section exit */
+		return;
+	}
+
+	if( FrameEnqueueSignal ) /* Cannot release under frame enqueue */
+	{
+		FrameHeadReleaseRequest++;
+		FrameHeadRelease = 0;
+		ExitCritical(); /* Critical section exit */
+		return;
+	}
+
+	if( BlockFrameHead ) /* Cannot release the head that is blocked for transmission */
+	{
+		FrameHeadRelease = 0;
+		ExitCritical(); /* Critical section exit */
+		return;
+	}
+
+	ExitCritical(); /* Critical section exit */
+
+
 	BufferManager.BufferHead->Status = BUFFER_FREE;
 
 	if( BufferManager.NumberOfFilledBuffers != 0 )
@@ -397,6 +429,14 @@ static void Release_Frame(void)
 	}
 
 	BufferManager.BufferHead = BufferManager.BufferHead->Next;
+
+
+	EnterCritical(); /* Critical section enter */
+
+	FrameHeadRelease = 0;
+	FrameHeadReleaseRequest = 0;
+
+	ExitCritical(); /* Critical section exit */
 }
 
 
@@ -419,7 +459,7 @@ FRAME_ENQUEUE_STATUS Bluenrg_Add_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int
 		memcpy( (uint8_t*)(TransferDescPtr->DataPtr), DataPtr, TransferDescPtr->DataSize );
 
 		/* External calls are always write calls. Read calls are triggered by IRQ pin. */
-		Status = Enqueue_Frame(TransferDescPtr, buffer_index, SPI_WRITE);
+		Status = Enqueue_Frame(TransferDescPtr, buffer_index, SPI_WRITE, 1);
 
 		if( Status.EnqueuedAtIndex < 0 )
 		{
@@ -480,10 +520,10 @@ static void Release_CallBack(CALLBACK_MANAGEMENT* ManagerPtr)
 /****************************************************************/
 static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* ManagerPtr)
 {
-	/* TODO: THIS PROCEDURE CANNOT BE INTERRUPTED BY SPI INTERRUPTS? */
 	/* CallBackTail always represents the last filled callback.
 	 * CallBackHead always represents the first filled callback.
 	 * CallBackTail->Next points to a free callback, otherwise is NULL if free callback could not be found */
+	uint8_t Status = FALSE;
 
 	/* Check if the next callback after tail is available */
 	CALLBACK_DESC* CallBackPtr = ManagerPtr->CallBackTail->Next;
@@ -503,11 +543,11 @@ static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* Manage
 
 			ManagerPtr->CallBackTail = CallBackPtr;
 
-			return (TRUE);
+			Status = TRUE;
 		}
 	}
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -542,14 +582,37 @@ static CALLBACK_DESC* Search_For_Free_CallBack(CALLBACK_MANAGEMENT* ManagerPtr)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode)
+static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode, uint8_t Priority)
 {
-	/* TODO: THIS PROCEDURE CANNOT BE INTERRUPTED BY SPI INTERRUPTS */
 	/* BufferTail always represents the last filled buffer.
 	 * BufferHead always represents the first filled buffer.
 	 * BufferTail->Next points to a free buffer, otherwise is NULL if free buffers could not be found */
+	static volatile uint8_t Acquire = 0;
 
 	FRAME_ENQUEUE_STATUS Status;
+
+	Status.EnqueuedAtIndex = -1; /* Could not enqueue the frame */
+	Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
+
+	EnterCritical(); /* Critical section enter */
+
+	Acquire++;
+
+	if( Acquire != 1 ) /* Cannot enqueue while a frame is being released */
+	{
+		ExitCritical(); /* Critical section exit */
+		return (Status); /* This function is already being handled and we are not going to mix it up */
+	}
+
+	if( FrameHeadRelease )
+	{
+		Acquire = 0;
+		ExitCritical(); /* Critical section exit */
+		return (Status); /* This function is already being handled and we are not going to mix it up */
+	}
+
+	ExitCritical();
+
 
 	/* Check if the next buffer after tail is available */
 	BUFFER_DESC* BufferPtr = BufferManager.BufferTail->Next;
@@ -558,6 +621,12 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 	{
 		if( BufferPtr->Status == BUFFER_FREE ) /* Check if buffer is free */
 		{
+
+			EnterCritical(); /* A new frame will be enqueued, safely signal that to the rest of software. */
+
+			FrameEnqueueSignal++;
+
+			ExitCritical();
 
 			BufferPtr->TransferDesc = *TransferDescPtr; /* Occupy this buffer */
 			BufferPtr->Status = BUFFER_FULL;
@@ -606,15 +675,41 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 
 					if( buffer_index == 0 ) /* The new transfer wants to be the head of the queue */
 					{
-						if( BufferManager.BufferHead->Status == BUFFER_TRANSMITTING )
+						volatile uint8_t FrameHeadBlocked;
+
+						/* Critical: check if Request Frame is not being handled. */
+						EnterCritical();
+
+						if( Priority == 0 ) /* Depending the priority of whom call the function, it can bypass BlockFrameHead. */
 						{
-							/* Cannot be the head since a transfer is ongoing */
+							FrameHeadBlocked = 0;
+						}else
+						{
+							FrameHeadBlocked = BlockFrameHead;
+						}
+
+						ExitCritical();
+
+						if( ( BufferManager.BufferHead->Status == BUFFER_TRANSMITTING ) || ( FrameHeadBlocked != 0 ) )
+						{
+							/* Cannot be the head since a transfer/releasing is ongoing */
 							buffer_index = 1;
 						}else if( ( BufferManager.BufferHead->Status == BUFFER_PAUSED ) &&
 								( BufferPtr->TransferMode != SPI_HEADER_READ ) && ( BufferPtr->TransferMode != SPI_HEADER_WRITE ) )
 						{
 							/* The head is paused but the candidate transfer is not a header read/write to take over priority */
 							buffer_index = 1;
+						}
+
+						/* If a message is going to be enqueued in the fist position, avoid request frame transmission since the
+						 * buffer index 0 always refers to the buffer head and this one is sent first.  */
+						if( buffer_index == 0 )
+						{
+							EnterCritical();
+
+							BlockRequestFrame++; /* Safely signals buffer head must not be transmitted since is going to be updated now. */
+
+							ExitCritical();
 						}
 					}
 
@@ -671,6 +766,22 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 
 			Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
 
+			EnterCritical();
+
+			FrameEnqueueSignal = 0;
+
+			if( FrameHeadReleaseRequest )
+			{
+				ExitCritical();
+				Release_Frame();
+			}
+			EnterCritical();
+
+			BlockRequestFrame = 0;
+			Acquire = 0;
+
+			ExitCritical();
+
 			return (Status);
 
 		}
@@ -680,6 +791,15 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 	Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
 
 	Bluenrg_Error( QUEUE_IS_FULL );
+
+
+	EnterCritical();
+
+	BlockRequestFrame = 0;
+	Acquire = 0;
+	FrameEnqueueSignal = 0;
+
+	ExitCritical();
 
 	return ( Status ); /* Could not enqueue the transfer */
 }
@@ -694,7 +814,32 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 /****************************************************************/
 static void Request_Frame(void)
 {
-	/* TODO: this function can be called in asyncronous and interrupt mode, so provei protection */
+	static volatile uint8_t Acquire = 0;
+
+	EnterCritical(); /* Critical section enter */
+
+	Acquire++;
+
+	if( Acquire != 1 )
+	{
+		ExitCritical(); /* Critical section exit */
+		/* The driver can only send a message at a time, so, while the function is being
+		 * handled, no other source can call it to push a new frame */
+		return; /* This function is already being handled and we are not going to mix it up */
+	}
+
+	/* The Enqueue function blocked this function because it is putting a new frame onto the head. */
+	if( BlockRequestFrame )
+	{
+		Acquire = 0;
+		ExitCritical();
+		return;
+	}
+
+	BlockFrameHead++; /* Blocks the frame head to avoid changes by the Enqueue function */
+
+	ExitCritical(); /* Critical section exit */
+
 	uint16_t DataSize;
 	uint8_t* TXDataPtr;
 
@@ -712,7 +857,21 @@ static void Request_Frame(void)
 				if( ( BufferManager.AllowedWriteSize == 0 ) || ( BufferManager.BufferHead->Status == BUFFER_FULL ) )
 				{
 					BufferManager.BufferHead->Status = BUFFER_PAUSED;
-					Request_Slave_Header( SPI_HEADER_WRITE );
+
+					uint8_t Result = Request_Slave_Header( SPI_HEADER_WRITE, 0 );
+
+					if( Result != TRUE )
+					{
+						EnterCritical(); /* Critical section enter */
+
+						BlockFrameHead = 0;
+						Acquire = 0;
+						BufferManager.BufferHead->Status = BUFFER_FULL; /* Back to previous state */
+
+						ExitCritical(); /* Critical section exit */
+						return;
+					}
+
 					goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
 				}else
 				{
@@ -754,6 +913,12 @@ static void Request_Frame(void)
 
 					Bluenrg_Error( READ_ARGS_ERROR );
 
+					EnterCritical(); /* Critical section enter */
+
+					BlockFrameHead = 0;
+					Acquire = 0;
+
+					ExitCritical(); /* Critical section exit */
 					return;
 				}
 				break;
@@ -770,8 +935,13 @@ static void Request_Frame(void)
 
 				Bluenrg_Error( UNKNOWN_ERROR );
 
-				return;
+				EnterCritical(); /* Critical section enter */
 
+				BlockFrameHead = 0;
+				Acquire = 0;
+
+				ExitCritical(); /* Critical section exit */
+				return;
 				break;
 			}
 
@@ -784,6 +954,13 @@ static void Request_Frame(void)
 			}
 		}
 	}
+
+	EnterCritical(); /* Critical section enter */
+
+	BlockFrameHead = 0;
+	Acquire = 0;
+
+	ExitCritical(); /* Critical section exit */
 }
 
 
@@ -914,6 +1091,20 @@ static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBAC
 {
 	/* The multiplex function will be called asynchronously */
 	/* Put in the callback queue: the transfer and data must be copied in order to release the transfer buffer */
+	static volatile uint8_t Acquire = 0;
+
+	EnterCritical(); /* Critical section enter */
+
+	Acquire++;
+
+	if( Acquire != 1 )
+	{
+		ExitCritical(); /* Critical section exit */
+		return;
+	}
+
+	ExitCritical(); /* Critical section exit */
+
 	if( Enqueue_CallBack( BufferManager.BufferHead, ManagerPtr ) != TRUE )
 	{
 		Internal_free( TransferDescPtr );
@@ -921,6 +1112,12 @@ static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBAC
 	}
 	/* This is not a real deallocation, because the callback queue might still be using the pointer. It is just to free the buffer for new allocation */
 	TransferDescPtr->DataPtr = NULL;
+
+	EnterCritical(); /* Critical section enter */
+
+	Acquire = 0;
+
+	ExitCritical(); /* Critical section exit */
 }
 
 
@@ -1008,7 +1205,7 @@ static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_T
 			if( Get_Bluenrg_IRQ_Pin() ) /* Check if the IRQ pin is set */
 			{
 				/* Enqueue a new slave header read to check if device has bytes to read */
-				Request_Slave_Header( SPI_HEADER_READ );
+				Request_Slave_Header( SPI_HEADER_READ, 1 );
 			}
 
 			ErroneousResponseCounter++;
@@ -1034,7 +1231,7 @@ static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_T
 		if( Get_Bluenrg_IRQ_Pin() ) /* Check if the IRQ pin is set */
 		{
 			/* Enqueue a new slave header read to check if device is ready */
-			Request_Slave_Header( SPI_HEADER_READ );
+			Request_Slave_Header( SPI_HEADER_READ, 1 );
 		}
 
 		DeviceNotReadyCounter++;
@@ -1076,7 +1273,7 @@ __attribute__((weak)) void Bluenrg_CallBack_Config(TRANSFER_CALL_BACK_MODE* Call
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode)
+static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priority)
 {
 	TRANSFER_DESCRIPTOR TransferDesc;
 
@@ -1088,7 +1285,13 @@ static void Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode)
 	TransferDesc.CallBack = (TransferCallBack)(&Slave_Header_CallBack);
 
 	/* We need to know if we have to read or how much we can write, so put the command in the first position of the queue */
-	Enqueue_Frame( &TransferDesc, 0, HeaderMode );
+	/* Acho que não deve empilhar em posição diferente de zero se for um request para slave */
+	if( Enqueue_Frame( &TransferDesc, 0, HeaderMode, Priority ).EnqueuedAtIndex != 0 )
+	{
+		return (FALSE);
+	}
+
+	return (TRUE);
 }
 
 
@@ -1115,7 +1318,7 @@ static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 		TransferDesc.CallBack = (TransferCallBack)(&Bluenrg_CallBack_Config);
 
 		/* Read calls are triggered by IRQ pin. */
-		Status = Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ );
+		Status = Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ, 1 );
 
 		if( Status.EnqueuedAtIndex < 0 )
 		{
@@ -1160,7 +1363,11 @@ static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSF
 
 	HCI_Receive( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, Status );
 
+	EnterCritical(); /* Critical section enter */
+
 	Acquire = 0;
+
+	ExitCritical(); /* Critical section exit */
 
 	return (TRUE);
 }
@@ -1192,7 +1399,11 @@ static uint8_t Transmitter_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRA
 
 	TransferDescPtr->CallBack( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, Status );
 
+	EnterCritical(); /* Critical section enter */
+
 	Acquire = 0;
+
+	ExitCritical(); /* Critical section exit */
 
 	return (TRUE);
 
