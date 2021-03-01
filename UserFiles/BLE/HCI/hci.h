@@ -76,21 +76,52 @@ typedef struct
 }__attribute__((packed)) HCI_ISO_DATA_PCKT;
 
 
+/* OpCode Group Field (OGF) for HCI command packets */
 typedef enum
 {
-	ERRO_TESTE = 0, //todo: finalizar
-}BLUETOOTH_ERROR_CODES;
+	LINK_CTRL_CMD 			= 0x01,
+	LINK_POLICY_CMD  		= 0x02,
+	CTRL_AND_BASEBAND_CMD  	= 0x03,
+	INFO_PARAMETERS_CMD  	= 0x04,
+	STATUS_PARAMETERS_CMD  	= 0x05,
+	TESTING_CMD  			= 0x06,
+
+	LE_CONTROLLER_CMD  		= 0x08,
+	VENDOR_SPECIFIC_CMD  	= 0x3F,
+}OPCODE_GROUP_FIELD;
+
+
+#define PARSE_OPCODE(OCF,OGF) ( ((OCF) << 6) | ((OGF) & 0x3F) )
+
+
+/* Low Energy (LE) commands */
+typedef enum
+{
+	HCI_LE_SET_ADV_DATA_OPCODE = (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD )),
+}COMMAND_OPCODE;
+
+
+/* Event codes for HCI event packets */
+typedef enum
+{
+	COMMAND_COMPLETE = 0x0E,
+	COMMAND_STATUS 	 = 0x0F,
+	VENDOR_SPECIFIC  = 0xFF
+}EVENT_CODE;
+
+
+typedef enum //todo: finalizar
+{
+	COMMAND_SUCCESS 	= 0x00,
+	UNKNOWN_HCI_COMMAND = 0x01
+}CONTROLLER_ERROR_CODES;
 
 
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-BLUETOOTH_ERROR_CODES LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
-
-
-/****************************************************************/
-/* Defines                                                      */
-/****************************************************************/
+uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
+void HCI_LE_Set_Advertising_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
 
 
 /****************************************************************/
