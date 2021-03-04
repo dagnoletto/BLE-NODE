@@ -111,6 +111,8 @@ int main(void)
 		  uint8_t Vector[5] = {0,1,2,3,4};
 		  HCI_LE_Set_Advertising_Data( sizeof(Vector), &Vector[0] );
 
+		  HCI_Read_Local_Version_Information();
+
 		  HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 	  }
   }
@@ -158,6 +160,11 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 void HCI_LE_Set_Advertising_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
+{
+	CONTROLLER_ERROR_CODES teste = ErrorCode;
+}
+
+void HCI_Read_Local_Version_Information_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
 {
 	CONTROLLER_ERROR_CODES teste = ErrorCode;
 }

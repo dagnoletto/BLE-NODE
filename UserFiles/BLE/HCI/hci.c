@@ -34,6 +34,31 @@ static uint8_t Num_HCI_Command_Packets; /* TODO: setar este valor e ver oque oco
 
 
 /****************************************************************/
+/* HCI_Read_Local_Version_Information()                         */
+/* Purpose: The HCI_Read_Local_Version_Information command 		*/
+/* reads the values for the version information for the local	*/
+/* Controller.   		    									*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_Read_Local_Version_Information( void )
+{
+	uint8_t Status;
+
+	HCI_SERIAL_COMMAND_PCKT Pckt;
+
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_READ_LOCAL_VER_INFO_OPCODE;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
+
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL );
+
+	return (Status);
+}
+
+
+/****************************************************************/
 /* HCI_LE_Set_Advertising_Data()                                */
 /* Purpose: The HCI_LE_Set_Advertising_Data command is used to  */
 /* set the data used in advertising packets that have a data 	*/
@@ -83,6 +108,19 @@ uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Ad
 __attribute__((weak)) void HCI_LE_Set_Advertising_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
 {
 	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
+/* HCI_VS_Blue_Initialized_Event()                          	*/
+/* Purpose: Vendor Specific Event 								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void HCI_VS_Blue_Initialized_Event( REASON_CODE Code )
+{
+
 }
 
 

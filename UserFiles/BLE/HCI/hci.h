@@ -21,8 +21,8 @@ typedef union
 {
 	struct
 	{
-		uint16_t OGF : 6; /* OpCode Group Field   */
 		uint16_t OCF :10; /* OpCode Command Field */
+		uint16_t OGF : 6; /* OpCode Group Field   */
 	};
 	uint16_t Val;
 }HCI_COMMAND_OPCODE;
@@ -91,13 +91,14 @@ typedef enum
 }OPCODE_GROUP_FIELD;
 
 
-#define PARSE_OPCODE(OCF,OGF) ( ((OCF) << 6) | ((OGF) & 0x3F) )
+#define PARSE_OPCODE(OCF,OGF) ( ((OGF) << 10) | ((OCF) & 0x3FF) )
 
 
 /* Low Energy (LE) commands */
 typedef enum
 {
-	HCI_LE_SET_ADV_DATA_OPCODE = (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD )),
+	HCI_READ_LOCAL_VER_INFO_OPCODE 	= (PARSE_OPCODE( 0x0001, LE_CONTROLLER_CMD )),
+	HCI_LE_SET_ADV_DATA_OPCODE 		= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD )),
 }COMMAND_OPCODE;
 
 
@@ -118,10 +119,33 @@ typedef enum //todo: finalizar
 
 
 /****************************************************************/
+/* VENDOR SPECIFIC DATA				                            */
+/****************************************************************/
+typedef enum
+{
+	REASON_RESERVED			  = 0x00, /* Reserved */
+	FIRMWARE_STARTED_PROPERLY = 0x01, /* Firmware started properly */
+	UPDATER_MODE_ACI_START	  = 0x02, /* Updater mode entered because of Aci_Updater_Start command */
+	UPDATER_MODE_BLUE_FLAG	  = 0x03, /* Updater mode entered because of a bad BLUE flag */
+	UPDATER_MODE_IRQ_PIN	  = 0x04, /* Updater mode entered with IRQ pin */
+	RESET_BY_WATCHDOG		  = 0x05, /* Reset caused by watch dog */
+	RESET_BY_LOCKUP			  = 0x06, /* Reset due to lockup */
+	BROWNOUT_RESET			  = 0x07, /* Brownout reset */
+	RESET_BY_CRASH			  = 0x08, /* Reset caused by a crash (NMI or Hard Fault) */
+	RESET_ECC_ERROR			  = 0x09  /* Reset caused by an ECC error */
+}REASON_CODE;
+
+
+/****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+uint8_t HCI_Read_Local_Version_Information( void );
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
 void HCI_LE_Set_Advertising_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+void HCI_Read_Local_Version_Information_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+
+/* Vendor Specific Events */
+void HCI_VS_Blue_Initialized_Event( REASON_CODE Code );
 
 
 /****************************************************************/

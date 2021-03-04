@@ -10,6 +10,15 @@
 /****************************************************************/
 /* Type Defines                                                 */
 /****************************************************************/
+typedef union
+{
+	struct
+	{
+		uint16_t EID: 10;
+		uint16_t EGID: 6;
+	};
+	uint16_t ECODE;
+}ECODE_Struct;
 
 
 /****************************************************************/
@@ -20,6 +29,9 @@
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
+#define EVT_BLUE_INITIALIZED_EVENT_CODE	0x0001
+#define EVT_BLUE_LOST_EVENT_CODE		0x0002
+#define FAULT_DATA_EVENT_CODE			0x0003
 
 
 /****************************************************************/
@@ -112,6 +124,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				case HCI_LE_SET_ADV_DATA_OPCODE:
 					HCI_LE_Set_Advertising_Data_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
 					break;
+
+				case HCI_READ_LOCAL_VER_INFO_OPCODE:
+					HCI_Read_Local_Version_Information_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					break;
 				}}
 			break;
 
@@ -129,8 +145,24 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			break;
 
 			/*--------- VENDOR_SPECIFIC_EVT -------------*/
-			case VENDOR_SPECIFIC:
-				break;
+			case VENDOR_SPECIFIC: {
+				ECODE_Struct Ecode;
+				Ecode.ECODE = EventPacketPtr->Event_Parameter[1] << 8 | EventPacketPtr->Event_Parameter[0];
+
+				switch( Ecode.ECODE )
+				{
+				case EVT_BLUE_INITIALIZED_EVENT_CODE:
+					HCI_VS_Blue_Initialized_Event( EventPacketPtr->Event_Parameter[2] );
+					break;
+
+				case EVT_BLUE_LOST_EVENT_CODE:
+					break;
+
+				case FAULT_DATA_EVENT_CODE:
+					break;
+				}
+			}
+			break;
 
 			default:
 				break;
