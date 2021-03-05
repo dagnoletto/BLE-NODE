@@ -24,6 +24,7 @@ typedef union
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
+static uint8_t Num_HCI_Command_Packets; /* TODO: setar este valor e ver oque ocorre na inicialização */
 
 
 /****************************************************************/
@@ -115,9 +116,12 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			switch( EventPacketPtr->Event_Code )
 			{
 
+
+
 			/*---------- COMMAND_COMPLETE_EVT ------------*/
 			case COMMAND_COMPLETE: {
 				OpCode.Val = ( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1];
+				Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[0];
 
 				switch( OpCode.Val )
 				{
@@ -128,21 +132,38 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				case HCI_READ_LOCAL_VER_INFO_OPCODE:
 					HCI_Read_Local_Version_Information_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
 					break;
+
+				case ACI_HAL_WRITE_CONFIG_DATA:
+					ACI_Hal_Write_Config_Data_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					break;
 				}}
 			break;
+
+
 
 			/*---------- COMMAND_STATUS_EVT --------------*/
 			case COMMAND_STATUS: {
 				OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
-				uint8_t teste = EventPacketPtr->Event_Parameter[1]; /* TODO: teste (apagar depois) */
+				Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[1];
 
 				switch( OpCode.Val )
 				{
 				case HCI_LE_SET_ADV_DATA_OPCODE:
 					HCI_LE_Set_Advertising_Data_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
 					break;
+
+				case HCI_READ_LOCAL_VER_INFO_OPCODE:
+					HCI_Read_Local_Version_Information_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case ACI_HAL_WRITE_CONFIG_DATA:
+					ACI_Hal_Write_Config_Data_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					break;
 				}}
 			break;
+
+
+
 
 			/*--------- VENDOR_SPECIFIC_EVT -------------*/
 			case VENDOR_SPECIFIC: {

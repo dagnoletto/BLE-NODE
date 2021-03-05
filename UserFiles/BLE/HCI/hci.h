@@ -99,6 +99,8 @@ typedef enum
 {
 	HCI_READ_LOCAL_VER_INFO_OPCODE 	= (PARSE_OPCODE( 0x0001, LE_CONTROLLER_CMD )),
 	HCI_LE_SET_ADV_DATA_OPCODE 		= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD )),
+
+	ACI_HAL_WRITE_CONFIG_DATA		= (PARSE_OPCODE( 0x000C, VENDOR_SPECIFIC_CMD )),
 }COMMAND_OPCODE;
 
 
@@ -139,12 +141,16 @@ typedef enum
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-uint8_t HCI_Read_Local_Version_Information( void );
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
-void HCI_LE_Set_Advertising_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
-void HCI_Read_Local_Version_Information_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+void    HCI_LE_Set_Advertising_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
 
-/* Vendor Specific Events */
+uint8_t HCI_Read_Local_Version_Information( void );
+void    HCI_Read_Local_Version_Information_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+
+/* Vendor Specific Commands and Events */
+uint8_t ACI_Hal_Write_Config_Data( uint8_t Offset, uint8_t Length, uint8_t Value[] );
+void    ACI_Hal_Write_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+
 void HCI_VS_Blue_Initialized_Event( REASON_CODE Code );
 
 
