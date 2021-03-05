@@ -108,10 +108,45 @@ int main(void)
 	  Run_Bluenrg();
 	  if( TimeBase_DelayMs( &Timer, 1000UL, TRUE ) )
 	  {
-		  uint8_t Vector[5] = {0,1,2,3,4};
-		  HCI_LE_Set_Advertising_Data( sizeof(Vector), &Vector[0] );
+		  static uint8_t bdflag = TRUE;
+
+		  if( bdflag )
+		  {
+			  uint8_t address[6] = {1,2,3,5,6,7};
+			  ACI_Hal_Write_Config_Data( 0, 6, &address[0] );
+			  bdflag = FALSE;
+		  }
+		  /* TODO: alguns comandos deixam o módulo "maluco": se enviar dois ACI_Hal_Write_Config_Data na sequência, pira o cabeção, mas isso não
+		   * acontece com 2 HCI_LE_Set_Advertising_Data...  */
+
+		  //uint8_t Vector[6] = {0,1,2,3,4,8};
+		  //HCI_LE_Set_Advertising_Data( sizeof(Vector), &Vector[0] );
 
 		  HCI_Read_Local_Version_Information();
+		  //HCI_LE_Set_Advertising_Data( sizeof(Vector), &Vector[0] );
+
+		  //HCI_LE_Set_Advertising_Data( sizeof(Vector), &Vector[0] );
+
+		  //HCI_LE_Set_Advertising_Data( sizeof(Vector), &Vector[0] );
+
+		  //HCI_LE_Set_Advertising_Data( sizeof(Vector), &Vector[0] );
+		  //uint8_t address[6] = {0,0,0,0,0,0};
+		  //ACI_Hal_Write_Config_Data( 0, 6, &address[0] );
+
+		  //ACI_Hal_Write_Config_Data( 0, 6, &address[0] );
+
+
+		  /* Dá pau quando estas duas mensagens são enviadas na sequência por algumas vezes */
+		  //uint8_t address[6] = {0,0,0,0,0,0};
+		  //ACI_Hal_Write_Config_Data( 0, 6, &address[0] );
+
+		  //uint8_t mode = 1;
+		  //ACI_Hal_Write_Config_Data( 0x06, 2, &mode );
+
+
+
+		  //HCI_LE_Set_Advertising_Data( sizeof(Vector), &Vector[0] );
+		  //HCI_Read_Local_Version_Information();
 
 		  HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 	  }
@@ -159,15 +194,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HCI_LE_Set_Advertising_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
-{
-	CONTROLLER_ERROR_CODES teste = ErrorCode;
-}
 
-void HCI_Read_Local_Version_Information_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
-{
-	CONTROLLER_ERROR_CODES teste = ErrorCode;
-}
 /* USER CODE END 4 */
 
 /**
