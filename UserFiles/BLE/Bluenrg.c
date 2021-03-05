@@ -774,6 +774,7 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 			{
 				ExitCritical();
 				Release_Frame();
+				Request_Frame();
 			}
 			EnterCritical();
 
