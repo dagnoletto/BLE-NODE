@@ -10,15 +10,6 @@
 /****************************************************************/
 /* Type Defines                                                 */
 /****************************************************************/
-typedef union
-{
-	struct
-	{
-		uint16_t EID: 10;
-		uint16_t EGID: 6;
-	};
-	uint16_t ECODE;
-}ECODE_Struct;
 
 
 /****************************************************************/
@@ -30,9 +21,6 @@ static uint8_t Num_HCI_Command_Packets; /* TODO: setar este valor e ver oque oco
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
-#define EVT_BLUE_INITIALIZED_EVENT_CODE	0x0001
-#define EVT_BLUE_LOST_EVENT_CODE		0x0002
-#define FAULT_DATA_EVENT_CODE			0x0003
 
 
 /****************************************************************/
@@ -118,46 +106,106 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 
 
-			/*---------- COMMAND_COMPLETE_EVT ------------*/
+			/*---------- COMMAND_COMPLETE_EVT ------------*//* Page 2308 Core_v5.2 */
 			case COMMAND_COMPLETE: {
 				OpCode.Val = ( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1];
 				Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[0];
 
 				switch( OpCode.Val )
 				{
-				case HCI_LE_SET_ADV_DATA_OPCODE:
-					HCI_LE_Set_Advertising_Data_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
-					break;
-
-				case HCI_READ_LOCAL_VER_INFO_OPCODE:
+				case HCI_READ_LOCAL_VERSION_INFORMATION:
 					HCI_Read_Local_Version_Information_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
 					break;
 
-				case ACI_HAL_WRITE_CONFIG_DATA:
+				case HCI_LE_SET_ADVERTISING_DATA:
+					HCI_LE_Set_Advertising_Data_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case VS_ACI_HAL_WRITE_CONFIG_DATA:
 					ACI_Hal_Write_Config_Data_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case VS_ACI_HAL_READ_CONFIG_DATA:
+					ACI_Hal_Read_Config_Data_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]), EventPacketPtr->Parameter_Total_Length - 4 );
+					break;
+
+				case VS_ACI_HAL_SET_TX_POWER_LEVEL:
+					ACI_Hal_Set_Tx_Power_Level_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case VS_ACI_HAL_DEVICE_STANDBY:
+					ACI_Hal_Device_Standby_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER: {
+					uint32_t PacketCounter = ( EventPacketPtr->Event_Parameter[7] << 24 ) | ( EventPacketPtr->Event_Parameter[6] << 16 ) |
+							( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4];
+
+					ACI_Hal_LE_Tx_Test_Packet_Number_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], PacketCounter );
+				}
+				break;
+
+				case VS_ACI_HAL_TONE_START:
+					ACI_Hal_Tone_Start_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case VS_ACI_HAL_TONE_STOP:
+					ACI_Hal_Tone_Stop_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case VS_ACI_HAL_GET_LINK_STATUS:
+					ACI_Hal_Get_Link_Status_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]), &(EventPacketPtr->Event_Parameter[12]) );
 					break;
 				}}
 			break;
 
 
 
-			/*---------- COMMAND_STATUS_EVT --------------*/
+			/*---------- COMMAND_STATUS_EVT --------------*//* Page 2310 Core_v5.2 */
 			case COMMAND_STATUS: {
 				OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
 				Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[1];
 
 				switch( OpCode.Val )
 				{
-				case HCI_LE_SET_ADV_DATA_OPCODE:
-					HCI_LE_Set_Advertising_Data_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_READ_LOCAL_VER_INFO_OPCODE:
+				case HCI_READ_LOCAL_VERSION_INFORMATION:
 					HCI_Read_Local_Version_Information_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
 					break;
 
-				case ACI_HAL_WRITE_CONFIG_DATA:
+				case HCI_LE_SET_ADVERTISING_DATA:
+					HCI_LE_Set_Advertising_Data_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case VS_ACI_HAL_WRITE_CONFIG_DATA:
 					ACI_Hal_Write_Config_Data_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case VS_ACI_HAL_READ_CONFIG_DATA:
+					ACI_Hal_Read_Config_Data_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], NULL, 0 );
+					break;
+
+				case VS_ACI_HAL_SET_TX_POWER_LEVEL:
+					ACI_Hal_Set_Tx_Power_Level_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case VS_ACI_HAL_DEVICE_STANDBY:
+					ACI_Hal_Device_Standby_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER:
+					ACI_Hal_LE_Tx_Test_Packet_Number_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], 0 );
+					break;
+
+				case VS_ACI_HAL_TONE_START:
+					ACI_Hal_Tone_Start_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case VS_ACI_HAL_TONE_STOP:
+					ACI_Hal_Tone_Stop_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case VS_ACI_HAL_GET_LINK_STATUS:
+					ACI_Hal_Get_Link_Status_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], NULL, NULL );
 					break;
 				}}
 			break;
@@ -173,7 +221,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				switch( Ecode.ECODE )
 				{
 				case EVT_BLUE_INITIALIZED_EVENT_CODE:
-					HCI_VS_Blue_Initialized_Event( EventPacketPtr->Event_Parameter[2] );
+					ACI_Blue_Initialized_Event( EventPacketPtr->Event_Parameter[2] );
 					break;
 
 				case EVT_BLUE_LOST_EVENT_CODE:
