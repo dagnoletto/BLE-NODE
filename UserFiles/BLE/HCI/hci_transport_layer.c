@@ -104,7 +104,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			switch( EventPacketPtr->Event_Code )
 			{
 
-
+			/*---------- HARDWARE_ERROR_EVT ------------*//* Page 2312 Core_v5.2 */
+			case HARDWARE_ERROR:
+				HCI_Hardware_Error( EventPacketPtr->Event_Parameter[0] );
+			break;
 
 			/*---------- COMMAND_COMPLETE_EVT ------------*//* Page 2308 Core_v5.2 */
 			case COMMAND_COMPLETE: {
@@ -114,11 +117,15 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				switch( OpCode.Val )
 				{
 				case HCI_READ_LOCAL_VERSION_INFORMATION:
-					HCI_Read_Local_Version_Information_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					HCI_Read_Local_Version_Information_Response( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:
-					HCI_LE_Set_Advertising_Data_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					HCI_LE_Set_Advertising_Data_Response( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
+					ACI_Hal_Get_Fw_Build_Number_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
 					break;
 
 				case VS_ACI_HAL_WRITE_CONFIG_DATA:
@@ -156,6 +163,17 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				case VS_ACI_HAL_GET_LINK_STATUS:
 					ACI_Hal_Get_Link_Status_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]), &(EventPacketPtr->Event_Parameter[12]) );
 					break;
+
+				case VS_ACI_HAL_GET_ANCHOR_PERIOD: {
+					uint32_t AnchorInterval = ( EventPacketPtr->Event_Parameter[7] << 24 ) | ( EventPacketPtr->Event_Parameter[6] << 16 ) |
+							( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4];
+
+					uint32_t Maxslot = ( EventPacketPtr->Event_Parameter[11] << 24 ) | ( EventPacketPtr->Event_Parameter[10] << 16 ) |
+							( EventPacketPtr->Event_Parameter[9] << 8 ) | EventPacketPtr->Event_Parameter[8];
+
+					ACI_Hal_Get_Anchor_Period_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], AnchorInterval, Maxslot );
+				}
+				break;
 				}}
 			break;
 
@@ -169,11 +187,15 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				switch( OpCode.Val )
 				{
 				case HCI_READ_LOCAL_VERSION_INFORMATION:
-					HCI_Read_Local_Version_Information_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					HCI_Read_Local_Version_Information_Response( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:
-					HCI_LE_Set_Advertising_Data_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					HCI_LE_Set_Advertising_Data_Response( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
+					ACI_Hal_Get_Fw_Build_Number_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], 0 );
 					break;
 
 				case VS_ACI_HAL_WRITE_CONFIG_DATA:
@@ -207,6 +229,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				case VS_ACI_HAL_GET_LINK_STATUS:
 					ACI_Hal_Get_Link_Status_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], NULL, NULL );
 					break;
+
+				case VS_ACI_HAL_GET_ANCHOR_PERIOD:
+					ACI_Hal_Get_Anchor_Period_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], 0, 0 );
+					break;
 				}}
 			break;
 
@@ -224,11 +250,24 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					ACI_Blue_Initialized_Event( EventPacketPtr->Event_Parameter[2] );
 					break;
 
-				case EVT_BLUE_LOST_EVENT_CODE:
+				case EVT_BLUE_LOST_EVENTS_CODE:
+					ACI_Blue_Lost_Event( &(EventPacketPtr->Event_Parameter[2]) );
 					break;
 
-				case FAULT_DATA_EVENT_CODE:
-					break;
+				case FAULT_DATA_EVENT_CODE: {
+					uint32_t Registers[9];
+					int8_t Index;
+
+					for( int8_t i = 0; i < ( sizeof(Registers)/sizeof(uint32_t) ); i++ )
+					{
+						Index = i * 4;
+						Registers[i] = ( EventPacketPtr->Event_Parameter[6 + Index] << 24 ) | ( EventPacketPtr->Event_Parameter[5 + Index] << 16 ) |
+								( EventPacketPtr->Event_Parameter[4 + Index] << 8 ) | EventPacketPtr->Event_Parameter[3 + Index];
+					}
+
+					ACI_Fault_Data_Event( EventPacketPtr->Event_Parameter[2], &Registers[0], EventPacketPtr->Event_Parameter[39], &(EventPacketPtr->Event_Parameter[40]) );
+				}
+				break;
 				}
 			}
 			break;

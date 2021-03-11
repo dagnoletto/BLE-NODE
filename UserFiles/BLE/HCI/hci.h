@@ -105,6 +105,7 @@ typedef enum
 /* Event codes for HCI event packets */
 typedef enum
 {
+	HARDWARE_ERROR	 = 0x10,
 	COMMAND_COMPLETE = 0x0E,
 	COMMAND_STATUS 	 = 0x0F,
 	VENDOR_SPECIFIC  = 0xFF
@@ -186,14 +187,26 @@ typedef enum /* List of possible error codes, page 364 Core_v5.2 */
 }CONTROLLER_ERROR_CODES;
 
 
+typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
+{
+	/* These Hardware_Codes will be implementation-specific, and can be
+	assigned to indicate various hardware problems. */
+	SPI_FRAMING_ERROR   = 0,
+	RADIO_STATE_ERROR   = 1,
+	TIMER_OVERRUN_ERROR = 2
+}BLE_HW_ERROR_CODE;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
-void    HCI_LE_Set_Advertising_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+void    HCI_LE_Set_Advertising_Data_Response( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
 
 uint8_t HCI_Read_Local_Version_Information( void );
-void    HCI_Read_Local_Version_Information_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+void    HCI_Read_Local_Version_Information_Response( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+
+void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 
 
 /****************************************************************/

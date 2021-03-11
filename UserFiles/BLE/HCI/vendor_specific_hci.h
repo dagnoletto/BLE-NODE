@@ -16,6 +16,7 @@
 /* Vendor Specific (VS) commands */
 typedef enum
 {
+	VS_ACI_HAL_GET_FW_BUILD_NUMBER		= (PARSE_OPCODE( 0x0000, VENDOR_SPECIFIC_CMD )),
 	VS_ACI_HAL_WRITE_CONFIG_DATA		= (PARSE_OPCODE( 0x000C, VENDOR_SPECIFIC_CMD )),
 	VS_ACI_HAL_READ_CONFIG_DATA			= (PARSE_OPCODE( 0x000D, VENDOR_SPECIFIC_CMD )),
 	VS_ACI_HAL_SET_TX_POWER_LEVEL		= (PARSE_OPCODE( 0x000F, VENDOR_SPECIFIC_CMD )),
@@ -23,7 +24,8 @@ typedef enum
 	VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER	= (PARSE_OPCODE( 0x0014, VENDOR_SPECIFIC_CMD )),
 	VS_ACI_HAL_TONE_START				= (PARSE_OPCODE( 0x0015, VENDOR_SPECIFIC_CMD )),
 	VS_ACI_HAL_TONE_STOP				= (PARSE_OPCODE( 0x0016, VENDOR_SPECIFIC_CMD )),
-	VS_ACI_HAL_GET_LINK_STATUS			= (PARSE_OPCODE( 0x0017, VENDOR_SPECIFIC_CMD ))
+	VS_ACI_HAL_GET_LINK_STATUS			= (PARSE_OPCODE( 0x0017, VENDOR_SPECIFIC_CMD )),
+	VS_ACI_HAL_GET_ANCHOR_PERIOD		= (PARSE_OPCODE( 0x00F8, VENDOR_SPECIFIC_CMD ))
 }VS_COMMAND_OPCODE;
 
 
@@ -56,7 +58,7 @@ typedef enum
 typedef enum
 {
 	EVT_BLUE_INITIALIZED_EVENT_CODE	= 0x0001,
-	EVT_BLUE_LOST_EVENT_CODE		= 0x0002,
+	EVT_BLUE_LOST_EVENTS_CODE		= 0x0002,
 	FAULT_DATA_EVENT_CODE			= 0x0003
 }VS_EVENT_CODE;
 
@@ -64,6 +66,9 @@ typedef enum
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+uint8_t ACI_Hal_Get_Fw_Build_Number( void );
+void 	ACI_Hal_Get_Fw_Build_Number_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint16_t RevisionNumber );
+
 uint8_t ACI_Hal_Write_Config_Data( uint8_t Offset, uint8_t Length, uint8_t Value[] );
 void    ACI_Hal_Write_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
 
@@ -88,7 +93,12 @@ void 	ACI_Hal_Tone_Stop_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCod
 uint8_t ACI_Hal_Get_Link_Status( void );
 void 	ACI_Hal_Get_Link_Status_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint8_t* LinkStatus, uint8_t* Connection_Handle );
 
+uint8_t ACI_Hal_Get_Anchor_Period( void );
+void 	ACI_Hal_Get_Anchor_Period_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint32_t AnchorInterval, uint32_t Maxslot );
+
 void 	ACI_Blue_Initialized_Event( REASON_CODE Code );
+void	ACI_Blue_Lost_Event( uint8_t* LostEventsMap );
+void	ACI_Fault_Data_Event( uint8_t FaultReason, uint32_t* RegistersPtr, uint8_t FaultDataLength, uint8_t* FaultData );
 
 
 /****************************************************************/

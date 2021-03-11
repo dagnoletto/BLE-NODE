@@ -180,10 +180,16 @@ int main(void)
 
 			enable = !enable;
 
-			ACI_Hal_Get_Link_Status(  );
+			//ACI_Hal_Get_Link_Status(  );
 
 			//	  bdflag = 1;
 			//}
+
+			//ACI_Hal_Get_Fw_Build_Number( );
+
+			//ACI_Hal_Get_Link_Status( );
+
+			ACI_Hal_Get_Anchor_Period( );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
