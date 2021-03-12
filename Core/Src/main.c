@@ -189,7 +189,11 @@ int main(void)
 
 			//ACI_Hal_Get_Link_Status( );
 
-			ACI_Hal_Get_Anchor_Period( );
+			//ACI_Hal_Get_Anchor_Period( );
+
+			//HCI_Disconnect( 0, REM_DEV_TERM_CONN_LOW_RESOURCES );
+
+			HCI_Read_Local_Version_Information(  );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

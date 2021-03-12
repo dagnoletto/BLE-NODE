@@ -97,8 +97,9 @@ typedef enum
 /* Low Energy (LE) commands */
 typedef enum
 {
-	HCI_READ_LOCAL_VERSION_INFORMATION 	= (PARSE_OPCODE( 0x0001, LE_CONTROLLER_CMD )),
-	HCI_LE_SET_ADVERTISING_DATA 		= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD )),
+	HCI_DISCONNECT						= (PARSE_OPCODE( 0x0006, LINK_CTRL_CMD 	   	 )),
+	HCI_READ_LOCAL_VERSION_INFORMATION 	= (PARSE_OPCODE( 0x0001, INFO_PARAMETERS_CMD )),
+	HCI_LE_SET_ADVERTISING_DATA 		= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD 	 ))
 }COMMAND_OPCODE;
 
 
@@ -187,6 +188,23 @@ typedef enum /* List of possible error codes, page 364 Core_v5.2 */
 }CONTROLLER_ERROR_CODES;
 
 
+typedef enum
+{
+	CORE_SPEC_1_0b 		 = 0,  /* Bluetooth Core Specification 1.0b (Withdrawn) */
+	CORE_SPEC_1_1 		 = 1,  /* Bluetooth Core Specification 1.1 (Withdrawn) */
+	CORE_SPEC_1_2 		 = 2,  /* Bluetooth Core Specification 1.2 (Withdrawn) */
+	CORE_SPEC_2_0_EDR 	 = 3,  /* Bluetooth Core Specification 2.0 + EDR (Withdrawn) */
+	CORE_SPEC_2_1_EDR 	 = 4,  /* Bluetooth Core Specification 2.1 + EDR (Withdrawn) */
+	CORE_SPEC_3_0_HS	 = 5,  /* Bluetooth Core Specification 3.0 + HS (Withdrawn) */
+	CORE_SPEC_4_0 		 = 6,  /* Bluetooth Core Specification 4.0 */
+	CORE_SPEC_4_1		 = 7,  /* Bluetooth Core Specification 4.1 */
+	CORE_SPEC_4_2		 = 8,  /* Bluetooth Core Specification 4.2 */
+	CORE_SPEC_5_0		 = 9,  /* Bluetooth Core Specification 5.0 */
+	CORE_SPEC_5_1		 = 10, /* Bluetooth Core Specification 5.1 */
+	CORE_SPEC_5_2	     = 11  /* Bluetooth Core Specification 5.2 */
+}HCI_VERSION;
+
+
 typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 {
 	/* These Hardware_Codes will be implementation-specific, and can be
@@ -197,14 +215,24 @@ typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 }BLE_HW_ERROR_CODE;
 
 
+#define MAX_CONNECTION_HANDLE 0x0EFF
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
-void    HCI_LE_Set_Advertising_Data_Response( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
+void 	HCI_Disconnect_Status( CONTROLLER_ERROR_CODES Reason );
 
 uint8_t HCI_Read_Local_Version_Information( void );
-void    HCI_Read_Local_Version_Information_Response( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+void    HCI_Read_Local_Version_Information_Status( CONTROLLER_ERROR_CODES Reason );
+void    HCI_Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES ErrorCode,
+													 HCI_VERSION HCI_Version, uint16_t HCI_Revision,
+													 uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name,
+													 uint16_t LMP_PAL_Subversion);
+
+uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
+void    HCI_LE_Set_Advertising_Data_Response( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
 
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 

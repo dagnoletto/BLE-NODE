@@ -83,6 +83,8 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 /****************************************************************/
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 {
+	/* TODO: talvez melhorar a decodificação usando vetores indexados (look-up tables)
+	 * lembre-se da linguagem P4. */
 	if( Status == TRANSFER_DONE )
 	{
 		HCI_PACKET_TYPE PacketType = *DataPtr;
@@ -117,7 +119,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				switch( OpCode.Val )
 				{
 				case HCI_READ_LOCAL_VERSION_INFORMATION:
-					HCI_Read_Local_Version_Information_Response( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					HCI_Read_Local_Version_Information_Complete( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4],
+															   ( EventPacketPtr->Event_Parameter[6]  << 8 ) | EventPacketPtr->Event_Parameter[5], EventPacketPtr->Event_Parameter[7],
+															   ( EventPacketPtr->Event_Parameter[9]  << 8 ) | EventPacketPtr->Event_Parameter[8],
+															   ( EventPacketPtr->Event_Parameter[11] << 8 ) | EventPacketPtr->Event_Parameter[10] );
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:
@@ -186,8 +191,12 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				switch( OpCode.Val )
 				{
+				case HCI_DISCONNECT:
+					HCI_Disconnect_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
 				case HCI_READ_LOCAL_VERSION_INFORMATION:
-					HCI_Read_Local_Version_Information_Response( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					HCI_Read_Local_Version_Information_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:
