@@ -98,6 +98,7 @@ typedef enum
 typedef enum
 {
 	HCI_DISCONNECT						= (PARSE_OPCODE( 0x0006, LINK_CTRL_CMD 	   	 )),
+	HCI_READ_REMOTE_VERSION_INFORMATION = (PARSE_OPCODE( 0x001D, LINK_CTRL_CMD 	 	 )),
 	HCI_READ_LOCAL_VERSION_INFORMATION 	= (PARSE_OPCODE( 0x0001, INFO_PARAMETERS_CMD )),
 	HCI_LE_SET_ADVERTISING_DATA 		= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD 	 ))
 }COMMAND_OPCODE;
@@ -215,7 +216,8 @@ typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 }BLE_HW_ERROR_CODE;
 
 
-#define MAX_CONNECTION_HANDLE 0x0EFF
+#define MAX_CONNECTION_HANDLE 		0x0EFF
+#define MAX_ADVERTISING_DATA_LENGTH 	31
 
 
 /****************************************************************/
@@ -223,6 +225,9 @@ typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 /****************************************************************/
 uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
 void 	HCI_Disconnect_Status( CONTROLLER_ERROR_CODES Reason );
+
+uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle );
+void 	HCI_Read_Remote_Version_Information_Status( CONTROLLER_ERROR_CODES ErrorCode );
 
 uint8_t HCI_Read_Local_Version_Information( void );
 void    HCI_Read_Local_Version_Information_Status( CONTROLLER_ERROR_CODES Reason );
@@ -232,7 +237,8 @@ void    HCI_Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Erro
 													 uint16_t LMP_PAL_Subversion);
 
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
-void    HCI_LE_Set_Advertising_Data_Response( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+void    HCI_LE_Set_Advertising_Data_Status( CONTROLLER_ERROR_CODES ErrorCode );
+void    HCI_LE_Set_Advertising_Data_Complete( CONTROLLER_ERROR_CODES ErrorCode );
 
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 

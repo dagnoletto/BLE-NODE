@@ -193,7 +193,12 @@ int main(void)
 
 			//HCI_Disconnect( 0, REM_DEV_TERM_CONN_LOW_RESOURCES );
 
-			HCI_Read_Local_Version_Information(  );
+			//HCI_Read_Local_Version_Information(  );
+			//uint8_t address[] = {1,2,3,4,5,6};
+
+			//HCI_LE_Set_Advertising_Data( sizeof(address), &address[0] );
+
+			HCI_Read_Remote_Version_Information( 0 );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

@@ -126,7 +126,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:
-					HCI_LE_Set_Advertising_Data_Response( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					HCI_LE_Set_Advertising_Data_Complete( EventPacketPtr->Event_Parameter[3] );
 					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
@@ -195,12 +195,16 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					HCI_Disconnect_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
+				case HCI_READ_REMOTE_VERSION_INFORMATION:
+					HCI_Read_Remote_Version_Information_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
 				case HCI_READ_LOCAL_VERSION_INFORMATION:
 					HCI_Read_Local_Version_Information_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:
-					HCI_LE_Set_Advertising_Data_Response( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
+					HCI_LE_Set_Advertising_Data_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
