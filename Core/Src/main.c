@@ -198,7 +198,16 @@ int main(void)
 
 			//HCI_LE_Set_Advertising_Data( sizeof(address), &address[0] );
 
-			HCI_Read_Remote_Version_Information( 0 );
+			//HCI_Read_Remote_Version_Information( 0 );
+
+//			EVENT_MASK Event_Mask;
+//			SET_EVENT_MASK_DEFAULT(Event_Mask);
+//
+//			HCI_Set_Event_Mask( Event_Mask );
+
+			//HCI_Reset(  );
+
+			HCI_Read_Transmit_Power_Level( 0, 0 );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

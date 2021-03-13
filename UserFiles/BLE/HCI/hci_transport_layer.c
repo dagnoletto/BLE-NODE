@@ -109,20 +109,33 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			/*---------- HARDWARE_ERROR_EVT ------------*//* Page 2312 Core_v5.2 */
 			case HARDWARE_ERROR:
 				HCI_Hardware_Error( EventPacketPtr->Event_Parameter[0] );
-			break;
+				break;
 
-			/*---------- COMMAND_COMPLETE_EVT ------------*//* Page 2308 Core_v5.2 */
+				/*---------- COMMAND_COMPLETE_EVT ------------*//* Page 2308 Core_v5.2 */
 			case COMMAND_COMPLETE: {
 				OpCode.Val = ( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1];
 				Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[0];
 
 				switch( OpCode.Val )
 				{
+				case HCI_SET_EVENT_MASK:
+					HCI_Set_Event_Mask_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case HCI_RESET:
+					HCI_Reset_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case HCI_READ_TRANSMIT_POWER_LEVEL:
+					HCI_Read_Transmit_Power_Level_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
+							EventPacketPtr->Event_Parameter[6] );
+					break;
+
 				case HCI_READ_LOCAL_VERSION_INFORMATION:
 					HCI_Read_Local_Version_Information_Complete( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4],
-															   ( EventPacketPtr->Event_Parameter[6]  << 8 ) | EventPacketPtr->Event_Parameter[5], EventPacketPtr->Event_Parameter[7],
-															   ( EventPacketPtr->Event_Parameter[9]  << 8 ) | EventPacketPtr->Event_Parameter[8],
-															   ( EventPacketPtr->Event_Parameter[11] << 8 ) | EventPacketPtr->Event_Parameter[10] );
+							( EventPacketPtr->Event_Parameter[6]  << 8 ) | EventPacketPtr->Event_Parameter[5], EventPacketPtr->Event_Parameter[7],
+							( EventPacketPtr->Event_Parameter[9]  << 8 ) | EventPacketPtr->Event_Parameter[8],
+							( EventPacketPtr->Event_Parameter[11] << 8 ) | EventPacketPtr->Event_Parameter[10] );
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:
@@ -197,6 +210,18 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				case HCI_READ_REMOTE_VERSION_INFORMATION:
 					HCI_Read_Remote_Version_Information_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_SET_EVENT_MASK:
+					HCI_Set_Event_Mask_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_RESET:
+					HCI_Reset_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_READ_TRANSMIT_POWER_LEVEL:
+					HCI_Read_Transmit_Power_Level_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case HCI_READ_LOCAL_VERSION_INFORMATION:
