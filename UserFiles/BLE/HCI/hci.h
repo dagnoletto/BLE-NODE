@@ -103,6 +103,8 @@ typedef enum
 	HCI_RESET							= (PARSE_OPCODE( 0x0003, CTRL_AND_BASEBAND_CMD 	 )),
 	HCI_READ_TRANSMIT_POWER_LEVEL		= (PARSE_OPCODE( 0x002D, CTRL_AND_BASEBAND_CMD 	 )),
 	HCI_READ_LOCAL_VERSION_INFORMATION 	= (PARSE_OPCODE( 0x0001, INFO_PARAMETERS_CMD	 )),
+	HCI_READ_LOCAL_SUPPORTED_COMMANDS	= (PARSE_OPCODE( 0x0002, INFO_PARAMETERS_CMD 	 )),
+	HCI_READ_LOCAL_SUPPORTED_FEATURES	= (PARSE_OPCODE( 0x0003, INFO_PARAMETERS_CMD 	 )),
 	HCI_LE_SET_ADVERTISING_DATA 		= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD 		 ))
 }COMMAND_OPCODE;
 
@@ -280,6 +282,423 @@ typedef union
 #define SET_EVENT_MASK_DEFAULT(Mask) ( Mask.U64Var = DEFAULT_EVENT_MASK_VAL )
 
 
+typedef union
+{
+	struct Supported_Commands_Bits
+	{
+		uint8_t HCI_Inquiry 						:1; /* Octet 0 Bit 0 */
+		uint8_t HCI_Inquiry_Cancel					:1; /* Octet 0 Bit 1 */
+		uint8_t HCI_Periodic_Inquiry_Mode 			:1; /* Octet 0 Bit 2 */
+		uint8_t HCI_Exit_Periodic_Inquiry_Mode 		:1; /* Octet 0 Bit 3 */
+		uint8_t HCI_Create_Connection 				:1;	/* Octet 0 Bit 4 */
+		uint8_t HCI_Disconnect 						:1;	/* Octet 0 Bit 5 */
+		uint8_t HCI_Add_SCO_Connection 				:1; /* Octet 0 Bit 6 *//* [deprecated] */
+		uint8_t HCI_Create_Connection_Cancel 		:1; /* Octet 0 Bit 7 */
+
+		uint8_t HCI_Accept_Connection_Request 		:1; /* Octet 1 Bit 0 */
+		uint8_t HCI_Reject_Connection_Request 		:1; /* Octet 1 Bit 1 */
+		uint8_t HCI_Link_Key_Request_Reply 	  		:1; /* Octet 1 Bit 2 */
+		uint8_t HCI_Link_Key_Request_Negative_Reply :1; /* Octet 1 Bit 3 */
+		uint8_t HCI_PIN_Code_Request_Reply 			:1; /* Octet 1 Bit 4 */
+		uint8_t HCI_PIN_Code_Request_Negative_Reply :1; /* Octet 1 Bit 5 */
+		uint8_t HCI_Change_Connection_Packet_Type 	:1; /* Octet 1 Bit 6 */
+		uint8_t HCI_Authentication_Requested 		:1; /* Octet 1 Bit 7 */
+
+		uint8_t HCI_Set_Connection_Encryption		:1; /* Octet 2 Bit 0 */
+		uint8_t HCI_Change_Connection_Link_Key      :1; /* Octet 2 Bit 1 */
+		uint8_t HCI_Master_Link_Key 				:1; /* Octet 2 Bit 2 */
+		uint8_t HCI_Remote_Name_Request				:1; /* Octet 2 Bit 3 */
+		uint8_t HCI_Remote_Name_Request_Cancel		:1; /* Octet 2 Bit 4 */
+		uint8_t HCI_Read_Remote_Supported_Features  :1; /* Octet 2 Bit 5 */
+		uint8_t HCI_Read_Remote_Extended_Features   :1; /* Octet 2 Bit 6 */
+		uint8_t HCI_Read_Remote_Version_Information :1; /* Octet 2 Bit 7 */
+
+		uint8_t HCI_Read_Clock_Offset	:1; /* Octet 3 Bit 0 */
+		uint8_t HCI_Read_LMP_Handle		:1; /* Octet 3 Bit 1 */
+		uint8_t Reserved1				:6;	/* Octet 3 Bit 2 to Bit 7 */
+
+		uint8_t Reserved2 				:1; /* Octet 4 Bit 0 */
+		uint8_t HCI_Hold_Mode 			:1; /* Octet 4 Bit 1 */
+		uint8_t HCI_Sniff_Mode			:1; /* Octet 4 Bit 2 */
+		uint8_t HCI_Exit_Sniff_Mode 	:1; /* Octet 4 Bit 3 */
+		uint8_t Previously_used_1		:2; /* Octet 4 Bit 4 to Bit 5 */
+		uint8_t HCI_QoS_Setup 			:1; /* Octet 4 Bit 6 */
+		uint8_t HCI_Role_Discovery 		:1; /* Octet 4 Bit 7 */
+
+		uint8_t HCI_Switch_Role 						:1; /* Octet 5 Bit 0 */
+		uint8_t HCI_Read_Link_Policy_Settings 			:1; /* Octet 5 Bit 1 */
+		uint8_t HCI_Write_Link_Policy_Settings 			:1; /* Octet 5 Bit 2 */
+		uint8_t HCI_Read_Default_Link_Policy_Settings 	:1; /* Octet 5 Bit 3 */
+		uint8_t HCI_Write_Default_Link_Policy_Settings 	:1; /* Octet 5 Bit 4 */
+		uint8_t HCI_Flow_Specification 					:1; /* Octet 5 Bit 5 */
+		uint8_t HCI_Set_Event_Mask 						:1; /* Octet 5 Bit 6 */
+		uint8_t HCI_Reset 								:1; /* Octet 5 Bit 7 */
+
+		uint8_t HCI_Set_Event_Filter 			:1; /* Octet 6 Bit 0 */
+		uint8_t HCI_Flush						:1; /* Octet 6 Bit 1 */
+		uint8_t HCI_Read_PIN_Type				:1; /* Octet 6 Bit 2 */
+		uint8_t HCI_Write_PIN_Type				:1; /* Octet 6 Bit 3 */
+		uint8_t Previously_used_2				:1; /* Octet 6 Bit 4 */
+		uint8_t HCI_Read_Stored_Link_Key		:1; /* Octet 6 Bit 5 */
+		uint8_t HCI_Write_Stored_Link_Key		:1; /* Octet 6 Bit 6 */
+		uint8_t HCI_Delete_Stored_Link_Key		:1; /* Octet 6 Bit 7 */
+
+		uint8_t HCI_Write_Local_Name				:1; /* Octet 7 Bit 0 */
+		uint8_t HCI_Read_Local_Name					:1; /* Octet 7 Bit 1 */
+		uint8_t HCI_Read_Connection_Accept_Timeout	:1; /* Octet 7 Bit 2 */
+		uint8_t HCI_Write_Connection_Accept_Timeout :1; /* Octet 7 Bit 3 */
+		uint8_t HCI_Read_Page_Timeout				:1; /* Octet 7 Bit 4 */
+		uint8_t HCI_Write_Page_Timeout				:1; /* Octet 7 Bit 5 */
+		uint8_t HCI_Read_Scan_Enable				:1; /* Octet 7 Bit 6 */
+		uint8_t HCI_Write_Scan_Enable				:1; /* Octet 7 Bit 7 */
+
+		uint8_t HCI_Read_Page_Scan_Activity			:1;	/* Octet 8 Bit 0 */
+		uint8_t HCI_Write_Page_Scan_Activity 		:1;	/* Octet 8 Bit 1 */
+		uint8_t HCI_Read_Inquiry_Scan_Activity 		:1; /* Octet 8 Bit 2 */
+		uint8_t HCI_Write_Inquiry_Scan_Activity 	:1; /* Octet 8 Bit 3 */
+		uint8_t HCI_Read_Authentication_Enable 		:1; /* Octet 8 Bit 4 */
+		uint8_t HCI_Write_Authentication_Enable 	:1;	/* Octet 8 Bit 5 */
+		uint8_t HCI_Read_Encryption_Mode			:1;	/* Octet 8 Bit 6 *//* [deprecated] */
+		uint8_t HCI_Write_Encryption_Mode			:1;	/* Octet 8 Bit 7 *//* [deprecated] */
+
+		uint8_t HCI_Read_Class_Of_Device				:1; /* Octet 9 Bit 0 */
+		uint8_t HCI_Write_Class_Of_Device				:1; /* Octet 9 Bit 1 */
+		uint8_t HCI_Read_Voice_Setting					:1; /* Octet 9 Bit 2 */
+		uint8_t HCI_Write_Voice_Setting					:1; /* Octet 9 Bit 3 */
+		uint8_t HCI_Read_Automatic_Flush_Timeout		:1; /* Octet 9 Bit 4 */
+		uint8_t HCI_Write_Automatic_Flush_Timeout		:1; /* Octet 9 Bit 5 */
+		uint8_t HCI_Read_Num_Broadcast_Retransmissions	:1; /* Octet 9 Bit 6 */
+		uint8_t HCI_Write_Num_Broadcast_Retransmissions	:1; /* Octet 9 Bit 7 */
+
+		uint8_t HCI_Read_Hold_Mode_Activity					:1;	/* Octet 10 Bit 0 */
+		uint8_t HCI_Write_Hold_Mode_Activity				:1;	/* Octet 10 Bit 1 */
+		uint8_t HCI_Read_Transmit_Power_Level				:1;	/* Octet 10 Bit 2 */
+		uint8_t HCI_Read_Synchronous_Flow_Control_Enable	:1; /* Octet 10 Bit 3 */
+		uint8_t HCI_Write_Synchronous_Flow_Control_Enable	:1; /* Octet 10 Bit 4 */
+		uint8_t HCI_Set_Controller_To_Host_Flow_Control		:1; /* Octet 10 Bit 5 */
+		uint8_t HCI_Host_Buffer_Size						:1;	/* Octet 10 Bit 6 */
+		uint8_t HCI_Host_Number_Of_Completed_Packets		:1; /* Octet 10 Bit 7 */
+
+		uint8_t HCI_Read_Link_Supervision_Timeout		:1; /* Octet 11 Bit 0 */
+		uint8_t HCI_Write_Link_Supervision_Timeout		:1; /* Octet 11 Bit 1 */
+		uint8_t HCI_Read_Number_Of_Supported_IAC		:1; /* Octet 11 Bit 2 */
+		uint8_t HCI_Read_Current_IAC_LAP				:1; /* Octet 11 Bit 3 */
+		uint8_t HCI_Write_Current_IAC_LAP				:1; /* Octet 11 Bit 4 */
+		uint8_t HCI_Read_Page_Scan_Mode_Period			:1; /* Octet 11 Bit 5 *//* [deprecated] */
+		uint8_t HCI_Write_Page_Scan_Mode_Period			:1; /* Octet 11 Bit 6 *//* [deprecated] */
+		uint8_t HCI_Read_Page_Scan_Mode					:1; /* Octet 11 Bit 7 *//* [deprecated] */
+
+		uint8_t HCI_Write_Page_Scan_Mode					:1;	/* Octet 12 Bit 0 *//* [deprecated] */
+		uint8_t HCI_Set_AFH_Host_Channel_Classification		:1; /* Octet 12 Bit 1 */
+		uint8_t Reserved3 									:2; /* Octet 12 Bit 2 to Bit 3 */
+		uint8_t HCI_Read_Inquiry_Scan_Type					:1; /* Octet 12 Bit 4 */
+		uint8_t HCI_Write_Inquiry_Scan_Type					:1; /* Octet 12 Bit 5 */
+		uint8_t HCI_Read_Inquiry_Mode						:1; /* Octet 12 Bit 6 */
+		uint8_t HCI_Write_Inquiry_Mode						:1; /* Octet 12 Bit 7 */
+
+		uint8_t HCI_Read_Page_Scan_Type						:1; /* Octet 13 Bit 0 */
+		uint8_t HCI_Write_Page_Scan_Type					:1; /* Octet 13 Bit 1 */
+		uint8_t HCI_Read_AFH_Channel_Assessment_Mode		:1; /* Octet 13 Bit 2 */
+		uint8_t HCI_Write_AFH_Channel_Assessment_Mode		:1; /* Octet 13 Bit 3 */
+		uint8_t Reserved4									:4;	/* Octet 13 Bit 4 to Bit 7 */
+
+		uint8_t Reserved5 								:3; /* Octet 14 Bit 0 to Bit 2 */
+		uint8_t HCI_Read_Local_Version_Information		:1; /* Octet 14 Bit 3 */
+		uint8_t Reserved6								:1; /* Octet 14 Bit 4 */
+		uint8_t HCI_Read_Local_Supported_Features 		:1; /* Octet 14 Bit 5 */
+		uint8_t HCI_Read_Local_Extended_Features		:1; /* Octet 14 Bit 6 */
+		uint8_t HCI_Read_Buffer_Size					:1; /* Octet 14 Bit 7 */
+
+		uint8_t HCI_Read_Country_Code					:1; /* Octet 15 Bit 0 *//* [deprecated] */
+		uint8_t HCI_Read_BD_ADDR						:1; /* Octet 15 Bit 1 */
+		uint8_t HCI_Read_Failed_Contact_Counter			:1; /* Octet 15 Bit 2 */
+		uint8_t HCI_Reset_Failed_Contact_Counter		:1; /* Octet 15 Bit 3 */
+		uint8_t HCI_Read_Link_Quality					:1; /* Octet 15 Bit 4 */
+		uint8_t HCI_Read_RSSI							:1; /* Octet 15 Bit 5 */
+		uint8_t HCI_Read_AFH_Channel_Map				:1; /* Octet 15 Bit 6 */
+		uint8_t HCI_Read_Clock							:1; /* Octet 15 Bit 7 */
+
+		uint8_t HCI_Read_Loopback_Mode						:1; /* Octet 16 Bit 0 */
+		uint8_t HCI_Write_Loopback_Mode						:1; /* Octet 16 Bit 1 */
+		uint8_t HCI_Enable_Device_Under_Test_Mode			:1; /* Octet 16 Bit 2 */
+		uint8_t HCI_Setup_Synchronous_Connection_Request	:1; /* Octet 16 Bit 3 */
+		uint8_t HCI_Accept_Synchronous_Connection_Request	:1; /* Octet 16 Bit 4 */
+		uint8_t HCI_Reject_Synchronous_Connection_Request	:1; /* Octet 16 Bit 5 */
+		uint8_t Reserved7 									:2; /* Octet 16 Bit 6 to Bit7 */
+
+		uint8_t HCI_Read_Extended_Inquiry_Response 		:1; /* Octet 17 Bit 0 */
+		uint8_t HCI_Write_Extended_Inquiry_Response		:1; /* Octet 17 Bit 1 */
+		uint8_t HCI_Refresh_Encryption_Key				:1; /* Octet 17 Bit 2 */
+		uint8_t Reserved8								:1; /* Octet 17 Bit 3 */
+		uint8_t HCI_Sniff_Subrating						:1; /* Octet 17 Bit 4 */
+		uint8_t HCI_Read_Simple_Pairing_Mode			:1; /* Octet 17 Bit 5 */
+		uint8_t HCI_Write_Simple_Pairing_Mode			:1; /* Octet 17 Bit 6 */
+		uint8_t HCI_Read_Local_OOB_Data					:1; /* Octet 17 Bit 7 */
+
+		uint8_t HCI_Read_Inquiry_Response_Transmit_Power_Level 	:1; /* Octet 18 Bit 0 */
+		uint8_t HCI_Write_Inquiry_Transmit_Power_Level			:1; /* Octet 18 Bit 1 */
+		uint8_t HCI_Read_Default_Erroneous_Data_Reporting		:1; /* Octet 18 Bit 2 */
+		uint8_t HCI_Write_Default_Erroneous_Data_Reporting		:1; /* Octet 18 Bit 3 */
+		uint8_t Reserved9										:3; /* Octet 18 Bit 4 to Bit 6 */
+		uint8_t HCI_IO_Capability_Request_Reply					:1; /* Octet 18 Bit 7 */
+
+		uint8_t HCI_User_Confirmation_Request_Reply				:1; /* Octet 19 Bit 0 */
+		uint8_t HCI_User_Confirmation_Request_Negative_Reply	:1; /* Octet 19 Bit 1 */
+		uint8_t HCI_User_Passkey_Request_Reply					:1; /* Octet 19 Bit 2 */
+		uint8_t HCI_User_Passkey_Request_Negative_Reply			:1; /* Octet 19 Bit 3 */
+		uint8_t HCI_Remote_OOB_Data_Request_Reply				:1; /* Octet 19 Bit 4 */
+		uint8_t HCI_Write_Simple_Pairing_Debug_Mode				:1; /* Octet 19 Bit 5 */
+		uint8_t HCI_Enhanced_Flush								:1; /* Octet 19 Bit 6 */
+		uint8_t HCI_Remote_OOB_Data_Request_Negative_Reply		:1; /* Octet 19 Bit 7 */
+
+		uint8_t Reserved10 										:2; /* Octet 20 Bit 0 to Bit 1 */
+		uint8_t HCI_Send_Keypress_Notification					:1; /* Octet 20 Bit 2 */
+		uint8_t HCI_IO_Capability_Request_Negative_Reply		:1; /* Octet 20 Bit 3 */
+		uint8_t HCI_Read_Encryption_Key_Size					:1; /* Octet 20 Bit 4 */
+		uint8_t Reserved11 										:3; /* Octet 20 Bit 5 to Bit 7 */
+
+		uint8_t HCI_Create_Physical_Link		:1; /* Octet 21 Bit 0 */
+		uint8_t HCI_Accept_Physical_Link		:1; /* Octet 21 Bit 1 */
+		uint8_t HCI_Disconnect_Physical_Link	:1; /* Octet 21 Bit 2 */
+		uint8_t HCI_Create_Logical_Link			:1; /* Octet 21 Bit 3 */
+		uint8_t HCI_Accept_Logical_Link			:1; /* Octet 21 Bit 4 */
+		uint8_t HCI_Disconnect_Logical_Link		:1; /* Octet 21 Bit 5 */
+		uint8_t HCI_Logical_Link_Cancel			:1; /* Octet 21 Bit 6 */
+		uint8_t HCI_Flow_Spec_Modify			:1; /* Octet 21 Bit 7 */
+
+		uint8_t HCI_Read_Logical_Link_Accept_Timeout	:1; /* Octet 22 Bit 0 */
+		uint8_t HCI_Write_Logical_Link_Accept_Timeout	:1; /* Octet 22 Bit 1 */
+		uint8_t HCI_Set_Event_Mask_Page_2				:1; /* Octet 22 Bit 2 */
+		uint8_t HCI_Read_Location_Data					:1; /* Octet 22 Bit 3 */
+		uint8_t HCI_Write_Location_Data					:1; /* Octet 22 Bit 4 */
+		uint8_t HCI_Read_Local_AMP_Info					:1; /* Octet 22 Bit 5 */
+		uint8_t HCI_Read_Local_AMP_ASSOC				:1; /* Octet 22 Bit 6 */
+		uint8_t HCI_Write_Remote_AMP_ASSOC				:1; /* Octet 22 Bit 7 */
+
+		uint8_t HCI_Read_Flow_Control_Mode				:1; /* Octet 23 Bit 0 */
+		uint8_t HCI_Write_Flow_Control_Mode				:1; /* Octet 23 Bit 1 */
+		uint8_t HCI_Read_Data_Block_Size				:1; /* Octet 23 Bit 2 */
+		uint8_t Reserved12 								:2; /* Octet 23 Bit 3 to Bit 4 */
+		uint8_t HCI_Enable_AMP_Receiver_Reports			:1; /* Octet 23 Bit 5 */
+		uint8_t HCI_AMP_Test_End						:1; /* Octet 23 Bit 6 */
+		uint8_t HCI_AMP_Test							:1; /* Octet 23 Bit 7 */
+
+		uint8_t HCI_Read_Enhanced_Transmit_Power_Level		:1; /* Octet 24 Bit 0 */
+		uint8_t Reserved13 									:1; /* Octet 24 Bit 1 */
+		uint8_t HCI_Read_Best_Effort_Flush_Timeout			:1; /* Octet 24 Bit 2 */
+		uint8_t HCI_Write_Best_Effort_Flush_Timeout			:1; /* Octet 24 Bit 3 */
+		uint8_t HCI_Short_Range_Mode						:1; /* Octet 24 Bit 4 */
+		uint8_t HCI_Read_LE_Host_Support					:1; /* Octet 24 Bit 5 */
+		uint8_t HCI_Write_LE_Host_Support					:1; /* Octet 24 Bit 6 */
+		uint8_t Reserved14 									:1; /* Octet 24 Bit 7 */
+
+		uint8_t HCI_LE_Set_Event_Mask								:1; /* Octet 25 Bit 0 */
+		uint8_t HCI_LE_Read_Buffer_Size_v1							:1; /* Octet 25 Bit 1 *//* [v1] */
+		uint8_t HCI_LE_Read_Local_Supported_Features				:1; /* Octet 25 Bit 2 */
+		uint8_t Reserved15 											:1; /* Octet 25 Bit 3 */
+		uint8_t HCI_LE_Set_Random_Address							:1; /* Octet 25 Bit 4 */
+		uint8_t HCI_LE_Set_Advertising_Parameters					:1; /* Octet 25 Bit 5 */
+		uint8_t HCI_LE_Read_Advertising_Physical_Channel_Tx_Power	:1; /* Octet 25 Bit 6 */
+		uint8_t HCI_LE_Set_Advertising_Data							:1; /* Octet 25 Bit 7 */
+
+		uint8_t HCI_LE_Set_Scan_Response_Data		:1; /* Octet 26 Bit 0 */
+		uint8_t HCI_LE_Set_Advertising_Enable		:1; /* Octet 26 Bit 1 */
+		uint8_t HCI_LE_Set_Scan_Parameters			:1; /* Octet 26 Bit 2 */
+		uint8_t HCI_LE_Set_Scan_Enable				:1; /* Octet 26 Bit 3 */
+		uint8_t HCI_LE_Create_Connection			:1; /* Octet 26 Bit 4 */
+		uint8_t HCI_LE_Create_Connection_Cancel		:1; /* Octet 26 Bit 5 */
+		uint8_t HCI_LE_Read_White_List_Size			:1; /* Octet 26 Bit 6 */
+		uint8_t HCI_LE_Clear_White_List				:1; /* Octet 26 Bit 7 */
+
+		uint8_t HCI_LE_Add_Device_To_White_List				:1; /* Octet 27 Bit 0 */
+		uint8_t HCI_LE_Remove_Device_From_White_List		:1; /* Octet 27 Bit 1 */
+		uint8_t HCI_LE_Connection_Update					:1; /* Octet 27 Bit 2 */
+		uint8_t HCI_LE_Set_Host_Channel_Classification		:1; /* Octet 27 Bit 3 */
+		uint8_t HCI_LE_Read_Channel_Map						:1; /* Octet 27 Bit 4 */
+		uint8_t HCI_LE_Read_Remote_Features					:1; /* Octet 27 Bit 5 */
+		uint8_t HCI_LE_Encrypt								:1; /* Octet 27 Bit 6 */
+		uint8_t HCI_LE_Rand									:1; /* Octet 27 Bit 7 */
+
+		uint8_t HCI_LE_Enable_Encryption					:1; /* Octet 28 Bit 0 */
+		uint8_t HCI_LE_Long_Term_Key_Request_Reply			:1; /* Octet 28 Bit 1 */
+		uint8_t HCI_LE_Long_Term_Key_Request_Negative_Reply	:1; /* Octet 28 Bit 2 */
+		uint8_t HCI_LE_Read_Supported_States				:1; /* Octet 28 Bit 3 */
+		uint8_t HCI_LE_Receiver_Test_v1						:1; /* Octet 28 Bit 4 *//* [v1] */
+		uint8_t HCI_LE_Transmitter_Test_v1					:1; /* Octet 28 Bit 5 *//* [v1] */
+		uint8_t HCI_LE_Test_End								:1; /* Octet 28 Bit 6 */
+		uint8_t Reserved16									:1; /* Octet 28 Bit 7 */
+
+		uint8_t Reserved17 									:3; /* Octet 29 Bit 0 to Bit 2 */
+		uint8_t HCI_Enhanced_Setup_Synchronous_Connection	:1; /* Octet 29 Bit 3 */
+		uint8_t HCI_Enhanced_Accept_Synchronous_Connection	:1; /* Octet 29 Bit 4 */
+		uint8_t HCI_Read_Local_Supported_Codecs_v1			:1;	/* Octet 29 Bit 5 *//* [v1] */
+		uint8_t HCI_Set_MWS_Channel_Parameters				:1; /* Octet 29 Bit 6 */
+		uint8_t HCI_Set_External_Frame_Configuration		:1;	/* Octet 29 Bit 7 */
+
+		uint8_t HCI_Set_MWS_Signaling						:1; /* Octet 30 Bit 0 */
+		uint8_t HCI_Set_MWS_Transport_Layer					:1; /* Octet 30 Bit 1 */
+		uint8_t HCI_Set_MWS_Scan_Frequency_Table			:1; /* Octet 30 Bit 2 */
+		uint8_t HCI_Get_MWS_Transport_Layer_Configuration	:1; /* Octet 30 Bit 3 */
+		uint8_t HCI_Set_MWS_PATTERN_Configuration			:1; /* Octet 30 Bit 4 */
+		uint8_t HCI_Set_Triggered_Clock_Capture				:1; /* Octet 30 Bit 5 */
+		uint8_t HCI_Truncated_Page							:1; /* Octet 30 Bit 6 */
+		uint8_t HCI_Truncated_Page_Cancel					:1;	/* Octet 30 Bit 7 */
+
+		uint8_t HCI_Set_Connectionless_Slave_Broadcast			:1; /* Octet 31 Bit 0 */
+		uint8_t HCI_Set_Connectionless_Slave_Broadcast_Receive	:1; /* Octet 31 Bit 1 */
+		uint8_t HCI_Start_Synchronization_Train					:1; /* Octet 31 Bit 2 */
+		uint8_t HCI_Receive_Synchronization_Train				:1; /* Octet 31 Bit 3 */
+		uint8_t HCI_Set_Reserved_LT_ADDR						:1; /* Octet 31 Bit 4 */
+		uint8_t HCI_Delete_Reserved_LT_ADDR						:1; /* Octet 31 Bit 5 */
+		uint8_t HCI_Set_Connectionless_Slave_Broadcast_Data		:1; /* Octet 31 Bit 6 */
+		uint8_t HCI_Read_Synchronization_Train_Parameters		:1; /* Octet 31 Bit 7 */
+
+		uint8_t HCI_Write_Synchronization_Train_Parameters		:1; /* Octet 32 Bit 0 */
+		uint8_t HCI_Remote_OOB_Extended_Data_Request_Reply		:1; /* Octet 32 Bit 1 */
+		uint8_t HCI_Read_Secure_Connections_Host_Support		:1; /* Octet 32 Bit 2 */
+		uint8_t HCI_Write_Secure_Connections_Host_Support		:1; /* Octet 32 Bit 3 */
+		uint8_t HCI_Read_Authenticated_Payload_Timeout			:1; /* Octet 32 Bit 4 */
+		uint8_t HCI_Write_Authenticated_Payload_Timeout			:1; /* Octet 32 Bit 5 */
+		uint8_t HCI_Read_Local_OOB_Extended_Data				:1; /* Octet 32 Bit 6 */
+		uint8_t HCI_Write_Secure_Connections_Test_Mode			:1; /* Octet 32 Bit 7 */
+
+		uint8_t HCI_Read_Extended_Page_Timeout								:1; /* Octet 33 Bit 0 */
+		uint8_t HCI_Write_Extended_Page_Timeout								:1; /* Octet 33 Bit 1 */
+		uint8_t HCI_Read_Extended_Inquiry_Length							:1; /* Octet 33 Bit 2 */
+		uint8_t HCI_Write_Extended_Inquiry_Length							:1; /* Octet 33 Bit 3 */
+		uint8_t HCI_LE_Remote_Connection_Parameter_Request_Reply			:1; /* Octet 33 Bit 4 */
+		uint8_t HCI_LE_Remote_Connection_Parameter_Request_Negative_Reply	:1; /* Octet 33 Bit 5 */
+		uint8_t HCI_LE_Set_Data_Length										:1; /* Octet 33 Bit 6 */
+		uint8_t HCI_LE_Read_Suggested_Default_Data_Length					:1; /* Octet 33 Bit 7 */
+
+		uint8_t HCI_LE_Write_Suggested_Default_Data_Length	:1; /* Octet 34 Bit 0 */
+		uint8_t HCI_LE_Read_Local_P_256_Public_Key			:1; /* Octet 34 Bit 1 */
+		uint8_t HCI_LE_Generate_DHKey_v1					:1; /* Octet 34 Bit 2 *//* [v1] */
+		uint8_t HCI_LE_Add_Device_To_Resolving_List			:1; /* Octet 34 Bit 3 */
+		uint8_t HCI_LE_Remove_Device_From_Resolving_List	:1; /* Octet 34 Bit 4 */
+		uint8_t HCI_LE_Clear_Resolving_List					:1; /* Octet 34 Bit 5 */
+		uint8_t HCI_LE_Read_Resolving_List_Size				:1; /* Octet 34 Bit 6 */
+		uint8_t HCI_LE_Read_Peer_Resolvable_Address			:1; /* Octet 34 Bit 7 */
+
+		uint8_t HCI_LE_Read_Local_Resolvable_Address			:1; /* Octet 35 Bit 0 */
+		uint8_t HCI_LE_Set_Address_Resolution_Enable			:1; /* Octet 35 Bit 1 */
+		uint8_t HCI_LE_Set_Resolvable_Private_Address_Timeout	:1; /* Octet 35 Bit 2 */
+		uint8_t HCI_LE_Read_Maximum_Data_Length					:1; /* Octet 35 Bit 3 */
+		uint8_t HCI_LE_Read_PHY									:1; /* Octet 35 Bit 4 */
+		uint8_t HCI_LE_Set_Default_PHY							:1; /* Octet 35 Bit 5 */
+		uint8_t HCI_LE_Set_PHY									:1; /* Octet 35 Bit 6 */
+		uint8_t HCI_LE_Receiver_Test_v2							:1; /* Octet 35 Bit 7 *//* [v2] */
+
+		uint8_t HCI_LE_Transmitter_Test_v2							:1; /* Octet 36 Bit 0 *//* [v2] */
+		uint8_t HCI_LE_Set_Advertising_Set_Random_Address			:1; /* Octet 36 Bit 1 */
+		uint8_t HCI_LE_Set_Extended_Advertising_Parameters			:1; /* Octet 36 Bit 2 */
+		uint8_t HCI_LE_Set_Extended_Advertising_Data				:1; /* Octet 36 Bit 3 */
+		uint8_t HCI_LE_Set_Extended_Scan_Response_Data				:1; /* Octet 36 Bit 4 */
+		uint8_t HCI_LE_Set_Extended_Advertising_Enable				:1; /* Octet 36 Bit 5 */
+		uint8_t HCI_LE_Read_Maximum_Advertising_Data_Length			:1; /* Octet 36 Bit 6 */
+		uint8_t HCI_LE_Read_Number_of_Supported_Advertising_Sets	:1; /* Octet 36 Bit 7 */
+
+		uint8_t HCI_LE_Remove_Advertising_Set				:1; /* Octet 37 Bit 0 */
+		uint8_t HCI_LE_Clear_Advertising_Sets				:1; /* Octet 37 Bit 1 */
+		uint8_t HCI_LE_Set_Periodic_Advertising_Parameters	:1; /* Octet 37 Bit 2 */
+		uint8_t HCI_LE_Set_Periodic_Advertising_Data		:1; /* Octet 37 Bit 3 */
+		uint8_t HCI_LE_Set_Periodic_Advertising_Enable		:1; /* Octet 37 Bit 4 */
+		uint8_t HCI_LE_Set_Extended_Scan_Parameters			:1; /* Octet 37 Bit 5 */
+		uint8_t HCI_LE_Set_Extended_Scan_Enable				:1; /* Octet 37 Bit 6 */
+		uint8_t HCI_LE_Extended_Create_Connection			:1; /* Octet 37 Bit 7 */
+
+		uint8_t HCI_LE_Periodic_Advertising_Create_Sync				:1; /* Octet 38 Bit 0 */
+		uint8_t HCI_LE_Periodic_Advertising_Create_Sync_Cancel		:1; /* Octet 38 Bit 1 */
+		uint8_t HCI_LE_Periodic_Advertising_Terminate_Sync			:1; /* Octet 38 Bit 2 */
+		uint8_t HCI_LE_Add_Device_To_Periodic_Advertiser_List		:1; /* Octet 38 Bit 3 */
+		uint8_t HCI_LE_Remove_Device_From_Periodic_Advertiser_List	:1; /* Octet 38 Bit 4 */
+		uint8_t HCI_LE_Clear_Periodic_Advertiser_List				:1; /* Octet 38 Bit 5 */
+		uint8_t HCI_LE_Read_Periodic_Advertiser_List_Size			:1; /* Octet 38 Bit 6 */
+		uint8_t HCI_LE_Read_Transmit_Power							:1; /* Octet 38 Bit 7 */
+
+		uint8_t HCI_LE_Read_RF_Path_Compensation					:1; /* Octet 39 Bit 0 */
+		uint8_t HCI_LE_Write_RF_Path_Compensation					:1; /* Octet 39 Bit 1 */
+		uint8_t HCI_LE_Set_Privacy_Mode								:1; /* Octet 39 Bit 2 */
+		uint8_t HCI_LE_Receiver_Test_v3								:1; /* Octet 39 Bit 3 *//* [v3] */
+		uint8_t HCI_LE_Transmitter_Test_v3							:1; /* Octet 39 Bit 4 *//* [v3] */
+		uint8_t HCI_LE_Set_Connectionless_CTE_Transmit_Parameters	:1; /* Octet 39 Bit 5 */
+		uint8_t HCI_LE_Set_Connectionless_CTE_Transmit_Enable		:1;	/* Octet 39 Bit 6 */
+		uint8_t HCI_LE_Set_Connectionless_IQ_Sampling_Enable		:1; /* Octet 39 Bit 7 */
+
+		uint8_t HCI_LE_Set_Connection_CTE_Receive_Parameters		:1; /* Octet 40 Bit 0 */
+		uint8_t HCI_LE_Set_Connection_CTE_Transmit_Parameters		:1; /* Octet 40 Bit 1 */
+		uint8_t HCI_LE_Connection_CTE_Request_Enable				:1; /* Octet 40 Bit 2 */
+		uint8_t HCI_LE_Connection_CTE_Response_Enable				:1; /* Octet 40 Bit 3 */
+		uint8_t HCI_LE_Read_Antenna_Information						:1; /* Octet 40 Bit 4 */
+		uint8_t HCI_LE_Set_Periodic_Advertising_Receive_Enable		:1; /* Octet 40 Bit 5 */
+		uint8_t HCI_LE_Periodic_Advertising_Sync_Transfer			:1; /* Octet 40 Bit 6 */
+		uint8_t HCI_LE_Periodic_Advertising_Set_Info_Transfer		:1; /* Octet 40 Bit 7 */
+
+		uint8_t HCI_LE_Set_Periodic_Advertising_Sync_Transfer_Parameters		 	:1; /* Octet 41 Bit 0 */
+		uint8_t HCI_LE_Set_Default_Periodic_Advertising_Sync_Transfer_Parameters	:1; /* Octet 41 Bit 1 */
+		uint8_t HCI_LE_Generate_DHKey_v2											:1; /* Octet 41 Bit 2 *//* [v2] */
+		uint8_t HCI_Read_Local_Simple_Pairing_Options								:1; /* Octet 41 Bit 3 */
+		uint8_t HCI_LE_Modify_Sleep_Clock_Accuracy									:1; /* Octet 41 Bit 4 */
+		uint8_t HCI_LE_Read_Buffer_Size_v2											:1; /* Octet 41 Bit 5 *//* [v2] */
+		uint8_t HCI_LE_Read_ISO_TX_Sync												:1; /* Octet 41 Bit 6 */
+		uint8_t HCI_LE_Set_CIG_Parameters											:1; /* Octet 41 Bit 7 */
+
+		uint8_t HCI_LE_Set_CIG_Parameters_Test	:1; /* Octet 42 Bit 0 */
+		uint8_t HCI_LE_Create_CIS				:1; /* Octet 42 Bit 1 */
+		uint8_t HCI_LE_Remove_CIG				:1; /* Octet 42 Bit 2 */
+		uint8_t HCI_LE_Accept_CIS_Request		:1; /* Octet 42 Bit 3 */
+		uint8_t HCI_LE_Reject_CIS_Request		:1; /* Octet 42 Bit 4 */
+		uint8_t HCI_LE_Create_BIG				:1; /* Octet 42 Bit 5 */
+		uint8_t HCI_LE_Create_BIG_Test			:1; /* Octet 42 Bit 6 */
+		uint8_t HCI_LE_Terminate_BIG			:1; /* Octet 42 Bit 7 */
+
+		uint8_t HCI_LE_BIG_Create_Sync			:1; /* Octet 43 Bit 0 */
+		uint8_t HCI_LE_BIG_Terminate_Sync		:1; /* Octet 43 Bit 1 */
+		uint8_t HCI_LE_Request_Peer_SCA			:1; /* Octet 43 Bit 2 */
+		uint8_t HCI_LE_Setup_ISO_Data_Path		:1;	/* Octet 43 Bit 3 */
+		uint8_t HCI_LE_Remove_ISO_Data_Path		:1; /* Octet 43 Bit 4 */
+		uint8_t HCI_LE_ISO_Transmit_Test		:1;	/* Octet 43 Bit 5 */
+		uint8_t HCI_LE_ISO_Receive_Test			:1; /* Octet 43 Bit 6 */
+		uint8_t HCI_LE_ISO_Read_Test_Counters	:1; /* Octet 43 Bit 7 */
+
+		uint8_t HCI_LE_ISO_Test_End							:1; /* Octet 44 Bit 0 */
+		uint8_t HCI_LE_Set_Host_Feature						:1; /* Octet 44 Bit 1 */
+		uint8_t HCI_LE_Read_ISO_Link_Quality				:1; /* Octet 44 Bit 2 */
+		uint8_t HCI_LE_Enhanced_Read_Transmit_Power_Level	:1; /* Octet 44 Bit 3 */
+		uint8_t HCI_LE_Read_Remote_Transmit_Power_Level		:1; /* Octet 44 Bit 4 */
+		uint8_t HCI_LE_Set_Path_Loss_Reporting_Parameters	:1; /* Octet 44 Bit 5 */
+		uint8_t HCI_LE_Set_Path_Loss_Reporting_Enable		:1; /* Octet 44 Bit 6 */
+		uint8_t HCI_LE_Set_Transmit_Power_Reporting_Enable	:1; /* Octet 44 Bit 7 */
+
+		uint8_t HCI_LE_Transmitter_Test						:1; /* Octet 45 Bit 0 */
+		uint8_t HCI_Set_Ecosystem_Base_Interval				:1; /* Octet 45 Bit 1 */
+		uint8_t HCI_Read_Local_Supported_Codecs_v2			:1; /* Octet 45 Bit 2 *//* [v2] */
+		uint8_t HCI_Read_Local_Supported_Codec_Capabilities	:1; /* Octet 45 Bit 3 */
+		uint8_t HCI_Read_Local_Supported_Controller_Delay	:1; /* Octet 45 Bit 4 */
+		uint8_t HCI_Configure_Data_Path						:1; /* Octet 45 Bit 5 */
+		uint8_t Reserved18 									:2; /* Octet 45 Bit 6 to Bit 7 */
+	}__attribute__((packed)) Bits;
+	uint8_t Bytes[sizeof(struct Supported_Commands_Bits)];
+}__attribute__((packed)) SUPPORTED_COMMANDS;
+
+
+typedef union
+{
+	struct Supported_Features_Bits
+	{
+		uint8_t _3_slot_packets		:1; /* Byte 0 Bit 0 */
+		uint8_t _5_slot_packets		:1; /* Byte 0 Bit 1 */
+		uint8_t Encryption			:1; /* Byte 0 Bit 2 */
+		uint8_t Slot_offset			:1; /* Byte 0 Bit 3 */
+		uint8_t Timing_accuracy		:1; /* Byte 0 Bit 4 */
+		uint8_t Role_switch			:1; /* Byte 0 Bit 5 */
+		uint8_t Hold_mode 			:1; /* Byte 0 Bit 6 */
+		uint8_t Sniff_mode			:1; /* Byte 0 Bit 7 */
+	}__attribute__((packed)) Bits;
+	uint8_t Bytes[sizeof(struct Supported_Features_Bits)];
+}__attribute__((packed)) SUPPORTED_FEATURES;
+
+
 typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 {
 	/* These Hardware_Codes will be implementation-specific, and can be
@@ -321,6 +740,13 @@ void    HCI_Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Stat
 		HCI_VERSION HCI_Version, uint16_t HCI_Revision,
 		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name,
 		uint16_t LMP_PAL_Subversion);
+
+uint8_t HCI_Read_Local_Supported_Commands( void );
+void	HCI_Read_Local_Supported_Commands_Status( CONTROLLER_ERROR_CODES Status );
+void	HCI_Read_Local_Supported_Commands_Complete( CONTROLLER_ERROR_CODES Status, SUPPORTED_COMMANDS* Supported_Commands );
+
+uint8_t HCI_Read_Local_Supported_Features( void );
+void 	HCI_Read_Local_Supported_Features_Status( CONTROLLER_ERROR_CODES Status );
 
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
 void    HCI_LE_Set_Advertising_Data_Status( CONTROLLER_ERROR_CODES Status );

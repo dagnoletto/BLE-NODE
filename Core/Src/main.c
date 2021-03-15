@@ -207,7 +207,9 @@ int main(void)
 
 			//HCI_Reset(  );
 
-			HCI_Read_Transmit_Power_Level( 0, 0 );
+			//HCI_Read_Transmit_Power_Level( 0, 0 );
+
+			HCI_Read_Local_Supported_Commands(  );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

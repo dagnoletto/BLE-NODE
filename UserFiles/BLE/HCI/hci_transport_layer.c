@@ -138,6 +138,22 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 							( EventPacketPtr->Event_Parameter[11] << 8 ) | EventPacketPtr->Event_Parameter[10] );
 					break;
 
+				case HCI_READ_LOCAL_SUPPORTED_COMMANDS: {
+					SUPPORTED_COMMANDS Supported_Cmds;
+					/* Must be cleared because the Controller may send a structure that is smaller than the data type */
+					memset( &Supported_Cmds, 0, sizeof(Supported_Cmds) );
+
+					uint16_t SizeToRead = EventPacketPtr->Parameter_Total_Length - 4;
+					if( SizeToRead > sizeof(Supported_Cmds) )
+					{
+						SizeToRead = sizeof(Supported_Cmds);
+					}
+
+					memcpy( &Supported_Cmds, &(EventPacketPtr->Event_Parameter[4]), SizeToRead );
+					HCI_Read_Local_Supported_Commands_Complete( EventPacketPtr->Event_Parameter[3], &Supported_Cmds );
+				}
+				break;
+
 				case HCI_LE_SET_ADVERTISING_DATA:
 					HCI_LE_Set_Advertising_Data_Complete( EventPacketPtr->Event_Parameter[3] );
 					break;
@@ -226,6 +242,14 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				case HCI_READ_LOCAL_VERSION_INFORMATION:
 					HCI_Read_Local_Version_Information_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_READ_LOCAL_SUPPORTED_COMMANDS:
+					HCI_Read_Local_Supported_Commands_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_READ_LOCAL_SUPPORTED_FEATURES:
+					HCI_Read_Local_Supported_Features_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:
