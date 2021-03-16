@@ -209,7 +209,13 @@ int main(void)
 
 			//HCI_Read_Transmit_Power_Level( 0, 0 );
 
-			HCI_Read_Local_Supported_Commands(  );
+			//HCI_Read_Local_Supported_Commands(  );
+
+			//HCI_Read_Local_Supported_Features(  );
+
+			//HCI_Read_BD_ADDR(  );
+
+			HCI_Read_RSSI( 0 );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

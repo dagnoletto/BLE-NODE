@@ -154,6 +154,37 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				}
 				break;
 
+				case HCI_READ_LOCAL_SUPPORTED_FEATURES: {
+					SUPPORTED_FEATURES LMP_Features;
+					/* Must be cleared because the Controller may send a structure that is smaller than the data type */
+					memset( &LMP_Features, 0, sizeof(LMP_Features) );
+
+					uint16_t SizeToRead = EventPacketPtr->Parameter_Total_Length - 4;
+					if( SizeToRead > sizeof(LMP_Features) )
+					{
+						SizeToRead = sizeof(LMP_Features);
+					}
+
+					memcpy( &LMP_Features, &(EventPacketPtr->Event_Parameter[4]), SizeToRead );
+
+					HCI_Read_Local_Supported_Features_Complete( EventPacketPtr->Event_Parameter[3], &LMP_Features );
+				}
+				break;
+
+				case HCI_READ_BD_ADDR: {
+					BD_ADDR_TYPE BD_ADDR;
+
+					memcpy( &BD_ADDR, &(EventPacketPtr->Event_Parameter[4]), 6 );
+
+					HCI_Read_BD_ADDR_Complete( EventPacketPtr->Event_Parameter[3], BD_ADDR );
+				}
+				break;
+
+				case HCI_READ_RSSI:
+					HCI_Read_RSSI_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
+							EventPacketPtr->Event_Parameter[6] );
+					break;
+
 				case HCI_LE_SET_ADVERTISING_DATA:
 					HCI_LE_Set_Advertising_Data_Complete( EventPacketPtr->Event_Parameter[3] );
 					break;
@@ -250,6 +281,14 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				case HCI_READ_LOCAL_SUPPORTED_FEATURES:
 					HCI_Read_Local_Supported_Features_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_READ_BD_ADDR:
+					HCI_Read_BD_ADDR_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_READ_RSSI:
+					HCI_Read_RSSI_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:

@@ -105,7 +105,11 @@ typedef enum
 	HCI_READ_LOCAL_VERSION_INFORMATION 	= (PARSE_OPCODE( 0x0001, INFO_PARAMETERS_CMD	 )),
 	HCI_READ_LOCAL_SUPPORTED_COMMANDS	= (PARSE_OPCODE( 0x0002, INFO_PARAMETERS_CMD 	 )),
 	HCI_READ_LOCAL_SUPPORTED_FEATURES	= (PARSE_OPCODE( 0x0003, INFO_PARAMETERS_CMD 	 )),
+	HCI_READ_BD_ADDR					= (PARSE_OPCODE( 0x0009, INFO_PARAMETERS_CMD 	 )),
+	HCI_READ_RSSI						= (PARSE_OPCODE( 0x0005, STATUS_PARAMETERS_CMD 	 )),
 	HCI_LE_SET_ADVERTISING_DATA 		= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD 		 ))
+
+
 }COMMAND_OPCODE;
 
 
@@ -686,17 +690,86 @@ typedef union
 {
 	struct Supported_Features_Bits
 	{
-		uint8_t _3_slot_packets		:1; /* Byte 0 Bit 0 */
-		uint8_t _5_slot_packets		:1; /* Byte 0 Bit 1 */
-		uint8_t Encryption			:1; /* Byte 0 Bit 2 */
-		uint8_t Slot_offset			:1; /* Byte 0 Bit 3 */
-		uint8_t Timing_accuracy		:1; /* Byte 0 Bit 4 */
-		uint8_t Role_switch			:1; /* Byte 0 Bit 5 */
-		uint8_t Hold_mode 			:1; /* Byte 0 Bit 6 */
-		uint8_t Sniff_mode			:1; /* Byte 0 Bit 7 */
+		uint8_t _3_slot_packets		:1;/* 0 */ /* Byte 0 Bit 0 */
+		uint8_t _5_slot_packets		:1;/* 1 */ /* Byte 0 Bit 1 */
+		uint8_t Encryption			:1;/* 2 */ /* Byte 0 Bit 2 */
+		uint8_t Slot_offset			:1;/* 3 */ /* Byte 0 Bit 3 */
+		uint8_t Timing_accuracy		:1;/* 4 */ /* Byte 0 Bit 4 */
+		uint8_t Role_switch			:1;/* 5 */ /* Byte 0 Bit 5 */
+		uint8_t Hold_mode 			:1;/* 6 */ /* Byte 0 Bit 6 */
+		uint8_t Sniff_mode			:1;/* 7 */ /* Byte 0 Bit 7 */
+
+		uint8_t Previously_used						:1;/* 8 */ /* Byte 1 Bit 0 */
+		uint8_t Power_control_requests				:1;/* 9 */ /* Byte 1 Bit 1 */
+		uint8_t Channel_quality_driven_data_rate 	:1;/* 10 */ /* Byte 1 Bit 2 */ /* (CQDDR) */
+		uint8_t SCO_link							:1;/* 11 */ /* Byte 1 Bit 3 */
+		uint8_t HV2_packets							:1;/* 12 */ /* Byte 1 Bit 4 */
+		uint8_t HV3_packets							:1;/* 13 */ /* Byte 1 Bit 5 */
+		uint8_t u_law_log_synchronous_data			:1;/* 14 */ /* Byte 1 Bit 6 */
+		uint8_t A_law_log_synchronous_data			:1;/* 15 */ /* Byte 1 Bit 7 */
+
+		uint8_t CVSD_synchronous_data			:1;/* 16 */ /* Byte 2 Bit 0 */
+		uint8_t Paging_parameter_negotiation	:1;/* 17 */ /* Byte 2 Bit 1 */
+		uint8_t Power_control					:1;/* 18 */ /* Byte 2 Bit 2 */
+		uint8_t Transparent_synchronous_data	:1;/* 19 */ /* Byte 2 Bit 3 */
+		uint8_t Flow_control_lag 				:3;/* 20/21/22 */ /* Byte 2 Bit 4 to Bit 6 */
+		uint8_t Broadcast_Encryption			:1;/* 23 */ /* Byte 2 Bit 7 */
+
+		uint8_t Reserved1					:1;/* 24 */ /* Byte 3 Bit 0 */
+		uint8_t EDR_ACL_2_Mb_mode			:1;/* 25 */ /* Byte 3 Bit 1 *//* Enhanced Data Rate ACL 2 Mb/s mode */
+		uint8_t EDR_ACL_3_Mb_mode			:1;/* 26 */ /* Byte 3 Bit 2 *//* Enhanced Data Rate ACL 3 Mb/s mode */
+		uint8_t Enhanced_inquiry_scan 		:1;/* 27 */ /* Byte 3 Bit 3 *//* “Enhanced Inquiry Scan” is no longer used in the specification.
+																	 Devices may set this bit but are not required to. */
+		uint8_t Interlaced_inquiry_scan		:1;/* 28 */ /* Byte 3 Bit 4 */
+		uint8_t Interlaced_page_scan		:1;/* 29 */ /* Byte 3 Bit 5 */
+		uint8_t RSSI_with_inquiry_results	:1;/* 30 */ /* Byte 3 Bit 6 */
+		uint8_t Extended_SCO_link			:1;/* 31 */ /* Byte 3 Bit 7 *//* (EV3 packets) */
+
+		uint8_t EV4_packets					:1;/* 32 */ /* Byte 4 Bit 0 */
+		uint8_t EV5_packets					:1;/* 33 */ /* Byte 4 Bit 1 */
+		uint8_t Reserved2					:1;/* 34 */ /* Byte 4 Bit 2 */
+		uint8_t AFH_capable_slave			:1;/* 35 */ /* Byte 4 Bit 3 */
+		uint8_t AFH_classification_slave	:1;/* 36 */ /* Byte 4 Bit 4 */
+		uint8_t BR_EDR_Not_Supported		:1;/* 37 */ /* Byte 4 Bit 5 */
+		uint8_t LE_Supported				:1;/* 38 */ /* Byte 4 Bit 6 *//* (Controller) */
+		uint8_t _3_slot_EDR_ACL_packets		:1;/* 39 */ /* Byte 4 Bit 7 *//* 3-slot Enhanced Data Rate ACL packets */
+
+		uint8_t _5_slot_EDR_ACL_packets		:1;/* 40 */ /* Byte 5 Bit 0 *//* 5-slot Enhanced Data Rate ACL packets */
+		uint8_t Sniff_subrating				:1;/* 41 */ /* Byte 5 Bit 1 */
+		uint8_t Pause_encryption			:1;/* 42 */ /* Byte 5 Bit 2 */
+		uint8_t AFH_capable_master			:1;/* 43 */ /* Byte 5 Bit 3 */
+		uint8_t AFH_classification_master	:1;/* 44 */ /* Byte 5 Bit 4 */
+		uint8_t EDR_eSCO_2_Mb_mode			:1;/* 45 */ /* Byte 5 Bit 5 *//* Enhanced Data Rate eSCO 2 Mb/s mode */
+		uint8_t EDR_eSCO_3_Mb_mode			:1;/* 46 */ /* Byte 5 Bit 6 *//* Enhanced Data Rate eSCO 3 Mb/s mode */
+		uint8_t _3_slot_EDR_eSCO_packets	:1;/* 47 */ /* Byte 5 Bit 7 *//* 3-slot Enhanced Data Rate eSCO packets */
+
+		uint8_t Extended_Inquiry_Response										:1;/* 48 */ /* Byte 6 Bit 0 */
+		uint8_t Simultaneous_LE_and_BR_EDR_to_Same_Device_Capable				:1;/* 49 */ /* Byte 6 Bit 1 *//* (Controller) */
+		uint8_t Reserved3														:1;/* 50 */ /* Byte 6 Bit 2 */
+		uint8_t Secure_Simple_Pairing											:1;/* 51 */ /* Byte 6 Bit 3 *//* (Controller Support) */
+		uint8_t Encapsulated_PDU												:1;/* 52 */ /* Byte 6 Bit 4 */
+		uint8_t Erroneous_Data_Reporting										:1;/* 53 */ /* Byte 6 Bit 5 */
+		uint8_t Non_flushable_Packet_Boundary_Flag								:1;/* 54 */ /* Byte 6 Bit 6 */
+		uint8_t Reserved4														:1;/* 55 */ /* Byte 6 Bit 7 */
+
+		uint8_t HCI_Link_Supervision_Timeout_Changed_event	:1;/* 56 */ /* Byte 7 Bit 0 */
+		uint8_t Variable_Inquiry_TX_Power_Level				:1;/* 57 */ /* Byte 7 Bit 1 */
+		uint8_t Enhanced_Power_Control						:1;/* 58 */ /* Byte 7 Bit 2 */
+		uint8_t Reserved5 									:4;/* 59/60/61/62 */ /* Byte 7 Bit 3 to Bit 6 */
+		uint8_t Extended_features 							:1;/* 63 */ /* Byte 7 Bit 7 */
 	}__attribute__((packed)) Bits;
 	uint8_t Bytes[sizeof(struct Supported_Features_Bits)];
 }__attribute__((packed)) SUPPORTED_FEATURES;
+
+
+/* TODO: Implementar demais páginas e o comando: HCI_Read_Local_Extended_Features */
+typedef SUPPORTED_FEATURES SUPPORTED_FEATURES_PAGE_0;
+
+
+typedef struct
+{
+	uint8_t Byte[6];
+}BD_ADDR_TYPE;
 
 
 typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
@@ -747,6 +820,15 @@ void	HCI_Read_Local_Supported_Commands_Complete( CONTROLLER_ERROR_CODES Status, 
 
 uint8_t HCI_Read_Local_Supported_Features( void );
 void 	HCI_Read_Local_Supported_Features_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status, SUPPORTED_FEATURES* LMP_Features );
+
+uint8_t HCI_Read_BD_ADDR( void );
+void 	HCI_Read_BD_ADDR_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE BD_ADDR );
+
+uint8_t HCI_Read_RSSI( uint16_t Handle );
+void 	HCI_Read_RSSI_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_Read_RSSI_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Handle, int8_t RSSI );
 
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
 void    HCI_LE_Set_Advertising_Data_Status( CONTROLLER_ERROR_CODES Status );
