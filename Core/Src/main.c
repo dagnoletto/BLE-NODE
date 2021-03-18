@@ -215,7 +215,11 @@ int main(void)
 
 			//HCI_Read_BD_ADDR(  );
 
-			HCI_Read_RSSI( 0 );
+			//HCI_Read_RSSI( 0 );
+
+			LE_EVENT_MASK LE_Event_Mask;
+			SET_LE_EVENT_MASK_DEFAULT(LE_Event_Mask);
+			HCI_LE_Set_Event_Mask( LE_Event_Mask );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

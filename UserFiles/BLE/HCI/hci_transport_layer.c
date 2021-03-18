@@ -185,6 +185,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 							EventPacketPtr->Event_Parameter[6] );
 					break;
 
+				case HCI_LE_SET_EVENT_MASK:
+					HCI_LE_Set_Event_Mask_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
 				case HCI_LE_SET_ADVERTISING_DATA:
 					HCI_LE_Set_Advertising_Data_Complete( EventPacketPtr->Event_Parameter[3] );
 					break;
@@ -289,6 +293,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				case HCI_READ_RSSI:
 					HCI_Read_RSSI_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_SET_EVENT_MASK:
+					HCI_LE_Set_Event_Mask_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:

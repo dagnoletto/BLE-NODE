@@ -107,6 +107,7 @@ typedef enum
 	HCI_READ_LOCAL_SUPPORTED_FEATURES	= (PARSE_OPCODE( 0x0003, INFO_PARAMETERS_CMD 	 )),
 	HCI_READ_BD_ADDR					= (PARSE_OPCODE( 0x0009, INFO_PARAMETERS_CMD 	 )),
 	HCI_READ_RSSI						= (PARSE_OPCODE( 0x0005, STATUS_PARAMETERS_CMD 	 )),
+	HCI_LE_SET_EVENT_MASK				= (PARSE_OPCODE( 0x0001, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_SET_ADVERTISING_DATA 		= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD 		 ))
 
 
@@ -772,6 +773,60 @@ typedef struct
 }BD_ADDR_TYPE;
 
 
+typedef union
+{
+	struct LE_Event_Mask_Bits
+	{
+		uint8_t LE_Connection_Complete_event 							:1; /* Bit 0 */
+		uint8_t LE_Advertising_Report_event								:1; /* Bit 1 */
+		uint8_t LE_Connection_Update_Complete_event						:1; /* Bit 2 */
+		uint8_t LE_Read_Remote_Features_Complete_event					:1; /* Bit 3 */
+		uint8_t LE_Long_Term_Key_Request_event							:1; /* Bit 4 */
+		uint8_t LE_Remote_Connection_Parameter_Request_event			:1; /* Bit 5 */
+		uint8_t LE_Data_Length_Change_event								:1; /* Bit 6 */
+		uint8_t LE_Read_Local_P_256_Public_Key_Complete_event			:1; /* Bit 7 */
+		uint8_t LE_Generate_DHKey_Complete_event						:1; /* Bit 8 */
+		uint8_t LE_Enhanced_Connection_Complete_event					:1; /* Bit 9 */
+		uint8_t LE_Directed_Advertising_Report_event					:1; /* Bit 10 */
+		uint8_t LE_PHY_Update_Complete_event							:1; /* Bit 11 */
+		uint8_t LE_Extended_Advertising_Report_event					:1; /* Bit 12 */
+		uint8_t LE_Periodic_Advertising_Sync_Established_event			:1; /* Bit 13 */
+		uint8_t LE_Periodic_Advertising_Report_event					:1; /* Bit 14 */
+		uint8_t LE_Periodic_Advertising_Sync_Lost_event					:1; /* Bit 15 */
+		uint8_t LE_Scan_Timeout_event									:1; /* Bit 16 */
+		uint8_t LE_Advertising_Set_Terminated_event						:1; /* Bit 17 */
+		uint8_t LE_Scan_Request_Received_event							:1; /* Bit 18 */
+		uint8_t LE_Channel_Selection_Algorithm_event					:1; /* Bit 19 */
+		uint8_t LE_Connectionless_IQ_Report_event						:1; /* Bit 20 */
+		uint8_t LE_Connection_IQ_Report_event							:1; /* Bit 21 */
+		uint8_t LE_CTE_Request_Failed_event								:1; /* Bit 22 */
+		uint8_t LE_Periodic_Advertising_Sync_Transfer_Received_event	:1; /* Bit 23 */
+		uint8_t LE_CIS_Established_event								:1; /* Bit 24 */
+		uint8_t LE_CIS_Request_event									:1; /* Bit 25 */
+		uint8_t LE_Create_BIG_Complete_event							:1; /* Bit 26 */
+		uint8_t LE_Terminate_BIG_Complete_event							:1; /* Bit 27 */
+		uint8_t LE_BIG_Sync_Established_event							:1; /* Bit 28 */
+		uint8_t LE_BIG_Sync_Lost_event									:1; /* Bit 29 */
+		uint8_t LE_Request_Peer_SCA_Complete_event						:1; /* Bit 30 */
+		uint8_t LE_Path_Loss_Threshold_event							:1; /* Bit 31 */
+		uint8_t LE_Transmit_Power_Reporting_event						:1; /* Bit 32 */
+		uint8_t LE_BIGInfo_Advertising_Report_event						:1; /* Bit 33 */
+		uint8_t Reserved1												:6; /* Bit 34 to Bit 39 */
+		uint8_t Reserved2;
+		uint8_t Reserved3;
+		uint8_t Reserved4;
+	}__attribute__((packed)) Bits;
+	uint8_t Bytes[sizeof(struct LE_Event_Mask_Bits)];
+	uint64_t U64Var;
+}__attribute__((packed)) LE_EVENT_MASK;
+
+
+/* It might be the case that for some compilers uint64_t
+ * does not exist and byte per byte assignment is necessary in the macro */
+#define DEFAULT_LE_EVENT_MASK_VAL 0x000000000000001F /* Bits 0 to 4 are set */
+#define SET_LE_EVENT_MASK_DEFAULT(Mask) ( Mask.U64Var = DEFAULT_LE_EVENT_MASK_VAL )
+
+
 typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 {
 	/* These Hardware_Codes will be implementation-specific, and can be
@@ -829,6 +884,10 @@ void 	HCI_Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE BD_
 uint8_t HCI_Read_RSSI( uint16_t Handle );
 void 	HCI_Read_RSSI_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_Read_RSSI_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Handle, int8_t RSSI );
+
+uint8_t HCI_LE_Set_Event_Mask( LE_EVENT_MASK LE_Event_Mask );
+void    HCI_LE_Set_Event_Mask_Status( CONTROLLER_ERROR_CODES Status );
+void    HCI_LE_Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
 
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
 void    HCI_LE_Set_Advertising_Data_Status( CONTROLLER_ERROR_CODES Status );
