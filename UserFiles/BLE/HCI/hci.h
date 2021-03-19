@@ -108,9 +108,8 @@ typedef enum
 	HCI_READ_BD_ADDR					= (PARSE_OPCODE( 0x0009, INFO_PARAMETERS_CMD 	 )),
 	HCI_READ_RSSI						= (PARSE_OPCODE( 0x0005, STATUS_PARAMETERS_CMD 	 )),
 	HCI_LE_SET_EVENT_MASK				= (PARSE_OPCODE( 0x0001, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_READ_BUFFER_SIZE				= (PARSE_OPCODE( 0x0002, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_SET_ADVERTISING_DATA 		= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD 		 ))
-
-
 }COMMAND_OPCODE;
 
 
@@ -888,6 +887,11 @@ void 	HCI_Read_RSSI_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Handle, in
 uint8_t HCI_LE_Set_Event_Mask( LE_EVENT_MASK LE_Event_Mask );
 void    HCI_LE_Set_Event_Mask_Status( CONTROLLER_ERROR_CODES Status );
 void    HCI_LE_Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Read_Buffer_Size( void );
+void 	HCI_LE_Read_Buffer_Size_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Read_Buffer_Size_Complete( CONTROLLER_ERROR_CODES Status, uint16_t LE_ACL_Data_Packet_Length,
+		uint8_t Total_Num_LE_ACL_Data_Packets );
 
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
 void    HCI_LE_Set_Advertising_Data_Status( CONTROLLER_ERROR_CODES Status );
