@@ -221,7 +221,13 @@ int main(void)
 //			SET_LE_EVENT_MASK_DEFAULT(LE_Event_Mask);
 //			HCI_LE_Set_Event_Mask( LE_Event_Mask );
 
-			HCI_LE_Read_Buffer_Size(  );
+			//HCI_LE_Read_Buffer_Size(  );
+
+			//HCI_LE_Read_Local_Supported_Features(  );
+
+			BD_ADDR_TYPE Random_Address = {{ 1,2,3,4,5,6 }};
+
+			HCI_LE_Set_Random_Address( Random_Address );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

@@ -194,6 +194,27 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 							EventPacketPtr->Event_Parameter[6] );
 					break;
 
+				case HCI_LE_READ_LOCAL_SUPPORTED_FEATURES: {
+					LE_SUPPORTED_FEATURES LE_Features;
+					/* Must be cleared because the Controller may send a structure that is smaller than the data type */
+					memset( &LE_Features, 0, sizeof(LE_Features) );
+
+					uint16_t SizeToRead = EventPacketPtr->Parameter_Total_Length - 4;
+					if( SizeToRead > sizeof(LE_Features) )
+					{
+						SizeToRead = sizeof(LE_Features);
+					}
+
+					memcpy( &LE_Features, &(EventPacketPtr->Event_Parameter[4]), SizeToRead );
+
+					HCI_LE_Read_Local_Supported_Features_Complete( EventPacketPtr->Event_Parameter[3], &LE_Features );
+				}
+				break;
+
+				case HCI_LE_SET_RANDOM_ADDRESS:
+					HCI_LE_Set_Random_Address_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
 				case HCI_LE_SET_ADVERTISING_DATA:
 					HCI_LE_Set_Advertising_Data_Complete( EventPacketPtr->Event_Parameter[3] );
 					break;
@@ -306,6 +327,14 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				case HCI_LE_READ_BUFFER_SIZE:
 					HCI_LE_Read_Buffer_Size_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_READ_LOCAL_SUPPORTED_FEATURES:
+					HCI_LE_Read_Local_Supported_Features_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_SET_RANDOM_ADDRESS:
+					HCI_LE_Set_Random_Address_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:

@@ -97,19 +97,21 @@ typedef enum
 /* Low Energy (LE) commands */
 typedef enum
 {
-	HCI_DISCONNECT						= (PARSE_OPCODE( 0x0006, LINK_CTRL_CMD 	   	 	 )),
-	HCI_READ_REMOTE_VERSION_INFORMATION = (PARSE_OPCODE( 0x001D, LINK_CTRL_CMD 	 		 )),
-	HCI_SET_EVENT_MASK					= (PARSE_OPCODE( 0x0001, CTRL_AND_BASEBAND_CMD 	 )),
-	HCI_RESET							= (PARSE_OPCODE( 0x0003, CTRL_AND_BASEBAND_CMD 	 )),
-	HCI_READ_TRANSMIT_POWER_LEVEL		= (PARSE_OPCODE( 0x002D, CTRL_AND_BASEBAND_CMD 	 )),
-	HCI_READ_LOCAL_VERSION_INFORMATION 	= (PARSE_OPCODE( 0x0001, INFO_PARAMETERS_CMD	 )),
-	HCI_READ_LOCAL_SUPPORTED_COMMANDS	= (PARSE_OPCODE( 0x0002, INFO_PARAMETERS_CMD 	 )),
-	HCI_READ_LOCAL_SUPPORTED_FEATURES	= (PARSE_OPCODE( 0x0003, INFO_PARAMETERS_CMD 	 )),
-	HCI_READ_BD_ADDR					= (PARSE_OPCODE( 0x0009, INFO_PARAMETERS_CMD 	 )),
-	HCI_READ_RSSI						= (PARSE_OPCODE( 0x0005, STATUS_PARAMETERS_CMD 	 )),
-	HCI_LE_SET_EVENT_MASK				= (PARSE_OPCODE( 0x0001, LE_CONTROLLER_CMD 		 )),
-	HCI_LE_READ_BUFFER_SIZE				= (PARSE_OPCODE( 0x0002, LE_CONTROLLER_CMD 		 )),
-	HCI_LE_SET_ADVERTISING_DATA 		= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD 		 ))
+	HCI_DISCONNECT							= (PARSE_OPCODE( 0x0006, LINK_CTRL_CMD 	   	 	 )),
+	HCI_READ_REMOTE_VERSION_INFORMATION 	= (PARSE_OPCODE( 0x001D, LINK_CTRL_CMD 	 		 )),
+	HCI_SET_EVENT_MASK						= (PARSE_OPCODE( 0x0001, CTRL_AND_BASEBAND_CMD 	 )),
+	HCI_RESET								= (PARSE_OPCODE( 0x0003, CTRL_AND_BASEBAND_CMD 	 )),
+	HCI_READ_TRANSMIT_POWER_LEVEL			= (PARSE_OPCODE( 0x002D, CTRL_AND_BASEBAND_CMD 	 )),
+	HCI_READ_LOCAL_VERSION_INFORMATION 		= (PARSE_OPCODE( 0x0001, INFO_PARAMETERS_CMD	 )),
+	HCI_READ_LOCAL_SUPPORTED_COMMANDS		= (PARSE_OPCODE( 0x0002, INFO_PARAMETERS_CMD 	 )),
+	HCI_READ_LOCAL_SUPPORTED_FEATURES		= (PARSE_OPCODE( 0x0003, INFO_PARAMETERS_CMD 	 )),
+	HCI_READ_BD_ADDR						= (PARSE_OPCODE( 0x0009, INFO_PARAMETERS_CMD 	 )),
+	HCI_READ_RSSI							= (PARSE_OPCODE( 0x0005, STATUS_PARAMETERS_CMD 	 )),
+	HCI_LE_SET_EVENT_MASK					= (PARSE_OPCODE( 0x0001, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_READ_BUFFER_SIZE					= (PARSE_OPCODE( 0x0002, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_READ_LOCAL_SUPPORTED_FEATURES 	= (PARSE_OPCODE( 0x0003, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_SET_RANDOM_ADDRESS				= (PARSE_OPCODE( 0x0005, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_SET_ADVERTISING_DATA 			= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD 		 ))
 }COMMAND_OPCODE;
 
 
@@ -826,6 +828,53 @@ typedef union
 #define SET_LE_EVENT_MASK_DEFAULT(Mask) ( Mask.U64Var = DEFAULT_LE_EVENT_MASK_VAL )
 
 
+typedef union
+{
+	struct LE_Supported_Features_Bits
+	{
+		uint8_t LE_Encryption									:1;/* Bit 0 */
+		uint8_t Connection_Parameters_Request_Procedure			:1;/* Bit 1 */
+		uint8_t Extended_Reject_Indication						:1;/* Bit 2 */
+		uint8_t Slave_initiated_Features_Exchange 				:1;/* Bit 3 */
+		uint8_t LE_Ping 										:1;/* Bit 4 */
+		uint8_t LE_Data_Packet_Length_Extension					:1;/* Bit 5 */
+		uint8_t LL_Privacy										:1;/* Bit 6 */
+		uint8_t Extended_Scanner_Filter_Policies				:1;/* Bit 7 */
+		uint8_t LE_2M_PHY										:1;/* Bit 8 */
+		uint8_t Stable_Modulation_Index_Transmitter				:1;/* Bit 9 */
+		uint8_t Stable_Modulation_Index_Receiver				:1;/* Bit 10 */
+		uint8_t LE_Coded_PHY									:1;/* Bit 11 */
+		uint8_t LE_Extended_Advertising							:1;/* Bit 12 */
+		uint8_t LE_Periodic_Advertising							:1;/* Bit 13 */
+		uint8_t Channel_Selection_Algorithm_2					:1;/* Bit 14 */
+		uint8_t LE_Power_Class_1								:1;/* Bit 15 */
+		uint8_t Minimum_Number_of_Used_Channels_Procedure		:1;/* Bit 16 */
+		uint8_t Connection_CTE_Request							:1;/* Bit 17 */
+		uint8_t Connection_CTE_Response							:1;/* Bit 18 */
+		uint8_t Connectionless_CTE_Transmitter					:1;/* Bit 19 */
+		uint8_t Connectionless_CTE_Receiver						:1;/* Bit 20 */
+		uint8_t Antenna_Switching_During_CTE_Transmission_AoD 	:1;/* Bit 21 */
+		uint8_t Antenna_Switching_During_CTE_Reception_AoA    	:1;/* Bit 22 */
+		uint8_t Receiving_Constant_Tone_Extensions 				:1;/* Bit 23 */
+		uint8_t Periodic_Advertising_Sync_Transfer_Sender		:1;/* Bit 24 */
+		uint8_t Periodic_Advertising_Sync_Transfer_Recipient 	:1;/* Bit 25 */
+		uint8_t Sleep_Clock_Accuracy_Updates					:1;/* Bit 26 */
+		uint8_t Remote_Public_Key_Validation					:1;/* Bit 27 */
+		uint8_t Connected_Isochronous_Stream_Master				:1;/* Bit 28 */
+		uint8_t Connected_Isochronous_Stream_Slave				:1;/* Bit 29 */
+		uint8_t Isochronous_Broadcaster							:1;/* Bit 30 */
+		uint8_t Synchronized_Receiver							:1;/* Bit 31 */
+		uint8_t Isochronous_Channels							:1;/* Bit 32 *//* (Host Support) */
+		uint8_t LE_Power_Control_Request						:1;/* Bit 33 */
+		uint8_t LE_Power_Change_Indication						:1;/* Bit 34 */
+		uint8_t LE_Path_Loss_Monitoring							:1;/* Bit 35 */
+		uint8_t Reserved1										:4;/* Bit 36 to Bit Bit 39 */
+		uint8_t Reserved2[3];
+	}__attribute__((packed)) Bits;
+	uint8_t Bytes[sizeof(struct LE_Supported_Features_Bits)];
+}__attribute__((packed)) LE_SUPPORTED_FEATURES;
+
+
 typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 {
 	/* These Hardware_Codes will be implementation-specific, and can be
@@ -892,6 +941,14 @@ uint8_t HCI_LE_Read_Buffer_Size( void );
 void 	HCI_LE_Read_Buffer_Size_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Read_Buffer_Size_Complete( CONTROLLER_ERROR_CODES Status, uint16_t LE_ACL_Data_Packet_Length,
 		uint8_t Total_Num_LE_ACL_Data_Packets );
+
+uint8_t HCI_LE_Read_Local_Supported_Features( void );
+void 	HCI_LE_Read_Local_Supported_Features_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status, LE_SUPPORTED_FEATURES* LE_Features );
+
+uint8_t HCI_LE_Set_Random_Address( BD_ADDR_TYPE Random_Address );
+void 	HCI_LE_Set_Random_Address_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Set_Random_Address_Complete( CONTROLLER_ERROR_CODES Status );
 
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
 void    HCI_LE_Set_Advertising_Data_Status( CONTROLLER_ERROR_CODES Status );
