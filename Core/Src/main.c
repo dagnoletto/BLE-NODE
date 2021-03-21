@@ -112,7 +112,7 @@ int main(void)
 			static uint8_t bdflag = FALSE;
 			static uint8_t enable = FALSE;
 
-			Period = 1000UL;
+			Period = 2000UL;
 
 			//if( !bdflag )
 			//{
@@ -162,23 +162,23 @@ int main(void)
 			// ACI_Hal_Device_Standby();
 
 			// ACI_Hal_LE_Tx_Test_Packet_Number();
-			if( !enable )
-			{
-				//ACI_Hal_Tone_Stop();
-			}
-			//if( !bdflag )
-			//{
-			if( enable )
-			{
-				bdflag++;
-				if( bdflag > 39 )
-				{
-					bdflag = 0;
-				}
-				//ACI_Hal_Tone_Start( bdflag );
-			}
-
-			enable = !enable;
+//			if( !enable )
+//			{
+//				//ACI_Hal_Tone_Stop();
+//			}
+//			//if( !bdflag )
+//			//{
+//			if( enable )
+//			{
+//				bdflag++;
+//				if( bdflag > 39 )
+//				{
+//					bdflag = 0;
+//				}
+//				//ACI_Hal_Tone_Start( bdflag );
+//			}
+//
+//			enable = !enable;
 
 			//ACI_Hal_Get_Link_Status(  );
 
@@ -225,9 +225,62 @@ int main(void)
 
 			//HCI_LE_Read_Local_Supported_Features(  );
 
-			BD_ADDR_TYPE Random_Address = {{ 1,2,3,4,5,6 }};
+			if( enable == 0 )
+			{
+				BD_ADDR_TYPE Random_Address = {{ 1,2,3,4,5,6 }};
 
-			HCI_LE_Set_Random_Address( Random_Address );
+				HCI_LE_Set_Random_Address( Random_Address );
+				ADV_CH_MAP Advertising_Channel_Map;
+				SET_LE_ADV_CH_MAP_DEFAULT(Advertising_Channel_Map);
+
+				HCI_LE_Set_Advertising_Parameters( 100, 150, ADV_IND, PUBLIC_DEV_ADDR, PUBLIC_DEV_ADDR, Random_Address, Advertising_Channel_Map, 0 );
+
+				enable++;
+			}else if( enable == 1 )
+			{
+				uint8_t NOME[] = "BLETeste";
+				HCI_LE_Set_Advertising_Data( sizeof(NOME), &NOME[0] );
+
+				uint8_t Scan_Resp_Data[] = { 1,2,5,7,10 };
+				HCI_LE_Set_Scan_Response_Data( sizeof(Scan_Resp_Data), &Scan_Resp_Data[0] );
+
+				HCI_LE_Set_Advertising_Enable( TRUE );
+				enable++;
+			}
+//			//if( !bdflag )
+//			//{
+//			if( enable == 1 )
+//			{
+//				bdflag++;
+//				if( bdflag > 39 )
+//				{
+//					bdflag = 0;
+//				}
+//				HCI_LE_Set_Advertising_Enable( TRUE );
+//			}else
+//			{
+//				enable++;
+//				if( enable == 0 )
+//				{
+//					enable++;
+//				}
+//			}
+
+
+
+
+
+
+//			HCI_LE_Read_Advertising_Physical_Channel_Tx_Power(  );
+
+//			uint8_t Scan_Resp_Data[] = { 1,2,5,7,10 };
+//			HCI_LE_Set_Scan_Response_Data( sizeof(Scan_Resp_Data), &Scan_Resp_Data[0] );
+
+//			HCI_LE_Set_Advertising_Enable( TRUE );
+
+//			HCI_LE_Set_Scan_Parameters( PASSIVE_SCANNING, 0x0010, 0x0010, PUBLIC_DEV_ADDR, 0x00 );
+
+//			HCI_LE_Set_Scan_Enable( FALSE, 0x00 );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

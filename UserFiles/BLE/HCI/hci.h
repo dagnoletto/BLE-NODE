@@ -111,7 +111,13 @@ typedef enum
 	HCI_LE_READ_BUFFER_SIZE					= (PARSE_OPCODE( 0x0002, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_READ_LOCAL_SUPPORTED_FEATURES 	= (PARSE_OPCODE( 0x0003, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_SET_RANDOM_ADDRESS				= (PARSE_OPCODE( 0x0005, LE_CONTROLLER_CMD 		 )),
-	HCI_LE_SET_ADVERTISING_DATA 			= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD 		 ))
+	HCI_LE_SET_ADVERTISING_PARAMETERS		= (PARSE_OPCODE( 0x0006, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER	= (PARSE_OPCODE( 0x0007, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_SET_ADVERTISING_DATA 			= (PARSE_OPCODE( 0x0008, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_SET_SCAN_RESPONSE_DATA			= (PARSE_OPCODE( 0x0009, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_SET_ADVERTISING_ENABLE			= (PARSE_OPCODE( 0x000A, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_SET_SCAN_PARAMETERS				= (PARSE_OPCODE( 0x000B, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_SET_SCAN_ENABLE					= (PARSE_OPCODE( 0x000C, LE_CONTROLLER_CMD 		 )),
 }COMMAND_OPCODE;
 
 
@@ -875,6 +881,57 @@ typedef union
 }__attribute__((packed)) LE_SUPPORTED_FEATURES;
 
 
+typedef enum
+{
+	ADV_IND 				 = 0x00, /* Connectable and scannable undirected advertising (ADV_IND) (default) */
+	ADV_DIRECT_IND_HIGH_DUTY = 0x01, /* Connectable high duty cycle directed advertising (ADV_DIRECT_IND, high duty cycle) */
+	ADV_SCAN_IND   			 = 0x02, /* Scannable undirected advertising (ADV_SCAN_IND) */
+	ADV_NONCONN_IND			 = 0x03, /* Non connectable undirected advertising (ADV_NONCONN_IND) */
+	ADV_DIRECT_IND_LOW_DUTY  = 0x04, /* Connectable low duty cycle directed advertising (ADV_DIRECT_IND, low duty cycle) */
+}ADVERTISING_TYPE;
+
+
+typedef enum
+{
+	PUBLIC_DEV_ADDR    = 0x00, /* Own_Address_Type: Public Device Address (default) / Peer_Address_Type: Public Device Address (default) or Public Identity Address */
+	RANDOM_DEV_ADDR	   = 0x01, /* Own_Address_Type: Random Device Address / Peer_Address_Type: Random Device Address or Random (static) Identity Address */
+	IRK_OR_PUBLIC_ADDR = 0x02, /* Controller generates Resolvable Private Address based on the local
+												 IRK from the resolving list. If the resolving list contains no matching
+												 entry, use the public address. */
+	IRK_OR_RANDOM_ADDR = 0x03, /* Controller generates Resolvable Private Address based on the local
+												 IRK from the resolving list. If the resolving list contains no matching
+												 entry, use the random address from LE_Set_Random_Address. */
+}ADDRESS_TYPE;
+
+
+typedef enum
+{
+	PASSIVE_SCANNING = 0x00, /* Passive Scanning. No scanning PDUs shall be sent (default) */
+	ACTIVE_SCANNING  = 0x01, /* Active scanning. Scanning PDUs may be sent. */
+}LE_SCAN_TYPE;
+
+
+typedef union
+{
+	struct
+	{
+		uint8_t Ch37 :1; /* Channel 37 shall be used */
+		uint8_t Ch38 :1; /* Channel 38 shall be used */
+		uint8_t Ch39 :1; /* Channel 39 shall be used */
+	};
+	uint8_t Val;
+}__attribute__((packed)) ADV_CH_MAP; /* Advertising_Channel_Map */
+
+
+#define DEFAULT_LE_ADV_CH_MAP 0x07 /* The default is 0x07 (all three channels enabled). */
+#define SET_LE_ADV_CH_MAP_DEFAULT(Map) ( Map.Val = DEFAULT_LE_ADV_CH_MAP )
+
+
+#define MAX_CONNECTION_HANDLE 		0x0EFF
+#define MAX_ADVERTISING_DATA_LENGTH 	31
+#define MAX_SCAN_RESPONSE_DATA_LENGTH 	31
+
+
 typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 {
 	/* These Hardware_Codes will be implementation-specific, and can be
@@ -883,10 +940,6 @@ typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 	RADIO_STATE_ERROR   = 1,
 	TIMER_OVERRUN_ERROR = 2
 }BLE_HW_ERROR_CODE;
-
-
-#define MAX_CONNECTION_HANDLE 		0x0EFF
-#define MAX_ADVERTISING_DATA_LENGTH 	31
 
 
 /****************************************************************/
@@ -950,9 +1003,36 @@ uint8_t HCI_LE_Set_Random_Address( BD_ADDR_TYPE Random_Address );
 void 	HCI_LE_Set_Random_Address_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Set_Random_Address_Complete( CONTROLLER_ERROR_CODES Status );
 
+uint8_t HCI_LE_Set_Advertising_Parameters( uint16_t Advertising_Interval_Min, uint16_t Advertising_Interval_Max, ADVERTISING_TYPE Advertising_Type,
+										   ADDRESS_TYPE Own_Address_Type, ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address,
+										   ADV_CH_MAP Advertising_Channel_Map, uint8_t Advertising_Filter_Policy );
+void 	HCI_LE_Set_Advertising_Parameters_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Read_Advertising_Physical_Channel_Tx_Power( void );
+void 	HCI_LE_Read_Advertising_Physical_Channel_Tx_Power_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level );
+
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[] );
 void    HCI_LE_Set_Advertising_Data_Status( CONTROLLER_ERROR_CODES Status );
 void    HCI_LE_Set_Advertising_Data_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Set_Scan_Response_Data( uint8_t Scan_Response_Data_Length, uint8_t* Scan_Response_Data );
+void 	HCI_LE_Set_Scan_Response_Data_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Set_Scan_Response_Data_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Set_Advertising_Enable( uint8_t Advertising_Enable );
+void 	HCI_LE_Set_Advertising_Enable_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Set_Scan_Parameters( LE_SCAN_TYPE LE_Scan_Type, uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window,
+									ADDRESS_TYPE Own_Address_Type, uint8_t Scanning_Filter_Policy );
+void 	HCI_LE_Set_Scan_Parameters_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Set_Scan_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Set_Scan_Enable( uint8_t LE_Scan_Enable, uint8_t Filter_Duplicates );
+void 	HCI_LE_Set_Scan_Enable_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 

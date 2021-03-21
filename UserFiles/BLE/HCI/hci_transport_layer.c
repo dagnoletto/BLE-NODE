@@ -215,8 +215,32 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					HCI_LE_Set_Random_Address_Complete( EventPacketPtr->Event_Parameter[3] );
 					break;
 
+				case HCI_LE_SET_ADVERTISING_PARAMETERS:
+					HCI_LE_Set_Advertising_Parameters_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER:
+					HCI_LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4] );
+					break;
+
 				case HCI_LE_SET_ADVERTISING_DATA:
 					HCI_LE_Set_Advertising_Data_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case HCI_LE_SET_SCAN_RESPONSE_DATA:
+					HCI_LE_Set_Scan_Response_Data_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case HCI_LE_SET_ADVERTISING_ENABLE:
+					HCI_LE_Set_Advertising_Enable_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case HCI_LE_SET_SCAN_PARAMETERS:
+					HCI_LE_Set_Scan_Parameters_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case HCI_LE_SET_SCAN_ENABLE:
+					HCI_LE_Set_Scan_Enable_Complete( EventPacketPtr->Event_Parameter[3] );
 					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
@@ -337,8 +361,32 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					HCI_LE_Set_Random_Address_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
+				case HCI_LE_SET_ADVERTISING_PARAMETERS:
+					HCI_LE_Set_Advertising_Parameters_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER:
+					HCI_LE_Read_Advertising_Physical_Channel_Tx_Power_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
 				case HCI_LE_SET_ADVERTISING_DATA:
 					HCI_LE_Set_Advertising_Data_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_SET_SCAN_RESPONSE_DATA:
+					HCI_LE_Set_Scan_Response_Data_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_SET_ADVERTISING_ENABLE:
+					HCI_LE_Set_Advertising_Enable_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_SET_SCAN_PARAMETERS:
+					HCI_LE_Set_Scan_Parameters_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_SET_SCAN_ENABLE:
+					HCI_LE_Set_Scan_Enable_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
