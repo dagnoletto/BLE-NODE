@@ -225,28 +225,33 @@ int main(void)
 
 			//HCI_LE_Read_Local_Supported_Features(  );
 
-			if( enable == 0 )
-			{
-				BD_ADDR_TYPE Random_Address = {{ 1,2,3,4,5,6 }};
 
-				HCI_LE_Set_Random_Address( Random_Address );
-				ADV_CH_MAP Advertising_Channel_Map;
-				SET_LE_ADV_CH_MAP_DEFAULT(Advertising_Channel_Map);
+//			if( enable == 0 )
+//			{
+//				BD_ADDR_TYPE Random_Address = {{ 1,2,3,4,5,6 }};
+//
+//				HCI_LE_Set_Random_Address( Random_Address );
+//				ADV_CH_MAP Advertising_Channel_Map;
+//				SET_LE_ADV_CH_MAP_DEFAULT(Advertising_Channel_Map);
+//
+//				HCI_LE_Set_Advertising_Parameters( 100, 150, ADV_IND, PUBLIC_DEV_ADDR, PUBLIC_DEV_ADDR, Random_Address, Advertising_Channel_Map, 0 );
+//
+//				enable++;
+//			}else if( enable == 1 )
+//			{
+//				uint8_t NOME[] = "BLETeste";
+//				HCI_LE_Set_Advertising_Data( sizeof(NOME), &NOME[0] );
+//
+//				uint8_t Scan_Resp_Data[] = { 1,2,5,7,10 };
+//				HCI_LE_Set_Scan_Response_Data( sizeof(Scan_Resp_Data), &Scan_Resp_Data[0] );
+//
+//				HCI_LE_Set_Advertising_Enable( TRUE );
+//				enable++;
+//			}
 
-				HCI_LE_Set_Advertising_Parameters( 100, 150, ADV_IND, PUBLIC_DEV_ADDR, PUBLIC_DEV_ADDR, Random_Address, Advertising_Channel_Map, 0 );
 
-				enable++;
-			}else if( enable == 1 )
-			{
-				uint8_t NOME[] = "BLETeste";
-				HCI_LE_Set_Advertising_Data( sizeof(NOME), &NOME[0] );
 
-				uint8_t Scan_Resp_Data[] = { 1,2,5,7,10 };
-				HCI_LE_Set_Scan_Response_Data( sizeof(Scan_Resp_Data), &Scan_Resp_Data[0] );
 
-				HCI_LE_Set_Advertising_Enable( TRUE );
-				enable++;
-			}
 //			//if( !bdflag )
 //			//{
 //			if( enable == 1 )
@@ -281,6 +286,10 @@ int main(void)
 //			HCI_LE_Set_Scan_Parameters( PASSIVE_SCANNING, 0x0010, 0x0010, PUBLIC_DEV_ADDR, 0x00 );
 
 //			HCI_LE_Set_Scan_Enable( FALSE, 0x00 );
+
+			BD_ADDR_TYPE Random_Address = {{ 1,2,3,4,5,6 }};
+
+			HCI_LE_Create_Connection( 16, 16, 0, 0, Random_Address, 0, 160, 160, 0, 1000, 160, 160 );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

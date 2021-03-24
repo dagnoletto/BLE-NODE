@@ -118,6 +118,7 @@ typedef enum
 	HCI_LE_SET_ADVERTISING_ENABLE			= (PARSE_OPCODE( 0x000A, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_SET_SCAN_PARAMETERS				= (PARSE_OPCODE( 0x000B, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_SET_SCAN_ENABLE					= (PARSE_OPCODE( 0x000C, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_CREATE_CONNECTION				= (PARSE_OPCODE( 0x000D, LE_CONTROLLER_CMD 		 )),
 }COMMAND_OPCODE;
 
 
@@ -1033,6 +1034,12 @@ void 	HCI_LE_Set_Scan_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
 uint8_t HCI_LE_Set_Scan_Enable( uint8_t LE_Scan_Enable, uint8_t Filter_Duplicates );
 void 	HCI_LE_Set_Scan_Enable_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window, uint8_t Initiator_Filter_Policy,
+								  ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADDRESS_TYPE Own_Address_Type,
+								  uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
+								  uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length );
+void    HCI_LE_Create_Connection_Status( CONTROLLER_ERROR_CODES Status );
 
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 

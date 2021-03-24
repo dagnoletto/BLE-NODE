@@ -1538,6 +1538,147 @@ __attribute__((weak)) void HCI_LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_COD
 
 
 /****************************************************************/
+/* HCI_LE_Create_Connection()                	    		    */
+/* Location: Page 2498 Core_v5.2								*/
+/* Purpose: The HCI_LE_Create_Connection command is used to 	*/
+/* create an ACL connection to a connectable advertiser. The 	*/
+/* LE_Scan_Interval and LE_Scan_Window parameters are recommen-	*/
+/* dations from the Host on how long (LE_Scan_Window) and how	*/
+/* frequently (LE_Scan_Interval) the Controller should scan. The*/
+/* LE_Scan_Window parameter shall be set to a value smaller or  */
+/* equal to the value set for the LE_Scan_Interval parameter. 	*/
+/* If both are set to the same value, scanning should run 		*/
+/* continuously. The Initiator_Filter_Policy is used to 		*/
+/* determine whether the White List is used. If the White List  */
+/* is not used, the Peer_Address_Type and the Peer_Address 		*/
+/* parameters specify the address type and address of the 		*/
+/* advertising device to connect to. Peer_Address_Type parameter*/
+/* indicates the type of address used in the connectable 		*/
+/* advertisement sent by the peer. The Host shall not set		*/
+/* Peer_Address_Type to either 0x02 or 0x03 if both the Host 	*/
+/* and the Controller support the HCI_LE_Set_Privacy_Mode 		*/
+/* command. If a Controller that supports the 					*/
+/* HCI_LE_Set_Privacy_Mode command receives the					*/
+/* HCI_LE_Create_Connection command with Peer_Address_Type set 	*/
+/* to either 0x02 or 0x03, it may use either device privacy 	*/
+/* mode or network privacy mode for that peer device. 			*/
+/* Peer_Address parameter indicates the Peer’s Public 			*/
+/* Device Address, Random (static) Device Address, 				*/
+/* Non-Resolvable Private Address or Resolvable	Private Address */
+/* depending on the Peer_Address_Type parameter. 				*/
+/* Own_Address_Type parameter indicates the type of address 	*/
+/* being used in the connection request packets. The 			*/
+/* Connection_Interval_Min and Connection_Interval_Max 			*/
+/* parameters define the minimum and maximum allowed connection */
+/* interval. The Connection_Interval_Min parameter shall not be */
+/* greater than the Connection_Interval_Max parameter. The 		*/
+/* Connection_Latency parameter defines the maximum allowed 	*/
+/* connection latency (see [Vol 6] Part B, Section 4.5.1).		*/
+/* The Supervision_Timeout parameter defines the link 			*/
+/* supervision timeout for the connection. The 					*/
+/* Supervision_Timeout in milliseconds shall be larger than		*/
+/* (1 + Connection_Latency) * Connection_Interval_Max * 2, where*/
+/* Connection_Interval_Max is given in milliseconds. (See		*/
+/* [Vol 6] Part B, Section 4.5.2). The Min_CE_Length and 		*/
+/* Max_CE_Length parameters are informative	parameters providing*/
+/* the Controller with the expected minimum and maximum length 	*/
+/* of the connection events. The Min_CE_Length parameter shall 	*/
+/* be less than or equal to the Max_CE_Length parameter. If the */
+/* Host issues this command when another 						*/
+/* HCI_LE_Create_Connection command is pending in the 			*/
+/* Controller, the Controller shall return the error code		*/
+/* Command Disallowed (0x0C). If the Own_Address_Type parameter */
+/* is set to 0x01 and the random address for the device has not */
+/* been initialized, the Controller shall return the error code */
+/* Invalid HCI Command Parameters (0x12). If the 				*/
+/* Own_Address_Type parameter is set to 0x03, the 				*/
+/* Initiator_Filter_Policy parameter is set to 0x00, the 		*/
+/* controller's resolving list did not contain a matching entry,*/
+/* and the random address for the device has not been 			*/
+/* initialized, the Controller shall return the error code		*/
+/* Invalid HCI Command Parameters (0x12). If the				*/
+/* Own_Address_Type parameter is set to 0x03, the 				*/
+/* Initiator_Filter_Policy parameter is set to 0x01, and the 	*/
+/* random address for the device has not been initialized, the 	*/
+/* Controller shall return the error code Invalid HCI Command	*/
+/* Parameters (0x12).											*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window, uint8_t Initiator_Filter_Policy,
+		ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADDRESS_TYPE Own_Address_Type,
+		uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
+		uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length )
+{
+	uint8_t Status;
+
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 25;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_CREATE_CONNECTION;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 25;
+
+	PcktPtr->CmdPacket.Parameter[0] = LE_Scan_Interval & 0xFF;
+	PcktPtr->CmdPacket.Parameter[1] = ( LE_Scan_Interval >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[2] = LE_Scan_Window & 0xFF;
+	PcktPtr->CmdPacket.Parameter[3] = ( LE_Scan_Window >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[4] = Initiator_Filter_Policy;
+
+	PcktPtr->CmdPacket.Parameter[5] = Peer_Address_Type;
+
+	for( int8_t i = 0; i < sizeof(Peer_Address); i++ )
+	{
+		PcktPtr->CmdPacket.Parameter[i + 6] = Peer_Address.Byte[i];
+	}
+
+	PcktPtr->CmdPacket.Parameter[12] = Own_Address_Type;
+
+	PcktPtr->CmdPacket.Parameter[13] = Connection_Interval_Min & 0xFF;
+	PcktPtr->CmdPacket.Parameter[14] = ( Connection_Interval_Min >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[15] = Connection_Interval_Max & 0xFF;
+	PcktPtr->CmdPacket.Parameter[16] = ( Connection_Interval_Max >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[17] = Connection_Latency & 0xFF;
+	PcktPtr->CmdPacket.Parameter[18] = ( Connection_Latency >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[19] = Supervision_Timeout & 0xFF;
+	PcktPtr->CmdPacket.Parameter[20] = ( Supervision_Timeout >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[21] = Min_CE_Length & 0xFF;
+	PcktPtr->CmdPacket.Parameter[22] = ( Min_CE_Length >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[23] = Max_CE_Length & 0xFF;
+	PcktPtr->CmdPacket.Parameter[24] = ( Max_CE_Length >> 8 ) & 0xFF;
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL );
+
+	free( PcktPtr );
+
+	return (Status);
+}
+
+
+/****************************************************************/
+/* HCI_LE_Create_Connection_Status()           		      		*/
+/* Location: 					 								*/
+/* Purpose: Event generated by the 								*/
+/* HCI_LE_Create_Connection command.							*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void HCI_LE_Create_Connection_Status( CONTROLLER_ERROR_CODES Status )
+{
+	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
 /* HCI_Hardware_Error()                							*/
 /* Location: 					 								*/
 /* Purpose: Event used to notify the Host that a hardware		*/

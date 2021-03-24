@@ -389,6 +389,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					HCI_LE_Set_Scan_Enable_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
+				case HCI_LE_CREATE_CONNECTION:
+					HCI_LE_Create_Connection_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
 					ACI_Hal_Get_Fw_Build_Number_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], 0 );
 					break;
