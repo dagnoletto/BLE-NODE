@@ -119,6 +119,9 @@ typedef enum
 	HCI_LE_SET_SCAN_PARAMETERS				= (PARSE_OPCODE( 0x000B, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_SET_SCAN_ENABLE					= (PARSE_OPCODE( 0x000C, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_CREATE_CONNECTION				= (PARSE_OPCODE( 0x000D, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_CREATE_CONNECTION_CANCEL			= (PARSE_OPCODE( 0x000E, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_READ_WHITE_LIST_SIZE				= (PARSE_OPCODE( 0x000F, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_CLEAR_WHITE_LIST					= (PARSE_OPCODE( 0x0010, LE_CONTROLLER_CMD 		 )),
 }COMMAND_OPCODE;
 
 
@@ -1040,6 +1043,18 @@ uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Wi
 								  uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
 								  uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length );
 void    HCI_LE_Create_Connection_Status( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Create_Connection_Cancel( void );
+void 	HCI_LE_Create_Connection_Cancel_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Read_White_List_Size( void );
+void 	HCI_LE_Read_White_List_Size_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Read_White_List_Size_Complete( CONTROLLER_ERROR_CODES Status, uint8_t White_List_Size );
+
+uint8_t HCI_LE_Clear_White_List( void );
+void 	HCI_LE_Clear_White_List_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
 
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 

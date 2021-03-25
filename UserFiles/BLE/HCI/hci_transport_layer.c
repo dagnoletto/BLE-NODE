@@ -243,6 +243,18 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					HCI_LE_Set_Scan_Enable_Complete( EventPacketPtr->Event_Parameter[3] );
 					break;
 
+				case HCI_LE_CREATE_CONNECTION_CANCEL:
+					HCI_LE_Create_Connection_Cancel_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case HCI_LE_READ_WHITE_LIST_SIZE:
+					HCI_LE_Read_White_List_Size_Complete( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4] );
+					break;
+
+				case HCI_LE_CLEAR_WHITE_LIST:
+					HCI_LE_Clear_White_List_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
 					ACI_Hal_Get_Fw_Build_Number_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
 					break;
@@ -391,6 +403,18 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				case HCI_LE_CREATE_CONNECTION:
 					HCI_LE_Create_Connection_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_CREATE_CONNECTION_CANCEL:
+					HCI_LE_Create_Connection_Cancel_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_READ_WHITE_LIST_SIZE:
+					HCI_LE_Read_White_List_Size_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_CLEAR_WHITE_LIST:
+					HCI_LE_Clear_White_List_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
