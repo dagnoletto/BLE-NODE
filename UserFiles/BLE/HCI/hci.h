@@ -122,6 +122,10 @@ typedef enum
 	HCI_LE_CREATE_CONNECTION_CANCEL			= (PARSE_OPCODE( 0x000E, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_READ_WHITE_LIST_SIZE				= (PARSE_OPCODE( 0x000F, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_CLEAR_WHITE_LIST					= (PARSE_OPCODE( 0x0010, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_ADD_DEVICE_TO_WHITE_LIST			= (PARSE_OPCODE( 0x0011, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST	= (PARSE_OPCODE( 0x0012, LE_CONTROLLER_CMD 		 )),
+
+	HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION  = (PARSE_OPCODE( 0x0014, LE_CONTROLLER_CMD 		 )),
 }COMMAND_OPCODE;
 
 
@@ -924,7 +928,53 @@ typedef union
 		uint8_t Ch39 :1; /* Channel 39 shall be used */
 	};
 	uint8_t Val;
-}__attribute__((packed)) ADV_CH_MAP; /* Advertising_Channel_Map */
+}__attribute__((packed)) ADV_CHANNEL_MAP; /* Advertising_Channel_Map */
+
+
+typedef union
+{
+	struct Channel_Map_Bits
+	{
+		uint8_t Ch0  :1; /* Channel 0  */
+		uint8_t Ch1  :1; /* Channel 1  */
+		uint8_t Ch2  :1; /* Channel 2  */
+		uint8_t Ch3  :1; /* Channel 3  */
+		uint8_t Ch4  :1; /* Channel 4  */
+		uint8_t Ch5  :1; /* Channel 5  */
+		uint8_t Ch6  :1; /* Channel 6  */
+		uint8_t Ch7  :1; /* Channel 7  */
+		uint8_t Ch8  :1; /* Channel 8  */
+		uint8_t Ch9  :1; /* Channel 9  */
+		uint8_t Ch10 :1; /* Channel 10 */
+		uint8_t Ch11 :1; /* Channel 11 */
+		uint8_t Ch12 :1; /* Channel 12 */
+		uint8_t Ch13 :1; /* Channel 13 */
+		uint8_t Ch14 :1; /* Channel 14 */
+		uint8_t Ch15 :1; /* Channel 15 */
+		uint8_t Ch16 :1; /* Channel 16 */
+		uint8_t Ch17 :1; /* Channel 17 */
+		uint8_t Ch18 :1; /* Channel 18 */
+		uint8_t Ch19 :1; /* Channel 19 */
+		uint8_t Ch20 :1; /* Channel 20 */
+		uint8_t Ch21 :1; /* Channel 21 */
+		uint8_t Ch22 :1; /* Channel 22 */
+		uint8_t Ch23 :1; /* Channel 23 */
+		uint8_t Ch24 :1; /* Channel 24 */
+		uint8_t Ch25 :1; /* Channel 25 */
+		uint8_t Ch26 :1; /* Channel 26 */
+		uint8_t Ch27 :1; /* Channel 27 */
+		uint8_t Ch28 :1; /* Channel 28 */
+		uint8_t Ch29 :1; /* Channel 29 */
+		uint8_t Ch30 :1; /* Channel 30 */
+		uint8_t Ch31 :1; /* Channel 31 */
+		uint8_t Ch32 :1; /* Channel 32 */
+		uint8_t Ch33 :1; /* Channel 33 */
+		uint8_t Ch34 :1; /* Channel 34 */
+		uint8_t Ch35 :1; /* Channel 35 */
+		uint8_t Ch36 :1; /* Channel 36 */
+	}__attribute__((packed)) Bits;
+	uint8_t Bytes[sizeof(struct Channel_Map_Bits)];
+}__attribute__((packed)) CHANNEL_MAP;
 
 
 #define DEFAULT_LE_ADV_CH_MAP 0x07 /* The default is 0x07 (all three channels enabled). */
@@ -1008,8 +1058,8 @@ void 	HCI_LE_Set_Random_Address_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Set_Random_Address_Complete( CONTROLLER_ERROR_CODES Status );
 
 uint8_t HCI_LE_Set_Advertising_Parameters( uint16_t Advertising_Interval_Min, uint16_t Advertising_Interval_Max, ADVERTISING_TYPE Advertising_Type,
-										   ADDRESS_TYPE Own_Address_Type, ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address,
-										   ADV_CH_MAP Advertising_Channel_Map, uint8_t Advertising_Filter_Policy );
+		ADDRESS_TYPE Own_Address_Type, ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address,
+		ADV_CHANNEL_MAP Advertising_Channel_Map, uint8_t Advertising_Filter_Policy );
 void 	HCI_LE_Set_Advertising_Parameters_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
 
@@ -1030,7 +1080,7 @@ void 	HCI_LE_Set_Advertising_Enable_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 
 uint8_t HCI_LE_Set_Scan_Parameters( LE_SCAN_TYPE LE_Scan_Type, uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window,
-									ADDRESS_TYPE Own_Address_Type, uint8_t Scanning_Filter_Policy );
+		ADDRESS_TYPE Own_Address_Type, uint8_t Scanning_Filter_Policy );
 void 	HCI_LE_Set_Scan_Parameters_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Set_Scan_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
 
@@ -1039,9 +1089,9 @@ void 	HCI_LE_Set_Scan_Enable_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 
 uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window, uint8_t Initiator_Filter_Policy,
-								  ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADDRESS_TYPE Own_Address_Type,
-								  uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
-								  uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length );
+		ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADDRESS_TYPE Own_Address_Type,
+		uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
+		uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length );
 void    HCI_LE_Create_Connection_Status( CONTROLLER_ERROR_CODES Status );
 
 uint8_t HCI_LE_Create_Connection_Cancel( void );
@@ -1055,6 +1105,18 @@ void 	HCI_LE_Read_White_List_Size_Complete( CONTROLLER_ERROR_CODES Status, uint8
 uint8_t HCI_LE_Clear_White_List( void );
 void 	HCI_LE_Clear_White_List_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Add_Device_To_White_List( uint8_t Address_Type, BD_ADDR_TYPE Address );
+void 	HCI_LE_Add_Device_To_White_List_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Add_Device_To_White_List_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Remove_Device_From_White_List( uint8_t Address_Type, BD_ADDR_TYPE Address );
+void 	HCI_LE_Remove_Device_From_White_List_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Remove_Device_From_White_List_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Set_Host_Channel_Classification( CHANNEL_MAP Channel_Map );
+void 	HCI_LE_Set_Host_Channel_Classification_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Set_Host_Channel_Classification_Complete( CONTROLLER_ERROR_CODES Status );
 
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 

@@ -291,7 +291,7 @@ int main(void)
 //			{
 //				enable = TRUE;
 //
-//				BD_ADDR_TYPE Random_Address = {{ 1,2,3,4,5,6 }};
+				BD_ADDR_TYPE Random_Address = {{ 1,2,3,4,5,6 }};
 //
 //				HCI_LE_Create_Connection( 16, 16, 0, 0, Random_Address, 0, 160, 160, 0, 1000, 160, 160 );
 //			}else
@@ -299,9 +299,29 @@ int main(void)
 //				HCI_LE_Create_Connection_Cancel(  );
 //			}
 
-//			HCI_LE_Read_White_List_Size(  );
+			//HCI_LE_Read_White_List_Size(  );
 
-			HCI_LE_Clear_White_List(  );
+//			HCI_LE_Clear_White_List(  );
+
+//			HCI_LE_Add_Device_To_White_List( 1, Random_Address );
+
+		//	HCI_LE_Remove_Device_From_White_List( 1, Random_Address );
+
+
+//						if( !enable )
+//						{
+//							enable = TRUE;
+//
+//							HCI_LE_Add_Device_To_White_List( 1, Random_Address );
+//						}else
+//						{
+//							HCI_LE_Remove_Device_From_White_List( 1, Random_Address );
+//						}
+
+						CHANNEL_MAP Channel_Map = { .Bytes[0] = 0xFF, .Bytes[1] = 0xFF, .Bytes[2] = 0xFF, .Bytes[3] = 0xFF, .Bytes[4] = 0xFF };
+
+						HCI_LE_Set_Host_Channel_Classification( Channel_Map );
+
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
