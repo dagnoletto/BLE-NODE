@@ -322,6 +322,10 @@ int main(void)
 
 						HCI_LE_Set_Host_Channel_Classification( Channel_Map );
 
+		//	HCI_LE_Connection_Update( 0, 160, 160, 0, 1000, 160, 160 );
+
+			HCI_LE_Read_Channel_Map( 0 );
+
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

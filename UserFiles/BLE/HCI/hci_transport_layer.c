@@ -267,6 +267,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					HCI_LE_Set_Host_Channel_Classification_Complete( EventPacketPtr->Event_Parameter[3] );
 					break;
 
+				case HCI_LE_READ_CHANNEL_MAP:
+					HCI_LE_Read_Channel_Map_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4], (CHANNEL_MAP*)(&(EventPacketPtr->Event_Parameter[6])) );
+					break;
+
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
 					ACI_Hal_Get_Fw_Build_Number_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
 					break;
@@ -437,8 +441,16 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					HCI_LE_Remove_Device_From_White_List_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
+				case HCI_LE_CONNECTION_UPDATE:
+					HCI_LE_Connection_Update_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
 				case HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION:
 					HCI_LE_Set_Host_Channel_Classification_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_READ_CHANNEL_MAP:
+					HCI_LE_Read_Channel_Map_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:

@@ -124,8 +124,9 @@ typedef enum
 	HCI_LE_CLEAR_WHITE_LIST					= (PARSE_OPCODE( 0x0010, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_ADD_DEVICE_TO_WHITE_LIST			= (PARSE_OPCODE( 0x0011, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST	= (PARSE_OPCODE( 0x0012, LE_CONTROLLER_CMD 		 )),
-
+	HCI_LE_CONNECTION_UPDATE				= (PARSE_OPCODE( 0x0013, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION  = (PARSE_OPCODE( 0x0014, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_READ_CHANNEL_MAP					= (PARSE_OPCODE( 0x0015, LE_CONTROLLER_CMD 		 )),
 }COMMAND_OPCODE;
 
 
@@ -1117,6 +1118,14 @@ void 	HCI_LE_Remove_Device_From_White_List_Complete( CONTROLLER_ERROR_CODES Stat
 uint8_t HCI_LE_Set_Host_Channel_Classification( CHANNEL_MAP Channel_Map );
 void 	HCI_LE_Set_Host_Channel_Classification_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Set_Host_Channel_Classification_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Connection_Update( uint16_t Connection_Handle, uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max,
+								  uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length );
+void 	HCI_LE_Connection_Update_Status( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Read_Channel_Map( uint8_t Connection_Handle );
+void 	HCI_LE_Read_Channel_Map_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Read_Channel_Map_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CHANNEL_MAP* Channel_Map );
 
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 
