@@ -271,6 +271,22 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					HCI_LE_Read_Channel_Map_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4], (CHANNEL_MAP*)(&(EventPacketPtr->Event_Parameter[6])) );
 					break;
 
+				case HCI_LE_ENCRYPT:
+					HCI_LE_Encrypt_Complete( EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]) );
+					break;
+
+				case HCI_LE_RAND:
+					HCI_LE_Rand_Complete( EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]) );
+					break;
+
+				case HCI_LE_LONG_TERM_KEY_REQUEST_REPLY:
+					HCI_LE_Long_Term_Key_Request_Reply_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
+					break;
+
+				case HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY:
+					HCI_LE_Long_Term_Key_Request_Negative_Reply_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
+					break;
+
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
 					ACI_Hal_Get_Fw_Build_Number_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
 					break;
@@ -451,6 +467,34 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				case HCI_LE_READ_CHANNEL_MAP:
 					HCI_LE_Read_Channel_Map_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_READ_REMOTE_FEATURES:
+					HCI_LE_Read_Remote_Features_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_ENCRYPT:
+					HCI_LE_Encrypt_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_RAND:
+					HCI_LE_Rand_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_ENABLE_ENCRYPTION:
+					HCI_LE_Enable_Encryption_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_LONG_TERM_KEY_REQUEST_REPLY:
+					HCI_LE_Long_Term_Key_Request_Reply_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY:
+					HCI_LE_Long_Term_Key_Request_Negative_Reply_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_READ_SUPPORTED_STATES:
+					HCI_LE_Read_Supported_States_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:

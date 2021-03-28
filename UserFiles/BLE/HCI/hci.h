@@ -127,6 +127,13 @@ typedef enum
 	HCI_LE_CONNECTION_UPDATE				= (PARSE_OPCODE( 0x0013, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION  = (PARSE_OPCODE( 0x0014, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_READ_CHANNEL_MAP					= (PARSE_OPCODE( 0x0015, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_READ_REMOTE_FEATURES    			= (PARSE_OPCODE( 0x0016, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_ENCRYPT							= (PARSE_OPCODE( 0x0017, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_RAND								= (PARSE_OPCODE( 0x0018, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_ENABLE_ENCRYPTION				= (PARSE_OPCODE( 0x0019, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_LONG_TERM_KEY_REQUEST_REPLY  	= (PARSE_OPCODE( 0x001A, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY 		= (PARSE_OPCODE( 0x001B, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_READ_SUPPORTED_STATES			= (PARSE_OPCODE( 0x001C, LE_CONTROLLER_CMD 		 )),
 }COMMAND_OPCODE;
 
 
@@ -987,6 +994,52 @@ typedef union
 #define MAX_SCAN_RESPONSE_DATA_LENGTH 	31
 
 
+typedef union
+{
+	struct Supported_LE_Stated_Bits
+	{
+		uint8_t Non_Conn_and_Non_Scan_Und_Adv 	:1; /* Bit 0 *//* Non-connectable and Non-Scannable Undirected Advertising State */
+		uint8_t Scan_Und_Adv 					:1; /* Bit 1 *//* Scannable Undirected Advertising State */
+		uint8_t Conn_and_Scan_Und_Adv  			:1; /* Bit 2 *//* Connectable and Scannable Undirected Advertising State */
+		uint8_t High_Duty_Cycle_Conn_Dir_Adv 	:1; /* Bit 3 *//* High Duty Cycle Connectable Directed Advertising State */
+		uint8_t Passive_Scan  					:1; /* Bit 4 *//* Passive Scanning State */
+		uint8_t Active_Scan						:1; /* Bit 5 *//* Active Scanning State */
+		uint8_t Initiating  					:1; /* Bit 6 *//* Initiating State */
+		uint8_t Slave_Role						:1; /* Bit 7 *//* Connection State (Slave Role) */
+		uint8_t Non_Conn_and_Non_Scan_Und_Adv_Plus_Passive_Scan  :1; /* Bit 8 *//* Non-connectable and Non-Scannable Undirected Advertising State + Passive Scanning State */
+		uint8_t Scan_Und_Adv_Plus_Passive_Scan  				 :1; /* Bit 9 *//* Scannable Undirected Advertising State + Passive Scanning State */
+		uint8_t Conn_and_Scan_Und_Adv_Plus_Passive_Scan 		 :1; /* Bit 10 *//* Connectable and Scannable Undirected Advertising State + Passive Scanning State */
+		uint8_t High_Duty_Cycle_Conn_Dir_Adv_Plus_Passive_Scan 	 :1; /* Bit 11 *//* High Duty Cycle Connectable Directed Advertising State + Passive Scanning State */
+		uint8_t Non_Conn_and_Non_Scan_Und_Adv_Plus_Active_Scan 	 :1; /* Bit 12 *//* Non-connectable and Non-Scannable Undirected Advertising State + Active Scanning State */
+		uint8_t Scan_Und_Adv_Plus_Active_Scan 					 :1; /* Bit 13 *//* Scannable Undirected Advertising State + Active Scanning State */
+		uint8_t Conn_and_Scan_Und_Adv_Plus_Active_Scan			 :1; /* Bit 14 *//* Connectable and Scannable Undirected Advertising State + Active Scanning State */
+		uint8_t High_Duty_Cycle_Conn_Dir_Adv_Plus_Active_Scan	 :1; /* Bit 15 *//* High Duty Cycle Connectable Directed Advertising State + Active Scanning State */
+		uint8_t Non_Conn_and_Non_Scan_Und_Adv_Plus_Initiating 	 :1; /* Bit 16 *//* Non-connectable and Non-Scannable Undirected Advertising State + Initiating State */
+		uint8_t Scan_Und_Adv_Plus_Initiating 					 :1; /* Bit 17 *//* Scannable Undirected Advertising State + Initiating State */
+		uint8_t Non_Conn_and_Non_Scan_Und_Adv_Plus_Master_Role 	 :1; /* Bit 18 *//* Non-connectable and Non-Scannable Undirected Advertising State + Connection State (Master Role) */
+		uint8_t Scan_Und_Adv_Plus_Master_Role 					 :1; /* Bit 19 *//* Scannable Undirected Advertising State + Connection State (Master Role) */
+		uint8_t Non_Conn_and_Non_Scan_Und_Adv_Plus_Slave_Role 	 :1; /* Bit 20 *//* Non-connectable and Non-Scannable Undirected Advertising State + Connection State (Slave Role) */
+		uint8_t Ch21 :1; /* Channel 21 */
+		uint8_t Ch22 :1; /* Channel 22 */
+		uint8_t Ch23 :1; /* Channel 23 */
+		uint8_t Ch24 :1; /* Channel 24 */
+		uint8_t Ch25 :1; /* Channel 25 */
+		uint8_t Ch26 :1; /* Channel 26 */
+		uint8_t Ch27 :1; /* Channel 27 */
+		uint8_t Ch28 :1; /* Channel 28 */
+		uint8_t Ch29 :1; /* Channel 29 */
+		uint8_t Ch30 :1; /* Channel 30 */
+		uint8_t Ch31 :1; /* Channel 31 */
+		uint8_t Ch32 :1; /* Channel 32 */
+		uint8_t Ch33 :1; /* Channel 33 */
+		uint8_t Ch34 :1; /* Channel 34 */
+		uint8_t Ch35 :1; /* Channel 35 */
+		uint8_t Ch36 :1; /* Channel 36 */
+	}__attribute__((packed)) Bits;
+	uint8_t Bytes[sizeof(struct Supported_LE_Stated_Bits)];
+}__attribute__((packed)) SUPPORTED_LE_STATES;
+
+
 typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 {
 	/* These Hardware_Codes will be implementation-specific, and can be
@@ -1072,7 +1125,7 @@ uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Ad
 void    HCI_LE_Set_Advertising_Data_Status( CONTROLLER_ERROR_CODES Status );
 void    HCI_LE_Set_Advertising_Data_Complete( CONTROLLER_ERROR_CODES Status );
 
-uint8_t HCI_LE_Set_Scan_Response_Data( uint8_t Scan_Response_Data_Length, uint8_t* Scan_Response_Data );
+uint8_t HCI_LE_Set_Scan_Response_Data( uint8_t Scan_Response_Data_Length, uint8_t Scan_Response_Data[] );
 void 	HCI_LE_Set_Scan_Response_Data_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Set_Scan_Response_Data_Complete( CONTROLLER_ERROR_CODES Status );
 
@@ -1123,9 +1176,35 @@ uint8_t HCI_LE_Connection_Update( uint16_t Connection_Handle, uint16_t Connectio
 								  uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length );
 void 	HCI_LE_Connection_Update_Status( CONTROLLER_ERROR_CODES Status );
 
-uint8_t HCI_LE_Read_Channel_Map( uint8_t Connection_Handle );
+uint8_t HCI_LE_Read_Channel_Map( uint16_t Connection_Handle );
 void 	HCI_LE_Read_Channel_Map_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Read_Channel_Map_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CHANNEL_MAP* Channel_Map );
+
+uint8_t HCI_LE_Read_Remote_Features( uint16_t Connection_Handle );
+void 	HCI_LE_Read_Remote_Features_Status( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Encrypt( uint8_t Key[16], uint8_t Plaintext_Data[16] );
+void 	HCI_LE_Encrypt_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Encrypt_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Encrypted_Data[16] );
+
+uint8_t HCI_LE_Rand( void );
+void 	HCI_LE_Rand_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] );
+
+uint8_t HCI_LE_Enable_Encryption( uint16_t Connection_Handle, uint8_t Random_Number[8],
+								  uint16_t Encrypted_Diversifier, uint8_t Long_Term_Key[16] );
+void 	HCI_LE_Enable_Encryption_Status( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Long_Term_Key_Request_Reply( uint16_t Connection_Handle, uint8_t Long_Term_Key[16] );
+void 	HCI_LE_Long_Term_Key_Request_Reply_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Long_Term_Key_Request_Reply_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
+
+uint8_t HCI_LE_Long_Term_Key_Request_Negative_Reply( uint16_t Connection_Handle );
+void 	HCI_LE_Long_Term_Key_Request_Negative_Reply_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Long_Term_Key_Request_Negative_Reply_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
+
+uint8_t HCI_LE_Read_Supported_States( void );
+void 	HCI_LE_Read_Supported_States_Status( CONTROLLER_ERROR_CODES Status );
 
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 
