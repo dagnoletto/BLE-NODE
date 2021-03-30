@@ -998,14 +998,14 @@ typedef union
 {
 	struct Supported_LE_Stated_Bits
 	{
-		uint8_t Non_Conn_and_Non_Scan_Und_Adv 	:1; /* Bit 0 *//* Non-connectable and Non-Scannable Undirected Advertising State */
-		uint8_t Scan_Und_Adv 					:1; /* Bit 1 *//* Scannable Undirected Advertising State */
-		uint8_t Conn_and_Scan_Und_Adv  			:1; /* Bit 2 *//* Connectable and Scannable Undirected Advertising State */
-		uint8_t High_Duty_Cycle_Conn_Dir_Adv 	:1; /* Bit 3 *//* High Duty Cycle Connectable Directed Advertising State */
-		uint8_t Passive_Scan  					:1; /* Bit 4 *//* Passive Scanning State */
-		uint8_t Active_Scan						:1; /* Bit 5 *//* Active Scanning State */
-		uint8_t Initiating  					:1; /* Bit 6 *//* Initiating State */
-		uint8_t Slave_Role						:1; /* Bit 7 *//* Connection State (Slave Role) */
+		uint8_t Non_Conn_and_Non_Scan_Und_Adv 					 :1; /* Bit 0 *//* Non-connectable and Non-Scannable Undirected Advertising State */
+		uint8_t Scan_Und_Adv 									 :1; /* Bit 1 *//* Scannable Undirected Advertising State */
+		uint8_t Conn_and_Scan_Und_Adv  							 :1; /* Bit 2 *//* Connectable and Scannable Undirected Advertising State */
+		uint8_t High_Duty_Cycle_Conn_Dir_Adv 					 :1; /* Bit 3 *//* High Duty Cycle Connectable Directed Advertising State */
+		uint8_t Passive_Scan  									 :1; /* Bit 4 *//* Passive Scanning State */
+		uint8_t Active_Scan										 :1; /* Bit 5 *//* Active Scanning State */
+		uint8_t Initiating  									 :1; /* Bit 6 *//* Initiating State */
+		uint8_t Slave_Role										 :1; /* Bit 7 *//* Connection State (Slave Role) */
 		uint8_t Non_Conn_and_Non_Scan_Und_Adv_Plus_Passive_Scan  :1; /* Bit 8 *//* Non-connectable and Non-Scannable Undirected Advertising State + Passive Scanning State */
 		uint8_t Scan_Und_Adv_Plus_Passive_Scan  				 :1; /* Bit 9 *//* Scannable Undirected Advertising State + Passive Scanning State */
 		uint8_t Conn_and_Scan_Und_Adv_Plus_Passive_Scan 		 :1; /* Bit 10 *//* Connectable and Scannable Undirected Advertising State + Passive Scanning State */
@@ -1019,22 +1019,29 @@ typedef union
 		uint8_t Non_Conn_and_Non_Scan_Und_Adv_Plus_Master_Role 	 :1; /* Bit 18 *//* Non-connectable and Non-Scannable Undirected Advertising State + Connection State (Master Role) */
 		uint8_t Scan_Und_Adv_Plus_Master_Role 					 :1; /* Bit 19 *//* Scannable Undirected Advertising State + Connection State (Master Role) */
 		uint8_t Non_Conn_and_Non_Scan_Und_Adv_Plus_Slave_Role 	 :1; /* Bit 20 *//* Non-connectable and Non-Scannable Undirected Advertising State + Connection State (Slave Role) */
-		uint8_t Ch21 :1; /* Channel 21 */
-		uint8_t Ch22 :1; /* Channel 22 */
-		uint8_t Ch23 :1; /* Channel 23 */
-		uint8_t Ch24 :1; /* Channel 24 */
-		uint8_t Ch25 :1; /* Channel 25 */
-		uint8_t Ch26 :1; /* Channel 26 */
-		uint8_t Ch27 :1; /* Channel 27 */
-		uint8_t Ch28 :1; /* Channel 28 */
-		uint8_t Ch29 :1; /* Channel 29 */
-		uint8_t Ch30 :1; /* Channel 30 */
-		uint8_t Ch31 :1; /* Channel 31 */
-		uint8_t Ch32 :1; /* Channel 32 */
-		uint8_t Ch33 :1; /* Channel 33 */
-		uint8_t Ch34 :1; /* Channel 34 */
-		uint8_t Ch35 :1; /* Channel 35 */
-		uint8_t Ch36 :1; /* Channel 36 */
+		uint8_t Scan_Und_Adv_Plus_Slave_Role 					 :1; /* Bit 21 *//* Scannable Undirected Advertising State + Connection State (Slave Role) */
+		uint8_t Passive_Scan_Plus_Initiating 					 :1; /* Bit 22 *//* Passive Scanning State + Initiating State */
+		uint8_t Active_Scan_Plus_Initiating 					 :1; /* Bit 23 *//* Active Scanning State + Initiating State */
+		uint8_t Passive_Scan_Plus_Master_Role 					 :1; /* Bit 24 *//* Passive Scanning State + Connection State (Master Role) */
+		uint8_t Active_Scan_Plus_Master_Role 					 :1; /* Bit 25 *//* Active Scanning State + Connection State (Master Role) */
+		uint8_t Passive_Scan_Plus_Slave_Role 					 :1; /* Bit 26 *//* Passive Scanning State + Connection State (Slave Role) */
+		uint8_t Active_Scan_Plus_Slave_Role 					 :1; /* Bit 27 *//* Active Scanning State + Connection State (Slave Role) */
+		uint8_t Initiating_Plus_Master_Role						 :1; /* Bit 28 *//* Initiating State + Connection State (Master Role) */
+		uint8_t Low_Duty_Cycle_Conn_Dir_Adv						 :1; /* Bit 29 *//* Low Duty Cycle Connectable Directed Advertising State */
+		uint8_t Low_Duty_Cycle_Conn_Dir_Adv_Plus_Passive_Scan 	 :1; /* Bit 30 *//* Low Duty Cycle Connectable Directed Advertising State + Passive Scanning State */
+		uint8_t Low_Duty_Cycle_Conn_Dir_Adv_Plus_Active_Scan 	 :1; /* Bit 31 *//* Low Duty Cycle Connectable Directed Advertising State + Active Scanning State */
+		uint8_t Conn_and_Scan_Und_Adv_Plus_Initiating 			 :1; /* Bit 32 *//* Connectable and Scannable Undirected Advertising State + Initiating State */
+		uint8_t High_Duty_Cycle_Conn_Dir_Adv_Plus_Initiating 	 :1; /* Bit 33 *//* High Duty Cycle Connectable Directed Advertising State + Initiating State */
+		uint8_t Low_Duty_Cycle_Conn_Dir_Adv_Plus_Initiating		 :1; /* Bit 34 *//* Low Duty Cycle Connectable Directed Advertising State + Initiating State */
+		uint8_t Conn_and_Scan_Und_Adv_Plus_Master_Role			 :1; /* Bit 35 *//* Connectable and Scannable Undirected Advertising State + Connection State (Master Role) */
+		uint8_t High_Duty_Cycle_Conn_Dir_Adv_Plus_Master_Role	 :1; /* Bit 36 *//* High Duty Cycle Connectable Directed Advertising State + Connection State (Master Role) */
+		uint8_t Low_Duty_Cycle_Conn_Dir_Adv_Plus_Master_Role	 :1; /* Bit 37 *//* Low Duty Cycle Connectable Directed Advertising State + Connection State (Master Role) */
+		uint8_t Conn_and_Scan_Und_Adv_Plus_Slave_Role 			 :1; /* Bit 38 *//* Connectable and Scannable Undirected Advertising State + Connection State (Slave Role) */
+		uint8_t High_Duty_Cycle_Conn_Dir_Adv_Plus_Slave_Role	 :1; /* Bit 39 *//* High Duty Cycle Connectable Directed Advertising State + Connection State (Slave Role) */
+		uint8_t Low_Duty_Cycle_Conn_Dir_Adv_Plus_Slave_Role		 :1; /* Bit 40 *//* Low Duty Cycle Connectable Directed Advertising State + Connection State (Slave Role) */
+		uint8_t Initiating_Plus_Slave_Role						 :1; /* Bit 41 *//* Initiating State + Connection State (Slave Role) */
+		uint8_t Reserved1										 :6; /* Reserved */
+		uint8_t Reserved2[2];	/* Reserved */
 	}__attribute__((packed)) Bits;
 	uint8_t Bytes[sizeof(struct Supported_LE_Stated_Bits)];
 }__attribute__((packed)) SUPPORTED_LE_STATES;
@@ -1205,6 +1212,7 @@ void 	HCI_LE_Long_Term_Key_Request_Negative_Reply_Complete( CONTROLLER_ERROR_COD
 
 uint8_t HCI_LE_Read_Supported_States( void );
 void 	HCI_LE_Read_Supported_States_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Read_Supported_States_Complete( CONTROLLER_ERROR_CODES Status, SUPPORTED_LE_STATES* LE_States );
 
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 
