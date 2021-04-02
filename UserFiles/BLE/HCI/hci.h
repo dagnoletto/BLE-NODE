@@ -135,16 +135,24 @@ typedef enum
 	HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY 		= (PARSE_OPCODE( 0x001B, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_READ_SUPPORTED_STATES			= (PARSE_OPCODE( 0x001C, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_RECEIVER_TEST_V1					= (PARSE_OPCODE( 0x001D, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_TRANSMITTER_TEST_V1				= (PARSE_OPCODE( 0x001E, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_TEST_END							= (PARSE_OPCODE( 0x001F, LE_CONTROLLER_CMD 		 )),
 }COMMAND_OPCODE;
 
 
 /* Event codes for HCI event packets */
 typedef enum
 {
-	HARDWARE_ERROR	 = 0x10,
-	COMMAND_COMPLETE = 0x0E,
-	COMMAND_STATUS 	 = 0x0F,
-	VENDOR_SPECIFIC  = 0xFF
+	DISCONNECTION_COMPLETE 					 = 0x05,
+	ENCRYPTION_CHANGE						 = 0x08,
+	READ_REMOTE_VERSION_INFORMATION_COMPLETE = 0x0C,
+	COMMAND_COMPLETE 						 = 0x0E,
+	COMMAND_STATUS 	 						 = 0x0F,
+	HARDWARE_ERROR	 						 = 0x10,
+	NUMBER_OF_COMPLETED_PACKETS				 = 0x13,
+	DATA_BUFFER_OVERFLOW					 = 0x1A,
+	ENCRYPTION_KEY_REFRESH_COMPLETE			 = 0x30,
+	VENDOR_SPECIFIC  						 = 0xFF
 }EVENT_CODE;
 
 
@@ -1215,11 +1223,28 @@ uint8_t HCI_LE_Read_Supported_States( void );
 void 	HCI_LE_Read_Supported_States_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Read_Supported_States_Complete( CONTROLLER_ERROR_CODES Status, SUPPORTED_LE_STATES* LE_States );
 
+/* TODO: Implementar demais comandos de teste */
 uint8_t HCI_LE_Receiver_Test_v1( uint8_t RX_Channel );
 void 	HCI_LE_Receiver_Test_v1_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Receiver_Test_v1_Complete( CONTROLLER_ERROR_CODES Status );
 
+/* TODO: Implementar demais comandos de teste */
+uint8_t HCI_LE_Transmitter_Test_v1( uint8_t TX_Channel, uint8_t Test_Data_Length, uint8_t Packet_Payload );
+void 	HCI_LE_Transmitter_Test_v1_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Transmitter_Test_v1_Complete( CONTROLLER_ERROR_CODES Status );
+
+uint8_t HCI_LE_Test_End( void );
+void 	HCI_LE_Test_End_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Test_End_Complete( CONTROLLER_ERROR_CODES Status );
+
+void	HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
+void 	HCI_Encryption_Change( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Encryption_Enabled );
+void 	HCI_Read_Remote_Version_Information_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, HCI_VERSION Version,
+													  uint16_t Manufacturer_Name, uint16_t Subversion );
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
+void 	HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_Handle[], uint16_t Num_Completed_Packets[] );
+void 	HCI_Data_Buffer_Overflow( uint8_t Link_Type );
+void	HCI_Encryption_Key_Refresh_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
 
 
 /****************************************************************/

@@ -105,10 +105,27 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 			switch( EventPacketPtr->Event_Code )
 			{
+			/*---------- DISCONNECTION_COMPLETE_EVT ------------*//* Page 2296 Core_v5.2 */
+			case DISCONNECTION_COMPLETE:
+				HCI_Disconnection_Complete( EventPacketPtr->Event_Parameter[0],
+						( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1],
+						EventPacketPtr->Event_Parameter[3] );
+				break;
 
-			/*---------- HARDWARE_ERROR_EVT ------------*//* Page 2312 Core_v5.2 */
-			case HARDWARE_ERROR:
-				HCI_Hardware_Error( EventPacketPtr->Event_Parameter[0] );
+				/*---------- ENCRYPTION_CHANGE_EVT ------------*//* Page 2299 Core_v5.2 */
+			case ENCRYPTION_CHANGE:
+				HCI_Encryption_Change( EventPacketPtr->Event_Parameter[0],
+						( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1],
+						EventPacketPtr->Event_Parameter[3] );
+				break;
+
+				/*---------- READ_REMOTE_VERSION_INFORMATION_COMPLETE_EVT ------------*//* Page 2304 Core_v5.2 */
+			case READ_REMOTE_VERSION_INFORMATION_COMPLETE:
+				HCI_Read_Remote_Version_Information_Complete( EventPacketPtr->Event_Parameter[0],
+						( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1],
+						EventPacketPtr->Event_Parameter[3],
+						( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
+						( EventPacketPtr->Event_Parameter[7] << 8 ) | EventPacketPtr->Event_Parameter[6] );
 				break;
 
 				/*---------- COMMAND_COMPLETE_EVT ------------*//* Page 2308 Core_v5.2 */
@@ -293,6 +310,14 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				case HCI_LE_RECEIVER_TEST_V1:
 					HCI_LE_Receiver_Test_v1_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case HCI_LE_TRANSMITTER_TEST_V1:
+					HCI_LE_Transmitter_Test_v1_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
+				case HCI_LE_TEST_END:
+					HCI_LE_Test_End_Complete( EventPacketPtr->Event_Parameter[3] );
 					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
@@ -509,6 +534,14 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					HCI_LE_Receiver_Test_v1_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
+				case HCI_LE_TRANSMITTER_TEST_V1:
+					HCI_LE_Transmitter_Test_v1_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_TEST_END:
+					HCI_LE_Test_End_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
 					ACI_Hal_Get_Fw_Build_Number_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], 0 );
 					break;
@@ -551,8 +584,37 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				}}
 			break;
 
+			/*---------- HARDWARE_ERROR_EVT ------------*//* Page 2312 Core_v5.2 */
+			case HARDWARE_ERROR:
+				HCI_Hardware_Error( EventPacketPtr->Event_Parameter[0] );
+				break;
 
+			/*---------- NUMBER_OF_COMPLETED_PACKETS_EVT ------------*//* Page 2315 Core_v5.2 */
+			case NUMBER_OF_COMPLETED_PACKETS: {
+				/* TODO: This allocation can run out of stack if a lot of Num_Handles is present */
+				uint16_t Num_Handles = EventPacketPtr->Event_Parameter[0];
+				uint16_t Offset = Num_Handles * 2;
+				uint16_t Connection_Handle[Num_Handles];
+				uint16_t Num_Completed_Packets[Num_Handles];
 
+				for( uint16_t i = 0; i < Num_Handles; i++ )
+				{
+					Connection_Handle[i] = ( EventPacketPtr->Event_Parameter[i + 2] << 8 ) | EventPacketPtr->Event_Parameter[i + 1];
+					Num_Completed_Packets[i] = ( EventPacketPtr->Event_Parameter[i + Offset + 2] << 8 ) | EventPacketPtr->Event_Parameter[i + Offset + 1];
+				}
+				HCI_Number_Of_Completed_Packets( EventPacketPtr->Event_Parameter[0], &Connection_Handle[0], &Num_Completed_Packets[0] );
+			}
+			break;
+
+			/*---------- DATA_BUFFER_OVERFLOW_EVT ------------*//* Page 2325 Core_v5.2 */
+			case DATA_BUFFER_OVERFLOW:
+				HCI_Data_Buffer_Overflow( EventPacketPtr->Event_Parameter[0] );
+				break;
+
+			/*---------- ENCRYPTION_KEY_REFRESH_COMPLETE_EVT ------------*//* Page 2349 Core_v5.2 */
+			case ENCRYPTION_KEY_REFRESH_COMPLETE:
+				HCI_Encryption_Key_Refresh_Complete( EventPacketPtr->Event_Parameter[0], EventPacketPtr->Event_Parameter[2] << 8 | EventPacketPtr->Event_Parameter[1] );
+				break;
 
 			/*--------- VENDOR_SPECIFIC_EVT -------------*/
 			case VENDOR_SPECIFIC: {

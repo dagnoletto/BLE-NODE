@@ -346,7 +346,11 @@ int main(void)
 
 			//	HCI_LE_Read_Supported_States(  );
 
-				HCI_LE_Receiver_Test_v1( 0x28 );
+			//	HCI_LE_Receiver_Test_v1( 0x28 );
+
+		//	HCI_LE_Transmitter_Test_v1( 0x27, 5, 0 );
+
+		//	HCI_LE_Test_End(  );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
