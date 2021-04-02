@@ -344,7 +344,9 @@ int main(void)
 
 		//		HCI_LE_Long_Term_Key_Request_Negative_Reply( 0 );
 
-				HCI_LE_Read_Supported_States(  );
+			//	HCI_LE_Read_Supported_States(  );
+
+				HCI_LE_Receiver_Test_v1( 0x28 );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

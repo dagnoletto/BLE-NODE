@@ -134,6 +134,7 @@ typedef enum
 	HCI_LE_LONG_TERM_KEY_REQUEST_REPLY  	= (PARSE_OPCODE( 0x001A, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY 		= (PARSE_OPCODE( 0x001B, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_READ_SUPPORTED_STATES			= (PARSE_OPCODE( 0x001C, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_RECEIVER_TEST_V1					= (PARSE_OPCODE( 0x001D, LE_CONTROLLER_CMD 		 )),
 }COMMAND_OPCODE;
 
 
@@ -1213,6 +1214,10 @@ void 	HCI_LE_Long_Term_Key_Request_Negative_Reply_Complete( CONTROLLER_ERROR_COD
 uint8_t HCI_LE_Read_Supported_States( void );
 void 	HCI_LE_Read_Supported_States_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Read_Supported_States_Complete( CONTROLLER_ERROR_CODES Status, SUPPORTED_LE_STATES* LE_States );
+
+uint8_t HCI_LE_Receiver_Test_v1( uint8_t RX_Channel );
+void 	HCI_LE_Receiver_Test_v1_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Receiver_Test_v1_Complete( CONTROLLER_ERROR_CODES Status );
 
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 

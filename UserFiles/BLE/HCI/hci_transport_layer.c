@@ -291,6 +291,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					HCI_LE_Read_Supported_States_Complete( EventPacketPtr->Event_Parameter[3], (SUPPORTED_LE_STATES*)(&(EventPacketPtr->Event_Parameter[4])) );
 					break;
 
+				case HCI_LE_RECEIVER_TEST_V1:
+					HCI_LE_Receiver_Test_v1_Complete( EventPacketPtr->Event_Parameter[3] );
+					break;
+
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
 					ACI_Hal_Get_Fw_Build_Number_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
 					break;
@@ -499,6 +503,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				case HCI_LE_READ_SUPPORTED_STATES:
 					HCI_LE_Read_Supported_States_Status( EventPacketPtr->Event_Parameter[0] );
+					break;
+
+				case HCI_LE_RECEIVER_TEST_V1:
+					HCI_LE_Receiver_Test_v1_Status( EventPacketPtr->Event_Parameter[0] );
 					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
