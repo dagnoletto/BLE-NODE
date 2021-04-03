@@ -155,47 +155,17 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 							( EventPacketPtr->Event_Parameter[11] << 8 ) | EventPacketPtr->Event_Parameter[10] );
 					break;
 
-				case HCI_READ_LOCAL_SUPPORTED_COMMANDS: {
-					SUPPORTED_COMMANDS Supported_Cmds;
-					/* Must be cleared because the Controller may send a structure that is smaller than the data type */
-					memset( &Supported_Cmds, 0, sizeof(Supported_Cmds) );
+				case HCI_READ_LOCAL_SUPPORTED_COMMANDS:
+					HCI_Read_Local_Supported_Commands_Complete( EventPacketPtr->Event_Parameter[3], (SUPPORTED_COMMANDS*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+					break;
 
-					uint16_t SizeToRead = EventPacketPtr->Parameter_Total_Length - 4;
-					if( SizeToRead > sizeof(Supported_Cmds) )
-					{
-						SizeToRead = sizeof(Supported_Cmds);
-					}
+				case HCI_READ_LOCAL_SUPPORTED_FEATURES:
+					HCI_Read_Local_Supported_Features_Complete( EventPacketPtr->Event_Parameter[3], (SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+					break;
 
-					memcpy( &Supported_Cmds, &(EventPacketPtr->Event_Parameter[4]), SizeToRead );
-					HCI_Read_Local_Supported_Commands_Complete( EventPacketPtr->Event_Parameter[3], &Supported_Cmds );
-				}
-				break;
-
-				case HCI_READ_LOCAL_SUPPORTED_FEATURES: {
-					SUPPORTED_FEATURES LMP_Features;
-					/* Must be cleared because the Controller may send a structure that is smaller than the data type */
-					memset( &LMP_Features, 0, sizeof(LMP_Features) );
-
-					uint16_t SizeToRead = EventPacketPtr->Parameter_Total_Length - 4;
-					if( SizeToRead > sizeof(LMP_Features) )
-					{
-						SizeToRead = sizeof(LMP_Features);
-					}
-
-					memcpy( &LMP_Features, &(EventPacketPtr->Event_Parameter[4]), SizeToRead );
-
-					HCI_Read_Local_Supported_Features_Complete( EventPacketPtr->Event_Parameter[3], &LMP_Features );
-				}
-				break;
-
-				case HCI_READ_BD_ADDR: {
-					BD_ADDR_TYPE BD_ADDR;
-
-					memcpy( &BD_ADDR, &(EventPacketPtr->Event_Parameter[4]), 6 );
-
-					HCI_Read_BD_ADDR_Complete( EventPacketPtr->Event_Parameter[3], BD_ADDR );
-				}
-				break;
+				case HCI_READ_BD_ADDR:
+					HCI_Read_BD_ADDR_Complete( EventPacketPtr->Event_Parameter[3], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[4])) );
+					break;
 
 				case HCI_READ_RSSI:
 					HCI_Read_RSSI_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
@@ -211,22 +181,9 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 							EventPacketPtr->Event_Parameter[6] );
 					break;
 
-				case HCI_LE_READ_LOCAL_SUPPORTED_FEATURES: {
-					LE_SUPPORTED_FEATURES LE_Features;
-					/* Must be cleared because the Controller may send a structure that is smaller than the data type */
-					memset( &LE_Features, 0, sizeof(LE_Features) );
-
-					uint16_t SizeToRead = EventPacketPtr->Parameter_Total_Length - 4;
-					if( SizeToRead > sizeof(LE_Features) )
-					{
-						SizeToRead = sizeof(LE_Features);
-					}
-
-					memcpy( &LE_Features, &(EventPacketPtr->Event_Parameter[4]), SizeToRead );
-
-					HCI_LE_Read_Local_Supported_Features_Complete( EventPacketPtr->Event_Parameter[3], &LE_Features );
-				}
-				break;
+				case HCI_LE_READ_LOCAL_SUPPORTED_FEATURES:
+					HCI_LE_Read_Local_Supported_Features_Complete( EventPacketPtr->Event_Parameter[3], (LE_SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+					break;
 
 				case HCI_LE_SET_RANDOM_ADDRESS:
 					HCI_LE_Set_Random_Address_Complete( EventPacketPtr->Event_Parameter[3] );
@@ -589,20 +546,11 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				HCI_Hardware_Error( EventPacketPtr->Event_Parameter[0] );
 				break;
 
-			/*---------- NUMBER_OF_COMPLETED_PACKETS_EVT ------------*//* Page 2315 Core_v5.2 */
+				/*---------- NUMBER_OF_COMPLETED_PACKETS_EVT ------------*//* Page 2315 Core_v5.2 */
 			case NUMBER_OF_COMPLETED_PACKETS: {
-				/* TODO: This allocation can run out of stack if a lot of Num_Handles is present */
-				uint16_t Num_Handles = EventPacketPtr->Event_Parameter[0];
-				uint16_t Offset = Num_Handles * 2;
-				uint16_t Connection_Handle[Num_Handles];
-				uint16_t Num_Completed_Packets[Num_Handles];
+				uint16_t Offset = EventPacketPtr->Event_Parameter[0] * 2;
 
-				for( uint16_t i = 0; i < Num_Handles; i++ )
-				{
-					Connection_Handle[i] = ( EventPacketPtr->Event_Parameter[i + 2] << 8 ) | EventPacketPtr->Event_Parameter[i + 1];
-					Num_Completed_Packets[i] = ( EventPacketPtr->Event_Parameter[i + Offset + 2] << 8 ) | EventPacketPtr->Event_Parameter[i + Offset + 1];
-				}
-				HCI_Number_Of_Completed_Packets( EventPacketPtr->Event_Parameter[0], &Connection_Handle[0], &Num_Completed_Packets[0] );
+				HCI_Number_Of_Completed_Packets( EventPacketPtr->Event_Parameter[0], (uint16_t*)( &EventPacketPtr->Event_Parameter[1] ), (uint16_t*)( &EventPacketPtr->Event_Parameter[Offset + 1] ) );
 			}
 			break;
 
@@ -611,46 +559,76 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				HCI_Data_Buffer_Overflow( EventPacketPtr->Event_Parameter[0] );
 				break;
 
-			/*---------- ENCRYPTION_KEY_REFRESH_COMPLETE_EVT ------------*//* Page 2349 Core_v5.2 */
+				/*---------- ENCRYPTION_KEY_REFRESH_COMPLETE_EVT ------------*//* Page 2349 Core_v5.2 */
 			case ENCRYPTION_KEY_REFRESH_COMPLETE:
-				HCI_Encryption_Key_Refresh_Complete( EventPacketPtr->Event_Parameter[0], EventPacketPtr->Event_Parameter[2] << 8 | EventPacketPtr->Event_Parameter[1] );
+				HCI_Encryption_Key_Refresh_Complete( EventPacketPtr->Event_Parameter[0], ( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1] );
 				break;
 
-			/*--------- VENDOR_SPECIFIC_EVT -------------*/
-			case VENDOR_SPECIFIC: {
-				ECODE_Struct Ecode;
-				Ecode.ECODE = EventPacketPtr->Event_Parameter[1] << 8 | EventPacketPtr->Event_Parameter[0];
-
-				switch( Ecode.ECODE )
+				/*---------- LE_META_EVT ------------*//* Page 2379 Core_v5.2 */
+			case LE_META:
+				switch( EventPacketPtr->Event_Parameter[0] )
 				{
-				case EVT_BLUE_INITIALIZED_EVENT_CODE:
-					ACI_Blue_Initialized_Event( EventPacketPtr->Event_Parameter[2] );
+
+				case LE_CONNECTION_COMPLETE:
+					HCI_LE_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
+							EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],
+							( EventPacketPtr->Event_Parameter[15] << 8 ) | EventPacketPtr->Event_Parameter[14], ( EventPacketPtr->Event_Parameter[17] << 8 ) | EventPacketPtr->Event_Parameter[16],
+							EventPacketPtr->Event_Parameter[18] );
 					break;
 
-				case EVT_BLUE_LOST_EVENTS_CODE:
-					ACI_Blue_Lost_Event( &(EventPacketPtr->Event_Parameter[2]) );
-					break;
+				case LE_ADVERTISING_REPORT: {
+					uint8_t Num_Reports = EventPacketPtr->Event_Parameter[1];
+					uint16_t Data_Length_OffSet = ( Num_Reports * 8 ) + 2;
+					uint16_t Number_Of_Data_Bytes = 0;
 
-				case FAULT_DATA_EVENT_CODE: {
-					uint32_t Registers[9];
-					int8_t Index;
-
-					for( int8_t i = 0; i < ( sizeof(Registers)/sizeof(uint32_t) ); i++ )
+					for( uint8_t i = 0; i < Num_Reports; i++ )
 					{
-						Index = i * 4;
-						Registers[i] = ( EventPacketPtr->Event_Parameter[6 + Index] << 24 ) | ( EventPacketPtr->Event_Parameter[5 + Index] << 16 ) |
-								( EventPacketPtr->Event_Parameter[4 + Index] << 8 ) | EventPacketPtr->Event_Parameter[3 + Index];
+						Number_Of_Data_Bytes += EventPacketPtr->Event_Parameter[Data_Length_OffSet + i];
 					}
 
-					ACI_Fault_Data_Event( EventPacketPtr->Event_Parameter[2], &Registers[0], EventPacketPtr->Event_Parameter[39], &(EventPacketPtr->Event_Parameter[40]) );
+					HCI_LE_Advertising_Report( Num_Reports, &(EventPacketPtr->Event_Parameter[2]), &(EventPacketPtr->Event_Parameter[Num_Reports + 2]), (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[ ( Num_Reports * 2 ) + 2 ]) ),
+							&(EventPacketPtr->Event_Parameter[Data_Length_OffSet]), &( EventPacketPtr->Event_Parameter[Data_Length_OffSet + Num_Reports] ), (int8_t*)(&(EventPacketPtr->Event_Parameter[( Num_Reports * 9 ) + Number_Of_Data_Bytes + 2])) );
 				}
 				break;
-				}
-			}
-			break;
 
-			default:
+				}
 				break;
+
+				/*--------- VENDOR_SPECIFIC_EVT -------------*/
+				case VENDOR_SPECIFIC: {
+					ECODE_Struct Ecode;
+					Ecode.ECODE = EventPacketPtr->Event_Parameter[1] << 8 | EventPacketPtr->Event_Parameter[0];
+
+					switch( Ecode.ECODE )
+					{
+					case EVT_BLUE_INITIALIZED_EVENT_CODE:
+						ACI_Blue_Initialized_Event( EventPacketPtr->Event_Parameter[2] );
+						break;
+
+					case EVT_BLUE_LOST_EVENTS_CODE:
+						ACI_Blue_Lost_Event( &(EventPacketPtr->Event_Parameter[2]) );
+						break;
+
+					case FAULT_DATA_EVENT_CODE: {
+						uint32_t Registers[9];
+						int8_t Index;
+
+						for( int8_t i = 0; i < ( sizeof(Registers)/sizeof(uint32_t) ); i++ )
+						{
+							Index = i * 4;
+							Registers[i] = ( EventPacketPtr->Event_Parameter[6 + Index] << 24 ) | ( EventPacketPtr->Event_Parameter[5 + Index] << 16 ) |
+									( EventPacketPtr->Event_Parameter[4 + Index] << 8 ) | EventPacketPtr->Event_Parameter[3 + Index];
+						}
+
+						ACI_Fault_Data_Event( EventPacketPtr->Event_Parameter[2], &Registers[0], EventPacketPtr->Event_Parameter[39], &(EventPacketPtr->Event_Parameter[40]) );
+					}
+					break;
+					}
+				}
+				break;
+
+				default:
+					break;
 			}
 		}
 		break;

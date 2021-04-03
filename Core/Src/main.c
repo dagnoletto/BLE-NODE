@@ -114,12 +114,15 @@ int main(void)
 
 			Period = 2000UL;
 
-			//if( !bdflag )
-			//{
-			//  uint8_t address[6] = {1,2,3,4,5,6};
-			// ACI_Hal_Write_Config_Data( 0, 6, &address[0] );
-			//}
-			//bdflag++;
+//			if( !bdflag )
+//			{
+//			  uint8_t address[6] = {1,2,3,4,5,6};
+//			 ACI_Hal_Write_Config_Data( 0, 6, &address[0] );
+//			}else
+//			{
+//				HCI_Read_BD_ADDR(  );
+//			}
+//			bdflag++;
 
 			/* TODO: alguns comandos deixam o módulo "maluco": se enviar dois ACI_Hal_Write_Config_Data na sequência, pira o cabeção, mas isso não
 			 * acontece com 2 HCI_LE_Set_Advertising_Data...  */
@@ -213,7 +216,7 @@ int main(void)
 
 			//HCI_Read_Local_Supported_Features(  );
 
-			//HCI_Read_BD_ADDR(  );
+			// HCI_Read_BD_ADDR(  );
 
 			//HCI_Read_RSSI( 0 );
 
@@ -223,7 +226,7 @@ int main(void)
 
 			//HCI_LE_Read_Buffer_Size(  );
 
-			//HCI_LE_Read_Local_Supported_Features(  );
+			HCI_LE_Read_Local_Supported_Features(  );
 
 
 			//			if( enable == 0 )

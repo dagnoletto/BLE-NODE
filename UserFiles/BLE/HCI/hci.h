@@ -152,8 +152,16 @@ typedef enum
 	NUMBER_OF_COMPLETED_PACKETS				 = 0x13,
 	DATA_BUFFER_OVERFLOW					 = 0x1A,
 	ENCRYPTION_KEY_REFRESH_COMPLETE			 = 0x30,
+	LE_META									 = 0x3E,
 	VENDOR_SPECIFIC  						 = 0xFF
 }EVENT_CODE;
+
+
+typedef enum
+{
+	LE_CONNECTION_COMPLETE = 0x01,
+	LE_ADVERTISING_REPORT  = 0x02,
+}LE_SUBEVENT_CODE;
 
 
 typedef enum /* List of possible error codes, page 364 Core_v5.2 */
@@ -714,6 +722,8 @@ typedef union
 		uint8_t HCI_Read_Local_Supported_Controller_Delay	:1; /* Octet 45 Bit 4 */
 		uint8_t HCI_Configure_Data_Path						:1; /* Octet 45 Bit 5 */
 		uint8_t Reserved18 									:2; /* Octet 45 Bit 6 to Bit 7 */
+
+		uint8_t Reserved19[18];	 /* To fill the 64 octets total size */
 	}__attribute__((packed)) Bits;
 	uint8_t Bytes[sizeof(struct Supported_Commands_Bits)];
 }__attribute__((packed)) SUPPORTED_COMMANDS;
@@ -1104,7 +1114,7 @@ void 	HCI_Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status,
 
 uint8_t HCI_Read_BD_ADDR( void );
 void 	HCI_Read_BD_ADDR_Status( CONTROLLER_ERROR_CODES Status );
-void 	HCI_Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE BD_ADDR );
+void 	HCI_Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* BD_ADDR );
 
 uint8_t HCI_Read_RSSI( uint16_t Handle );
 void 	HCI_Read_RSSI_Status( CONTROLLER_ERROR_CODES Status );
@@ -1245,6 +1255,11 @@ void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 void 	HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_Handle[], uint16_t Num_Completed_Packets[] );
 void 	HCI_Data_Buffer_Overflow( uint8_t Link_Type );
 void	HCI_Encryption_Key_Refresh_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
+void 	HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, ADDRESS_TYPE Peer_Address_Type,
+									BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
+									uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy );
+void 	HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], ADDRESS_TYPE Address_Type[], BD_ADDR_TYPE Address[],
+								   uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] );
 
 
 /****************************************************************/

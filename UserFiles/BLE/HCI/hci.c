@@ -606,7 +606,7 @@ __attribute__((weak)) void HCI_Read_BD_ADDR_Status( CONTROLLER_ERROR_CODES Statu
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-__attribute__((weak)) void HCI_Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE BD_ADDR )
+__attribute__((weak)) void HCI_Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* BD_ADDR )
 {
 	/* The user should implement at higher layers since it is weak. */
 }
@@ -3075,6 +3075,74 @@ __attribute__((weak)) void HCI_Data_Buffer_Overflow( uint8_t Link_Type )
 __attribute__((weak)) void HCI_Encryption_Key_Refresh_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle )
 {
 	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
+/* HCI_LE_Connection_Complete()                					*/
+/* Location: 2379 Core_v5.2		 								*/
+/* Purpose: The HCI_LE_Connection_Complete event indicates to 	*/
+/* both of the Hosts forming the connection that a new 			*/
+/* connection has been created. Upon the creation of the		*/
+/* connection a Connection_Handle shall be assigned by the		*/
+/* Controller, and passed to the Host in this event. If the 	*/
+/* connection creation fails this event shall be provided to 	*/
+/* the Host that had issued the HCI_LE_Create_Connection 		*/
+/* command. This event indicates to the Host which issued an 	*/
+/* HCI_LE_Create_Connection command and received an 			*/
+/* HCI_Command_Status event if the connection creation failed 	*/
+/* or was successful. The Master_Clock_Accuracy parameter is 	*/
+/* only valid for a slave. On a master, this parameter shall be */
+/* set to 0x00. Note: This event is not sent if the 			*/
+/* HCI_LE_Enhanced_Connection_Complete event 					*/
+/* (see Section 7.7.65.10) is unmasked.							*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, ADDRESS_TYPE Peer_Address_Type,
+									BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
+									uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy )
+{
+	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
+/* HCI_LE_Advertising_Report()                					*/
+/* Location: 2382 Core_v5.2		 								*/
+/* Purpose: The HCI_LE_Advertising_Report event indicates that 	*/
+/* one or more Bluetooth devices have responded to an active 	*/
+/* scan or have broadcast advertisements that were received 	*/
+/* during a passive scan. The Controller may queue these 		*/
+/* advertising reports and send information from multiple 		*/
+/* devices in one HCI_LE_Advertising_Report event. This event 	*/
+/* shall only be generated if scanning was enabled using the	*/
+/* HCI_LE_Set_Scan_Enable command. It only reports advertising  */
+/* events that used legacy advertising PDUs.					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], ADDRESS_TYPE Address_Type[], BD_ADDR_TYPE Address[],
+								   uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
+{
+	/* The user should implement at higher layers since it is weak. */
+
+	/* The code below fills a buffer with the pointers for each data report */
+	uint16_t Number_Of_Data_Bytes = 0;
+	uint8_t* DataPtr[Num_Reports];
+
+	memset( &DataPtr[0], 0, Num_Reports ); /* Clear all data pointers */
+
+	for( uint8_t i = 0; i < Num_Reports; i++ )
+	{
+		if( Data_Length[i] != 0 )
+		{
+			DataPtr[i] = &( Data[Number_Of_Data_Bytes] );
+		}
+		Number_Of_Data_Bytes += Data_Length[i];
+	}
 }
 
 
