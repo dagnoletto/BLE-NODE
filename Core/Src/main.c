@@ -226,7 +226,7 @@ int main(void)
 
 			//HCI_LE_Read_Buffer_Size(  );
 
-			HCI_LE_Read_Local_Supported_Features(  );
+		//	HCI_LE_Read_Local_Supported_Features(  );
 
 
 			//			if( enable == 0 )
@@ -294,7 +294,7 @@ int main(void)
 //			{
 //				enable = TRUE;
 //
-				BD_ADDR_TYPE Random_Address = {{ 1,2,3,4,5,6 }};
+			//	BD_ADDR_TYPE Random_Address = {{ 1,2,3,4,5,6 }};
 //
 //				HCI_LE_Create_Connection( 16, 16, 0, 0, Random_Address, 0, 160, 160, 0, 1000, 160, 160 );
 //			}else
@@ -354,6 +354,16 @@ int main(void)
 		//	HCI_LE_Transmitter_Test_v1( 0x27, 5, 0 );
 
 		//	HCI_LE_Test_End(  );
+
+			uint8_t Bytes[] = { 1,2,3,4,5 };
+
+			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
+			ACLDataPacketHeader.Data_Total_Length = sizeof(Bytes);
+			ACLDataPacketHeader.BC_Flag = 0;
+			ACLDataPacketHeader.PB_Flag = 0;
+			ACLDataPacketHeader.Handle = 0;
+
+			HCI_Host_ACL_Data( ACLDataPacketHeader, &Bytes[0] );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

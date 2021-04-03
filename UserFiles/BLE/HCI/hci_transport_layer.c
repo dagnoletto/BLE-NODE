@@ -91,8 +91,11 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 		switch( PacketType )
 		{
-		case HCI_ACL_DATA_PACKET:
-			break;
+		case HCI_ACL_DATA_PACKET: {
+			HCI_ACL_DATA_PCKT_HEADER Header = *( ( HCI_ACL_DATA_PCKT_HEADER* )( DataPtr + 1 ) );
+			HCI_Controller_ACL_Data( Header, (uint8_t*)( DataPtr + 5 ) );
+		}
+		break;
 
 		case HCI_SYNCHRONOUS_DATA_PACKET:
 			/* Not used in this controller version */
@@ -590,6 +593,26 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 							&(EventPacketPtr->Event_Parameter[Data_Length_OffSet]), &( EventPacketPtr->Event_Parameter[Data_Length_OffSet + Num_Reports] ), (int8_t*)(&(EventPacketPtr->Event_Parameter[( Num_Reports * 9 ) + Number_Of_Data_Bytes + 2])) );
 				}
 				break;
+
+				case LE_CONNECTION_UPDATE_COMPLETE:
+					HCI_LE_Connection_Update_Complete( EventPacketPtr->Event_Parameter[1],
+							( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
+							( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
+							( EventPacketPtr->Event_Parameter[7] << 8 ) | EventPacketPtr->Event_Parameter[6],
+							( EventPacketPtr->Event_Parameter[9] << 8 ) | EventPacketPtr->Event_Parameter[8] );
+					break;
+
+				case LE_READ_REMOTE_FEATURES_COMPLETE:
+					HCI_LE_Read_Remote_Features_Complete( EventPacketPtr->Event_Parameter[1],
+							( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
+							(LE_SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+					break;
+
+				case LE_LONG_TERM_KEY_REQUEST:
+					HCI_LE_Long_Term_Key_Request( ( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1],
+							&(EventPacketPtr->Event_Parameter[3]),
+							( EventPacketPtr->Event_Parameter[12] << 8 ) | EventPacketPtr->Event_Parameter[11]);
+					break;
 
 				}
 				break;

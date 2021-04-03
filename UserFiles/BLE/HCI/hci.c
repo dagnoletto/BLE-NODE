@@ -2972,7 +2972,7 @@ __attribute__((weak)) void HCI_Encryption_Change( CONTROLLER_ERROR_CODES Status,
 /* Description:													*/
 /****************************************************************/
 __attribute__((weak)) void HCI_Read_Remote_Version_Information_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, HCI_VERSION Version,
-													  uint16_t Manufacturer_Name, uint16_t Subversion )
+		uint16_t Manufacturer_Name, uint16_t Subversion )
 {
 	/* The user should implement at higher layers since it is weak. */
 }
@@ -3101,8 +3101,8 @@ __attribute__((weak)) void HCI_Encryption_Key_Refresh_Complete( CONTROLLER_ERROR
 /* Description:													*/
 /****************************************************************/
 __attribute__((weak)) void HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, ADDRESS_TYPE Peer_Address_Type,
-									BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
-									uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy )
+		BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
+		uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy )
 {
 	/* The user should implement at higher layers since it is weak. */
 }
@@ -3125,7 +3125,7 @@ __attribute__((weak)) void HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES St
 /* Description:													*/
 /****************************************************************/
 __attribute__((weak)) void HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], ADDRESS_TYPE Address_Type[], BD_ADDR_TYPE Address[],
-								   uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
+		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
 {
 	/* The user should implement at higher layers since it is weak. */
 
@@ -3143,6 +3143,165 @@ __attribute__((weak)) void HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8
 		}
 		Number_Of_Data_Bytes += Data_Length[i];
 	}
+}
+
+
+/****************************************************************/
+/* HCI_LE_Connection_Update_Complete()                			*/
+/* Location: 2384 Core_v5.2		 								*/
+/* Purpose: The HCI_LE_Connection_Update_Complete event is used */
+/* to indicate that the Controller process to update the 		*/
+/* connection has completed. This event shall be issued if the 	*/
+/* HCI_LE_Connection_Update command was issued by the Host or 	*/
+/* if the connection parameters are updated following a request */
+/* from the peer device. If no parameters are updated following */
+/* a request from the peer device then this event shall not be 	*/
+/* issued. Note: This event can be issued autonomously by the 	*/
+/* Master’s Controller if it decides to change the connection 	*/
+/* interval based on the range of allowable connection 			*/
+/* intervals for that connection. Note: The parameter values 	*/
+/* returned in this event may be different from the parameter 	*/
+/* values provided by the Host through the 						*/
+/* HCI_LE_Connection_Update command (Section 7.8.18) or the		*/
+/* HCI_LE_Remote_Connection_Parameter_Request_Reply command 	*/
+/* (Section 7.8.31).											*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void HCI_LE_Connection_Update_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint16_t Connection_Interval,
+		uint16_t Connection_Latency, uint16_t Supervision_Timeout )
+{
+	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
+/* HCI_LE_Read_Remote_Features_Complete()                		*/
+/* Location: 2386 Core_v5.2		 								*/
+/* Purpose: The HCI_LE_Read_Remote_Features_Complete event is 	*/
+/* used to indicate the completion of the process of the 		*/
+/* Controller obtaining the features used on the connection and */
+/* the features supported by the remote Bluetooth device 		*/
+/* specified by the Connection_Handle event parameter. Note: If */
+/* the features are requested more than once while a connection */
+/* exists between the two devices, the second and subsequent 	*/
+/* requests may report a cached copy of the features rather 	*/
+/* than fetching the feature mask again.						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void HCI_LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle,
+		LE_SUPPORTED_FEATURES* LE_Features )
+{
+	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
+/* HCI_LE_Long_Term_Key_Request()                				*/
+/* Location: 2387 Core_v5.2		 								*/
+/* Purpose: The HCI_LE_Long_Term_Key_Request event indicates 	*/
+/* that the peer device, in the Master role, is attempting to 	*/
+/* encrypt or re-encrypt the link and is requesting the Long 	*/
+/* Term Key from the Host. (See [Vol 6] Part B, Section 5.1.3). */
+/* This event shall only be generated when the local device’s 	*/
+/* role is Slave.												*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void HCI_LE_Long_Term_Key_Request( uint16_t Connection_Handle, uint8_t Random_Number[8], uint16_t Encrypted_Diversifier )
+{
+	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
+/* HCI_Host_ACL_Data()                							*/
+/* Location: 1892 Core_v5.2		 								*/
+/* Purpose: HCI ACL Data packets are used to exchange data 		*/
+/* between the Host and Controller. There are two types of HCI 	*/
+/* ACL Data packets:											*/
+/* • Automatically-Flushable									*/
+/* • Non-Automatically-Flushable								*/
+/* Automatically-Flushable HCI Data packets are flushed based 	*/
+/* on the setting of an automatic flush timer (see Read 		*/
+/* Automatic Flush Timeout command). Non-Automatically-Flushable*/
+/* HCI Data packets are not controlled by the automatic flush 	*/
+/* timeout and shall not be automatically flushed. The format 	*/
+/* of the HCI ACL Data packet is shown in Figure 5.2. The 		*/
+/* definition for each of the fields in the data packets is 	*/
+/* explained below. Hosts and Controllers shall be able to 		*/
+/* accept HCI ACL Data packets with up to 27 bytes of data 		*/
+/* excluding the HCI ACL Data packet header on 					*/
+/* Connection_Handles associated with an LE-U logical link.The 	*/
+/* HCI ACL Data packet header is the first 4 octets of the 		*/
+/* packet. Note: HCI ACL Data packets with a Connection_Handle  */
+/* associated with an LEU logical link will not be affected by  */
+/* the automatic flush timer because only nonflushable packet 	*/
+/* boundary flags are allowed. All packets on an AMP logical 	*/
+/* link are affected by the automatic flush timer.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_Host_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] )
+{
+	uint8_t Status = FALSE;
+
+	if( ACLDataPacketHeader.Data_Total_Length <= 27 )
+	{
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_ACL_DATA_PCKT) + ACLDataPacketHeader.Data_Total_Length;
+		HCI_SERIAL_ACL_DATA_PCKT* PcktPtr = malloc( ByteArraySize );
+
+		PcktPtr->PacketType = HCI_ACL_DATA_PACKET;
+		PcktPtr->ACLDataPacket.Header = ACLDataPacketHeader;
+
+		memcpy( &(PcktPtr->ACLDataPacket.Data[0]), &Data[0], ACLDataPacketHeader.Data_Total_Length );
+
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL );
+
+		free( PcktPtr );
+	}
+
+	return (Status);
+}
+
+
+/****************************************************************/
+/* HCI_Controller_ACL_Data()                					*/
+/* Location: 1892 Core_v5.2		 								*/
+/* Purpose: HCI ACL Data packets are used to exchange data 		*/
+/* between the Host and Controller. There are two types of HCI 	*/
+/* ACL Data packets:											*/
+/* • Automatically-Flushable									*/
+/* • Non-Automatically-Flushable								*/
+/* Automatically-Flushable HCI Data packets are flushed based 	*/
+/* on the setting of an automatic flush timer (see Read 		*/
+/* Automatic Flush Timeout command). Non-Automatically-Flushable*/
+/* HCI Data packets are not controlled by the automatic flush 	*/
+/* timeout and shall not be automatically flushed. The format 	*/
+/* of the HCI ACL Data packet is shown in Figure 5.2. The 		*/
+/* definition for each of the fields in the data packets is 	*/
+/* explained below. Hosts and Controllers shall be able to 		*/
+/* accept HCI ACL Data packets with up to 27 bytes of data 		*/
+/* excluding the HCI ACL Data packet header on 					*/
+/* Connection_Handles associated with an LE-U logical link.The 	*/
+/* HCI ACL Data packet header is the first 4 octets of the 		*/
+/* packet. Note: HCI ACL Data packets with a Connection_Handle  */
+/* associated with an LEU logical link will not be affected by  */
+/* the automatic flush timer because only nonflushable packet 	*/
+/* boundary flags are allowed. All packets on an AMP logical 	*/
+/* link are affected by the automatic flush timer.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void 	HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] )
+{
+	/* The user should implement at higher layers since it is weak. */
 }
 
 

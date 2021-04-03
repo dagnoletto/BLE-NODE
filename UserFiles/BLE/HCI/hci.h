@@ -38,19 +38,25 @@ typedef struct
 
 typedef struct
 {
-	uint16_t BC_Flag : 2; /* Broadcast_Flag */
-	uint16_t PB_Flag : 2; /* Packet_Boundary_Flag */
 	uint16_t Handle  :12; /* Connection_Handle */
+	uint16_t PB_Flag : 2; /* Packet_Boundary_Flag */
+	uint16_t BC_Flag : 2; /* Broadcast_Flag */
 	uint16_t Data_Total_Length;
+}__attribute__((packed)) HCI_ACL_DATA_PCKT_HEADER;
+
+
+typedef struct
+{
+	HCI_ACL_DATA_PCKT_HEADER Header;
 	uint8_t Data[];
 }__attribute__((packed)) HCI_ACL_DATA_PCKT;
 
 
 typedef struct
 {
-	uint16_t RFU 				: 2; /* Reserved for future use */
-	uint16_t Packet_Status_Flag : 2;
 	uint16_t Connection_Handle  :12; /* Connection_Handle */
+	uint16_t Packet_Status_Flag : 2;
+	uint16_t RFU 				: 2; /* Reserved for future use */
 	uint8_t Data_Total_Length;
 	uint8_t Data[];
 }__attribute__((packed)) HCI_SYNCHRONOUS_DATA_PCKT;
@@ -66,12 +72,12 @@ typedef struct
 
 typedef struct
 {
-	uint16_t RFU 				  : 1; /* Reserved for future use */
-	uint16_t TS_Flag 			  : 1;
-	uint16_t PB_Flag			  : 2;
 	uint16_t Connection_Handle    :12; /* Connection_Handle */
-	uint16_t RFU2 				  : 2; /* Reserved for future use */
+	uint16_t PB_Flag			  : 2;
+	uint16_t TS_Flag 			  : 1;
+	uint16_t RFU 				  : 1; /* Reserved for future use */
 	uint16_t ISO_Data_Load_Length :14;
+	uint16_t RFU2 				  : 2; /* Reserved for future use */
 	uint8_t ISO_Data_Load[];
 }__attribute__((packed)) HCI_ISO_DATA_PCKT;
 
@@ -159,8 +165,11 @@ typedef enum
 
 typedef enum
 {
-	LE_CONNECTION_COMPLETE = 0x01,
-	LE_ADVERTISING_REPORT  = 0x02,
+	LE_CONNECTION_COMPLETE		  	 = 0x01,
+	LE_ADVERTISING_REPORT  		  	 = 0x02,
+	LE_CONNECTION_UPDATE_COMPLETE 	 = 0x03,
+	LE_READ_REMOTE_FEATURES_COMPLETE = 0x04,
+	LE_LONG_TERM_KEY_REQUEST		 = 0x05
 }LE_SUBEVENT_CODE;
 
 
@@ -1260,11 +1269,14 @@ void 	HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connec
 									uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy );
 void 	HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], ADDRESS_TYPE Address_Type[], BD_ADDR_TYPE Address[],
 								   uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] );
+void 	HCI_LE_Connection_Update_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint16_t Connection_Interval,
+										   uint16_t Connection_Latency, uint16_t Supervision_Timeout );
+void 	HCI_LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
+void 	HCI_LE_Long_Term_Key_Request( uint16_t Connection_Handle, uint8_t Random_Number[8], uint16_t Encrypted_Diversifier );
 
 
-/****************************************************************/
-/* External variables declaration                               */
-/****************************************************************/
+uint8_t HCI_Host_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] );
+void 	HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] );
 
 
 #endif /* HCI_H_ */
