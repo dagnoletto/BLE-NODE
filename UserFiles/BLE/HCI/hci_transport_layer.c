@@ -330,7 +330,13 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					ACI_Hal_Get_Anchor_Period_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], AnchorInterval, Maxslot );
 				}
 				break;
-				}}
+
+				default:
+					HCI_Command_Complete( Num_HCI_Command_Packets, OpCode, &( EventPacketPtr->Event_Parameter[3] ) );
+					break;
+
+				}
+			}
 			break;
 
 
@@ -540,6 +546,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				case VS_ACI_HAL_GET_ANCHOR_PERIOD:
 					ACI_Hal_Get_Anchor_Period_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], 0, 0 );
+					break;
+
+				default:
+					HCI_Command_Status( EventPacketPtr->Event_Parameter[0], Num_HCI_Command_Packets, OpCode );
 					break;
 				}}
 			break;

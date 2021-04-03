@@ -1088,11 +1088,15 @@ typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+/*----------------------- COMMANDS AND THEIR EVENTS ------------------------------*/
 uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
 void 	HCI_Disconnect_Status( CONTROLLER_ERROR_CODES Status );
+void	HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
 
 uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle );
 void 	HCI_Read_Remote_Version_Information_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_Read_Remote_Version_Information_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, HCI_VERSION Version,
+		uint16_t Manufacturer_Name, uint16_t Subversion );
 
 uint8_t HCI_Set_Event_Mask( EVENT_MASK Event_Mask );
 void 	HCI_Set_Event_Mask_Status( CONTROLLER_ERROR_CODES Status );
@@ -1182,6 +1186,9 @@ uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Wi
 		uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
 		uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length );
 void    HCI_LE_Create_Connection_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, ADDRESS_TYPE Peer_Address_Type,
+		BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
+		uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy );
 
 uint8_t HCI_LE_Create_Connection_Cancel( void );
 void 	HCI_LE_Create_Connection_Cancel_Status( CONTROLLER_ERROR_CODES Status );
@@ -1208,8 +1215,10 @@ void 	HCI_LE_Set_Host_Channel_Classification_Status( CONTROLLER_ERROR_CODES Stat
 void 	HCI_LE_Set_Host_Channel_Classification_Complete( CONTROLLER_ERROR_CODES Status );
 
 uint8_t HCI_LE_Connection_Update( uint16_t Connection_Handle, uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max,
-								  uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length );
+		uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length );
 void 	HCI_LE_Connection_Update_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Connection_Update_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint16_t Connection_Interval,
+		uint16_t Connection_Latency, uint16_t Supervision_Timeout );
 
 uint8_t HCI_LE_Read_Channel_Map( uint16_t Connection_Handle );
 void 	HCI_LE_Read_Channel_Map_Status( CONTROLLER_ERROR_CODES Status );
@@ -1217,6 +1226,7 @@ void 	HCI_LE_Read_Channel_Map_Complete( CONTROLLER_ERROR_CODES Status, uint16_t 
 
 uint8_t HCI_LE_Read_Remote_Features( uint16_t Connection_Handle );
 void 	HCI_LE_Read_Remote_Features_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
 
 uint8_t HCI_LE_Encrypt( uint8_t Key[16], uint8_t Plaintext_Data[16] );
 void 	HCI_LE_Encrypt_Status( CONTROLLER_ERROR_CODES Status );
@@ -1227,8 +1237,9 @@ void 	HCI_LE_Rand_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] );
 
 uint8_t HCI_LE_Enable_Encryption( uint16_t Connection_Handle, uint8_t Random_Number[8],
-								  uint16_t Encrypted_Diversifier, uint8_t Long_Term_Key[16] );
+		uint16_t Encrypted_Diversifier, uint8_t Long_Term_Key[16] );
 void 	HCI_LE_Enable_Encryption_Status( CONTROLLER_ERROR_CODES Status );
+void 	HCI_Encryption_Change( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Encryption_Enabled );
 
 uint8_t HCI_LE_Long_Term_Key_Request_Reply( uint16_t Connection_Handle, uint8_t Long_Term_Key[16] );
 void 	HCI_LE_Long_Term_Key_Request_Reply_Status( CONTROLLER_ERROR_CODES Status );
@@ -1242,12 +1253,12 @@ uint8_t HCI_LE_Read_Supported_States( void );
 void 	HCI_LE_Read_Supported_States_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Read_Supported_States_Complete( CONTROLLER_ERROR_CODES Status, SUPPORTED_LE_STATES* LE_States );
 
-/* TODO: Implementar demais comandos de teste */
+/* TODO: implement further Receiver Test versions */
 uint8_t HCI_LE_Receiver_Test_v1( uint8_t RX_Channel );
 void 	HCI_LE_Receiver_Test_v1_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Receiver_Test_v1_Complete( CONTROLLER_ERROR_CODES Status );
 
-/* TODO: Implementar demais comandos de teste */
+/* TODO: implement further transmitter Test versions */
 uint8_t HCI_LE_Transmitter_Test_v1( uint8_t TX_Channel, uint8_t Test_Data_Length, uint8_t Packet_Payload );
 void 	HCI_LE_Transmitter_Test_v1_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Transmitter_Test_v1_Complete( CONTROLLER_ERROR_CODES Status );
@@ -1256,25 +1267,20 @@ uint8_t HCI_LE_Test_End( void );
 void 	HCI_LE_Test_End_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Test_End_Complete( CONTROLLER_ERROR_CODES Status );
 
-void	HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
-void 	HCI_Encryption_Change( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Encryption_Enabled );
-void 	HCI_Read_Remote_Version_Information_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, HCI_VERSION Version,
-													  uint16_t Manufacturer_Name, uint16_t Subversion );
+
+/*------------- EVENTS NOT EXPLICITLY RELATED WITH COMMANDS ----------------------*/
+void 	HCI_Command_Complete( uint8_t Num_HCI_Command_Packets, HCI_COMMAND_OPCODE Command_Opcode, uint8_t* Return_Parameters ); /* Called when opcode is not treated */
+void	HCI_Command_Status( CONTROLLER_ERROR_CODES Status, uint8_t Num_HCI_Command_Packets, HCI_COMMAND_OPCODE Command_Opcode ); /* Called when opcode is not treated */
 void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 void 	HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_Handle[], uint16_t Num_Completed_Packets[] );
 void 	HCI_Data_Buffer_Overflow( uint8_t Link_Type );
 void	HCI_Encryption_Key_Refresh_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
-void 	HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, ADDRESS_TYPE Peer_Address_Type,
-									BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
-									uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy );
 void 	HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], ADDRESS_TYPE Address_Type[], BD_ADDR_TYPE Address[],
-								   uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] );
-void 	HCI_LE_Connection_Update_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint16_t Connection_Interval,
-										   uint16_t Connection_Latency, uint16_t Supervision_Timeout );
-void 	HCI_LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
+		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] );
 void 	HCI_LE_Long_Term_Key_Request( uint16_t Connection_Handle, uint8_t Random_Number[8], uint16_t Encrypted_Diversifier );
 
 
+/*---------------------------- DATA PACKET FUNCTIONS -----------------------------*/
 uint8_t HCI_Host_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] );
 void 	HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] );
 

@@ -29,6 +29,7 @@
 #include "Types.h"
 #include "TimeFunctions.h"
 #include "Bluenrg.h"
+#include "ble_states.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -107,6 +108,7 @@ int main(void)
 
 		/* USER CODE BEGIN 3 */
 		Run_Bluenrg();
+		Run_BLE();
 		if( TimeBase_DelayMs( &Timer, Period, TRUE ) )
 		{
 			static uint8_t bdflag = FALSE;

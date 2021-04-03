@@ -2979,6 +2979,36 @@ __attribute__((weak)) void HCI_Read_Remote_Version_Information_Complete( CONTROL
 
 
 /****************************************************************/
+/* HCI_Command_Complete()                						*/
+/* Location: 2308 Core_v5.2		 								*/
+/* Purpose: Called when no handler is provided for the command	*/
+/* opcode.														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void HCI_Command_Complete( uint8_t Num_HCI_Command_Packets, HCI_COMMAND_OPCODE Command_Opcode, uint8_t* Return_Parameters )
+{
+	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
+/* HCI_Command_Status()                							*/
+/* Location: 2310 Core_v5.2		 								*/
+/* Purpose: Called when no handler is provided for the command	*/
+/* opcode.														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void HCI_Command_Status( CONTROLLER_ERROR_CODES Status, uint8_t Num_HCI_Command_Packets, HCI_COMMAND_OPCODE Command_Opcode )
+{
+	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
 /* HCI_Hardware_Error()                							*/
 /* Location: 2312 Core_v5.2		 								*/
 /* Purpose: Event used to notify the Host that a hardware		*/
