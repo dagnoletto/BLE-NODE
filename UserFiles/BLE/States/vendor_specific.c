@@ -9,6 +9,14 @@
 /****************************************************************/
 /* Type Defines                                                 */
 /****************************************************************/
+typedef enum
+{
+	VS_INIT_FAILURE			 = -1,
+	WAIT_FW_STARTED_PROPERLY =  0,
+	SET_PUBLIC_ADDRESS 		 =  1,
+	WAIT_PUBLIC_ADDRESS 	 =  2,
+	CONFIG_MODE				 =  3,
+}CONFIG_STEPS;
 
 
 /****************************************************************/
@@ -29,7 +37,8 @@
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static REASON_CODE InitReason = REASON_RESERVED;
+const BD_ADDR_TYPE DEFAULT_PUBLIC_ADDRESS = { { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 } };
+static CONFIG_STEPS Config = WAIT_FW_STARTED_PROPERLY;
 
 
 /****************************************************************/
@@ -41,15 +50,32 @@ static REASON_CODE InitReason = REASON_RESERVED;
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Vendor_Specific_Init( void )
+BLE_STATUS Vendor_Specific_Init( void )
 {
 	/* TODO: Implement vendor specific configuration/initialization */
-	if( InitReason == FIRMWARE_STARTED_PROPERLY )
+	switch ( Config )
 	{
-		return ( TRUE );
+	case WAIT_FW_STARTED_PROPERLY:
+		break;
+
+	case SET_PUBLIC_ADDRESS:
+		if( ACI_Hal_Write_Config_Data( 0, sizeof(BD_ADDR_TYPE), (uint8_t*)( &DEFAULT_PUBLIC_ADDRESS.Byte ) ) )
+		{
+			Config = WAIT_PUBLIC_ADDRESS;
+		}
+		break;
+
+	case WAIT_PUBLIC_ADDRESS:
+		break;
+
+	case VS_INIT_FAILURE:
+	default:
+		return ( BLE_ERROR );
+		break;
+
 	}
 
-	return ( FALSE );
+	return ( BLE_FALSE );
 }
 
 
@@ -63,7 +89,15 @@ uint8_t Vendor_Specific_Init( void )
 void ACI_Blue_Initialized_Event( REASON_CODE Code )
 {
 	/* Check if initialization was OK */
-	InitReason = Code;
+	if ( Code == FIRMWARE_STARTED_PROPERLY )
+	{
+		Config = SET_PUBLIC_ADDRESS;
+	}else
+	{
+		/* Treat all other modes as failure. If a different mode after
+		 * reset is requested, this code must change accordingly */
+		Config = VS_INIT_FAILURE;
+	}
 }
 
 

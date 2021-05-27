@@ -1085,6 +1085,14 @@ typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 }BLE_HW_ERROR_CODE;
 
 
+typedef enum /* Return codes for function calls */
+{
+	BLE_ERROR   = -1,
+	BLE_FALSE   = false,
+	BLE_TRUE    = true
+}BLE_STATUS;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/

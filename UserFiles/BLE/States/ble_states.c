@@ -15,7 +15,7 @@
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-static uint8_t BLE_Init( void );
+static BLE_STATUS BLE_Init( void );
 
 
 /****************************************************************/
@@ -47,14 +47,14 @@ void Run_BLE( void )
 	switch( BLEState )
 	{
 	case VENDOR_SPECIFIC_INIT:
-		if( Vendor_Specific_Init(  ) )
+		if( Vendor_Specific_Init(  ) == BLE_TRUE )
 		{
 			BLEState = BLE_INITIAL_SET;
 		}
 		break;
 
 	case BLE_INITIAL_SET:
-		if( BLE_Init(  ) )
+		if( BLE_Init(  ) == BLE_TRUE )
 		{
 			BLEState = BLE_STANDBY;
 		}
@@ -88,7 +88,7 @@ BLE_STATES Get_BLE_State( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t BLE_Init( void )
+static BLE_STATUS BLE_Init( void )
 {
 
 }

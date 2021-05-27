@@ -19,7 +19,7 @@
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-uint8_t Vendor_Specific_Init( void );
+BLE_STATUS Vendor_Specific_Init( void );
 
 
 /****************************************************************/
