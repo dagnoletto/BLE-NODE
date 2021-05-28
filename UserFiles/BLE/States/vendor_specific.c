@@ -68,6 +68,9 @@ BLE_STATUS Vendor_Specific_Init( void )
 	case WAIT_PUBLIC_ADDRESS:
 		break;
 
+	case CONFIG_MODE:
+		break;
+
 	case VS_INIT_FAILURE:
 	default:
 		return ( BLE_ERROR );
@@ -97,6 +100,33 @@ void ACI_Blue_Initialized_Event( REASON_CODE Code )
 		/* Treat all other modes as failure. If a different mode after
 		 * reset is requested, this code must change accordingly */
 		Config = VS_INIT_FAILURE;
+	}
+}
+
+
+/****************************************************************/
+/* ACI_Hal_Write_Config_Data_Event()               		      	*/
+/* Purpose: Vendor Specific Event 								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void ACI_Hal_Write_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
+{
+	switch ( Config )
+	{
+	case WAIT_PUBLIC_ADDRESS:
+		if( ( Event == COMMAND_COMPLETE ) && ( ErrorCode == COMMAND_SUCCESS ) )
+		{
+			Config = CONFIG_MODE;
+		}else
+		{
+			Config = SET_PUBLIC_ADDRESS;
+		}
+		break;
+
+	default:
+		break;
 	}
 }
 
