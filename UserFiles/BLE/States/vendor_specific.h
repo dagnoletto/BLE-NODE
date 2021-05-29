@@ -14,6 +14,15 @@
 /****************************************************************/
 /* Type Defines 					                            */
 /****************************************************************/
+typedef struct
+{
+	BD_ADDR_TYPE Public_address; /* Bluetooth public address */
+	uint8_t DIV[2];				 /* DIV used to derive CSRK */
+	uint8_t ER[16];				 /* Encryption root key used to derive LTK and CSRK */
+	uint8_t IR[16];				 /* Identity root key used to derive LTK and CSRK */
+	uint8_t LLWithoutHost;		 /* Switch on/off Link Layer only mode */
+	uint8_t Role;				 /* Select the BlueNRG-MS roles and mode configuration */
+}__attribute__((packed)) CONFIG_DATA;
 
 
 /****************************************************************/
