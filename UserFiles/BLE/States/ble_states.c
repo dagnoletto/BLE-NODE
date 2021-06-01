@@ -63,6 +63,8 @@ void Run_BLE( void )
 	case BLE_STANDBY:
 		break;
 	}
+
+	Vendor_Specific_Process();
 }
 
 

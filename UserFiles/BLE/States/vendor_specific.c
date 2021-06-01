@@ -4,6 +4,7 @@
 /* Includes                                                     */
 /****************************************************************/
 #include "vendor_specific.h"
+#include "TimeFunctions.h"
 
 
 /****************************************************************/
@@ -11,42 +12,326 @@
 /****************************************************************/
 typedef enum
 {
-	VS_INIT_FAILURE			 = -1,
-	WAIT_FW_STARTED_PROPERLY =  0,
-	SET_PUBLIC_ADDRESS 		 =  1,
-	WAIT_PUBLIC_ADDRESS 	 =  2,
-	CONFIG_MODE				 =  3,
-	WAIT_CONFIG_MODE 	 	 =  4,
-	CONFIG_READ 	 		 =  5,
-	WAIT_CONFIG_READ 	 	 =  6,
-	CONFIG_VERIFY 	 		 =  7,
-	CONFIG_FINISHED	 		 =  8,
+	CONFIG_BLOCKED			 =  0,
+	CONFIG_FAILURE			 =  1,
+	CONFIG_FREE				 =  2,
+	CONFIG_READ 			 =  3,
+	CONFIG_WRITE			 =  4,
+	CONFIG_WAIT 	 		 =  5,
+	CONFIG_SUCCESS 	 		 =  6
 }CONFIG_STEPS;
 
 
-/****************************************************************/
-/* Static functions declaration                                 */
-/****************************************************************/
+typedef struct
+{
+	uint8_t Offset;
+	uint8_t* DataPtr;
+	uint16_t DataSize;
+}JOB_LIST;
+
+
+typedef struct
+{
+	int8_t NumberOfJobs;
+	JOB_LIST JobList[];
+}CONFIG_JOBS;
+
+
+typedef struct
+{
+	CONFIG_STEPS Step;
+	CONFIG_STEPS RqtType;
+	VS_Callback CallBack;
+	CONFIG_JOBS* Jobs;
+}VS_STATE_MACHINE;
 
 
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
+#define PUBLIC_ADDRESS_OFFSET 0x00
+#define DIV_OFFSET 			  0x06
+#define ER_OFFSET 			  0x08
+#define IR_OFFSET 			  0x18
+#define LLWITHOUTHOST_OFFSET  0x2C
+#define ROLE_OFFSET 		  0x2D
 
 
 /****************************************************************/
-/* Global variables definition                                  */
+/* Static functions declaration                                 */
 /****************************************************************/
+static BLE_STATUS Request_VS_Config( uint8_t RqtType, CONFIG_JOBS* Jobs, VS_Callback CallBackFun );
+static uint8_t Check_Config_Request( uint8_t Offset, uint8_t* DataPtr, uint16_t DataSize );
+static CONFIG_JOBS* Read_All_Job_List( CONFIG_DATA* ConfigData );
+static void Default_VS_Config_CallBack(void* Data);
+static void Vendor_Specific_Init_Done( void* ConfigData );
 
 
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
 static BD_ADDR_TYPE DEFAULT_PUBLIC_ADDRESS = { { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 } };
-static CONFIG_STEPS Config = WAIT_FW_STARTED_PROPERLY;
-static CONFIG_DATA* ConfigDataPtr = NULL;
-//TODO: fazer este código de forma que a leitura e escrita de parâmetros ocorra
-//usando todos os dados de CONFIG_DATA, chamando funções do tipo read() a write() CONFIG_DATA, talvez com call backs para o retorno de chamadas
+static VS_STATE_MACHINE Config = { .Step = CONFIG_BLOCKED, .Jobs = NULL };
+static VS_Callback ConfigCallBack;
+static uint32_t ConfigTimeoutCounter;
+static BLE_STATUS VS_Init_Done_Flag = BLE_FALSE;
+
+
+/****************************************************************/
+/* Request_VS_Config()        	        						*/
+/* Location: 					 								*/
+/* Purpose: Read/write vendor specific configuration data.		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static BLE_STATUS Request_VS_Config( uint8_t RqtType, CONFIG_JOBS* Jobs, VS_Callback CallBackFun )
+{
+	if( Config.Step == CONFIG_FREE )
+	{
+		if( ( Jobs != NULL ) && ( Jobs->NumberOfJobs >= 1 ) && ( ( RqtType == CONFIG_READ ) || ( RqtType == CONFIG_WRITE ) ) )
+		{
+			/* Check if all jobs are consistent */
+			for( int8_t i = 0; i < Jobs->NumberOfJobs; i++ )
+			{
+				if( !Check_Config_Request( Jobs->JobList[i].Offset, Jobs->JobList[i].DataPtr, Jobs->JobList[i].DataSize ) )
+				{
+					return ( BLE_FALSE );
+				}
+			}
+			Config.Step = RqtType;
+			Config.RqtType = RqtType;
+			Config.CallBack = CallBackFun;
+			Config.Jobs = Jobs;
+			return ( BLE_TRUE ); /* Operation will be executed */
+		}
+	}else if( Config.Step == CONFIG_BLOCKED )
+	{
+		return ( BLE_ERROR ); /* No operation will be done because of some failure */
+	}
+
+	return ( BLE_FALSE ); /* No operation will be done */
+}
+
+
+/****************************************************************/
+/* Check_Config_Request()        	        					*/
+/* Location: 					 								*/
+/* Purpose: Check if configuration request parameters are OK	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Check_Config_Request( uint8_t Offset, uint8_t* DataPtr, uint16_t DataSize )
+{
+	uint16_t MemberSize;
+
+	switch ( Offset )
+	{
+	case PUBLIC_ADDRESS_OFFSET:
+		MemberSize = sizeof( ((CONFIG_DATA*)NULL)->Public_address );
+		break;
+
+	case DIV_OFFSET:
+		MemberSize = sizeof( ((CONFIG_DATA*)NULL)->DIV );
+		break;
+
+	case ER_OFFSET:
+		MemberSize = sizeof( ((CONFIG_DATA*)NULL)->ER );
+		break;
+
+	case IR_OFFSET:
+		MemberSize = sizeof( ((CONFIG_DATA*)NULL)->IR );
+		break;
+
+	case LLWITHOUTHOST_OFFSET:
+		MemberSize = sizeof( ((CONFIG_DATA*)NULL)->LLWithoutHost );
+		break;
+
+	case ROLE_OFFSET:
+		MemberSize = sizeof( ((CONFIG_DATA*)NULL)->Role );
+		break;
+
+	default:
+		return (FALSE);
+		break;
+	}
+
+	if ( ( MemberSize != DataSize ) || ( DataPtr == NULL ) )
+	{
+		return (FALSE);
+	}else
+	{
+		return (TRUE);
+	}
+}
+
+
+/****************************************************************/
+/* Vendor_Specific_Process()        	        				*/
+/* Location: 					 								*/
+/* Purpose: Process the VS configuration request				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Vendor_Specific_Process( void )
+{
+	int8_t JobIndex;
+
+	switch ( Config.Step )
+	{
+	case CONFIG_FREE: /* Awaits requests */
+		break;
+
+	case CONFIG_READ:
+		JobIndex = Config.Jobs->NumberOfJobs - 1;
+		if( ACI_Hal_Read_Config_Data( Config.Jobs->JobList[JobIndex].Offset ) )
+		{
+			Config.Step = CONFIG_WAIT;
+			ConfigTimeoutCounter = 0;
+		}else
+		{
+			Config.Step = CONFIG_FAILURE;
+		}
+		break;
+
+	case CONFIG_WRITE:
+		JobIndex = Config.Jobs->NumberOfJobs - 1;
+		if( ACI_Hal_Write_Config_Data( Config.Jobs->JobList[JobIndex].Offset,
+				Config.Jobs->JobList[JobIndex].DataSize, Config.Jobs->JobList[JobIndex].DataPtr ) )
+		{
+			Config.Step = CONFIG_WAIT;
+			ConfigTimeoutCounter = 0;
+		}else
+		{
+			Config.Step = CONFIG_FAILURE;
+		}
+		break;
+
+	case CONFIG_WAIT:
+		if( TimeBase_DelayMs( &ConfigTimeoutCounter, 500, TRUE ) )
+		{
+			Config.Step = CONFIG_FAILURE;
+		}
+		break;
+
+	case CONFIG_SUCCESS:
+		Config.Jobs->NumberOfJobs--;
+		if( Config.Jobs->NumberOfJobs == 0 )
+		{
+			uint8_t* DataPtr = Config.Jobs->JobList[0].DataPtr;
+			free( Config.Jobs ); /* free allocated memory */
+			ConfigCallBack = ( Config.CallBack == NULL ) ? &Default_VS_Config_CallBack : Config.CallBack;
+			ConfigCallBack( DataPtr ); /* Return the first job data pointer */
+			Config.Step = CONFIG_FREE;
+		}else
+		{
+			Config.Step = Config.RqtType;
+		}
+		break;
+
+	case CONFIG_FAILURE:
+		free( Config.Jobs ); /* free allocated memory */
+		ConfigCallBack = ( Config.CallBack == NULL ) ? &Default_VS_Config_CallBack : Config.CallBack;
+		ConfigCallBack( NULL ); /* If pointer passed is NULL, that means operation was not OK */
+		Config.Step = CONFIG_FREE;
+		break;
+
+	case CONFIG_BLOCKED:
+	default:
+		Config.Step = CONFIG_BLOCKED;
+		break;
+	}
+}
+
+
+/****************************************************************/
+/* Default_VS_Config_CallBack()        	        				*/
+/* Location: 					 								*/
+/* Purpose: In the absence of application callback, this one is */
+/* called.														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Default_VS_Config_CallBack(void* Data)
+{
+
+}
+
+
+/****************************************************************/
+/* Read_Config_Data()        	   			     				*/
+/* Location: 					 								*/
+/* Purpose: Read all configuration fields						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+BLE_STATUS Read_Config_Data( CONFIG_DATA* ConfigData, VS_Callback CallBackFun )
+{
+	if( Config.Step == CONFIG_FREE )
+	{
+		CONFIG_JOBS* Jobs = Read_All_Job_List( ConfigData );
+		if( Jobs != NULL )
+		{
+			BLE_STATUS status = Request_VS_Config( CONFIG_READ, Jobs, CallBackFun );
+			if( status != BLE_TRUE )
+			{
+				free ( Jobs );
+			}
+			return ( status );
+		}
+	}
+
+	return (BLE_FALSE);
+}
+
+
+/****************************************************************/
+/* Read_All_Job_List()        	   			     				*/
+/* Location: 					 								*/
+/* Purpose: Load Job List for the read all function.			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static CONFIG_JOBS* Read_All_Job_List( CONFIG_DATA* ConfigData )
+{
+	CONFIG_JOBS* Jobs = malloc( sizeof(Jobs->NumberOfJobs) + ( sizeof(JOB_LIST) * 6 ) );
+
+	if( Jobs != NULL )
+	{
+		Jobs->JobList[0].Offset = PUBLIC_ADDRESS_OFFSET;
+		Jobs->JobList[0].DataPtr = (uint8_t*)( &(ConfigData->Public_address) );
+		Jobs->JobList[0].DataSize = sizeof( ConfigData->Public_address );
+
+		Jobs->JobList[1].Offset = DIV_OFFSET;
+		Jobs->JobList[1].DataPtr = (uint8_t*)( &(ConfigData->DIV) );
+		Jobs->JobList[1].DataSize = sizeof( ConfigData->DIV );
+
+		Jobs->JobList[2].Offset = ER_OFFSET;
+		Jobs->JobList[2].DataPtr = (uint8_t*)( &(ConfigData->ER) );
+		Jobs->JobList[2].DataSize = sizeof( ConfigData->ER );
+
+		Jobs->JobList[3].Offset = IR_OFFSET;
+		Jobs->JobList[3].DataPtr = (uint8_t*)( &(ConfigData->IR) );
+		Jobs->JobList[3].DataSize = sizeof( ConfigData->IR );
+
+		Jobs->JobList[4].Offset = LLWITHOUTHOST_OFFSET;
+		Jobs->JobList[4].DataPtr = (uint8_t*)( &(ConfigData->LLWithoutHost) );
+		Jobs->JobList[4].DataSize = sizeof( ConfigData->LLWithoutHost );
+
+		Jobs->JobList[5].Offset = ROLE_OFFSET;
+		Jobs->JobList[5].DataPtr = (uint8_t*)( &(ConfigData->Role) );
+		Jobs->JobList[5].DataSize = sizeof( ConfigData->Role );
+
+		Jobs->NumberOfJobs = 6;
+	}
+
+	return ( Jobs );
+}
 
 
 /****************************************************************/
@@ -60,78 +345,105 @@ static CONFIG_DATA* ConfigDataPtr = NULL;
 /****************************************************************/
 BLE_STATUS Vendor_Specific_Init( void )
 {
-	/* TODO: Implement vendor specific configuration/initialization */
-	switch ( Config )
+	/* TODO: implementar em outra camada esta inicialização? */
+	//TODO: configurar endereços
+	static uint8_t state = 0;
+	static CONFIG_DATA ConfigData;
+
+	switch ( state )
 	{
-	case WAIT_FW_STARTED_PROPERLY:
-		break;
-
-	case SET_PUBLIC_ADDRESS:
-		if( ACI_Hal_Write_Config_Data( 0, sizeof(BD_ADDR_TYPE), (uint8_t*)( &DEFAULT_PUBLIC_ADDRESS.Byte ) ) )
+	case 0:
+		if( Read_Config_Data( &ConfigData, &Vendor_Specific_Init_Done ) == BLE_TRUE )
 		{
-			Config = WAIT_PUBLIC_ADDRESS;
+			VS_Init_Done_Flag = BLE_FALSE;
+			state = 1;
 		}
 		break;
 
-	case WAIT_PUBLIC_ADDRESS:
-		break;
-
-	case CONFIG_MODE:
-	{
-		uint8_t LLWithoutHost = TRUE; /* The module should operate only in Link Layer only mode */
-		if( ACI_Hal_Write_Config_Data( 0x2C, 1, &LLWithoutHost ) )
+	case 1:
+		if( VS_Init_Done_Flag != BLE_FALSE )
 		{
-			Config = WAIT_CONFIG_MODE;
-		}
-	}
-	break;
-
-	case WAIT_CONFIG_MODE:
-		break;
-
-	case CONFIG_READ:
-		if( ACI_Hal_Read_Config_Data( 0 ) ) /* TODO: SÓ RETORNA A QUANTIDADE NECESSÁRIA POR OFFSET */
-		{
-			if( ConfigDataPtr != NULL )
-			{
-				free( ConfigDataPtr );
-				ConfigDataPtr = NULL;
-			}
-			Config = WAIT_CONFIG_READ;
+			state = 0;
+			return ( VS_Init_Done_Flag );
 		}
 		break;
-
-	case WAIT_CONFIG_READ:
-		break;
-
-	case CONFIG_VERIFY:
-		if( ConfigDataPtr != NULL )
-		{
-			Config = SET_PUBLIC_ADDRESS;
-			if( ConfigDataPtr->LLWithoutHost ) /* Only the link layer is functional */
-			{
-				if( !memcmp( &( ConfigDataPtr->Public_address ), &DEFAULT_PUBLIC_ADDRESS, sizeof (BD_ADDR_TYPE) ) )
-				{
-					Config = CONFIG_FINISHED;
-				}
-			}
-			free( ConfigDataPtr );
-			ConfigDataPtr = NULL;
-		}
-		break;
-
-	case CONFIG_FINISHED:
-		return ( BLE_TRUE );
-		break;
-
-	case VS_INIT_FAILURE:
-	default:
-		return ( BLE_ERROR );
-		break;
-
 	}
 
 	return ( BLE_FALSE );
+}
+
+
+/****************************************************************/
+/* Vendor_Specific_Init_Done()        	        				*/
+/* Location: 					 								*/
+/* Purpose: Called to indicate the status of configuration 		*/
+/* specific configuration.										*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Vendor_Specific_Init_Done( void* ConfigData )
+{
+	if( ConfigData != NULL )
+	{
+		VS_Init_Done_Flag = BLE_TRUE;
+	}else
+	{
+		VS_Init_Done_Flag = BLE_ERROR;
+	}
+}
+
+
+/****************************************************************/
+/* ACI_Hal_Read_Config_Data_Event()               		      	*/
+/* Purpose: Vendor Specific Event 								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void ACI_Hal_Read_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint8_t* DataPtr, uint8_t DataSize )
+{
+	if ( ( Config.Step == CONFIG_WAIT ) && ( Config.RqtType == CONFIG_READ ) )
+	{
+		if( ( Event == COMMAND_COMPLETE ) && ( ErrorCode == COMMAND_SUCCESS ) )
+		{
+			int8_t Index = Config.Jobs->NumberOfJobs - 1;
+			if( DataSize == Config.Jobs->JobList[Index].DataSize )
+			{
+				memcpy( Config.Jobs->JobList[Index].DataPtr, DataPtr, DataSize );
+				Config.Step = CONFIG_SUCCESS;
+			}else
+			{
+				Config.Step = CONFIG_FAILURE;
+			}
+		}else
+		{
+			Config.Step = CONFIG_FAILURE;
+		}
+	}
+}
+
+
+/****************************************************************/
+/* ACI_Hal_Write_Config_Data_Event()               		      	*/
+/* Purpose: Vendor Specific Event 								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void ACI_Hal_Write_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
+{
+	if ( ( Config.Step == CONFIG_WAIT ) && ( Config.RqtType == CONFIG_WRITE ) )
+	{
+		if( ( Event == COMMAND_COMPLETE ) && ( ErrorCode == COMMAND_SUCCESS ) )
+		{
+			Config.Step = CONFIG_SUCCESS;
+
+		}else
+		{
+			Config.Step = CONFIG_FAILURE;
+		}
+	}
 }
 
 
@@ -147,91 +459,12 @@ void ACI_Blue_Initialized_Event( REASON_CODE Code )
 	/* Check if initialization was OK */
 	if ( Code == FIRMWARE_STARTED_PROPERLY )
 	{
-		Config = SET_PUBLIC_ADDRESS;
+		Config.Step = CONFIG_FREE;
 	}else
 	{
-		/* Treat all other modes as failure. If a different mode after
+		/* Treat all other modes as blocked. If a different mode after
 		 * reset is requested, this code must change accordingly */
-		Config = VS_INIT_FAILURE;
-	}
-}
-
-
-/****************************************************************/
-/* ACI_Hal_Write_Config_Data_Event()               		      	*/
-/* Purpose: Vendor Specific Event 								*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-void ACI_Hal_Write_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
-{
-	switch ( Config )
-	{
-	case WAIT_PUBLIC_ADDRESS:
-		if( ( Event == COMMAND_COMPLETE ) && ( ErrorCode == COMMAND_SUCCESS ) )
-		{
-			Config = CONFIG_MODE;
-		}else
-		{
-			Config = SET_PUBLIC_ADDRESS;
-		}
-		break;
-
-	case WAIT_CONFIG_MODE:
-		if( ( Event == COMMAND_COMPLETE ) && ( ErrorCode == COMMAND_SUCCESS ) )
-		{
-			Config = CONFIG_READ;
-		}else
-		{
-			Config = CONFIG_MODE;
-		}
-		break;
-
-	default:
-		break;
-	}
-}
-
-
-/****************************************************************/
-/* ACI_Hal_Read_Config_Data_Event()               		      	*/
-/* Purpose: Vendor Specific Event 								*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-void ACI_Hal_Read_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint8_t* DataPtr, uint8_t DataSize )
-{
-	switch ( Config )
-	{
-	case WAIT_CONFIG_READ:
-		if( ( Event == COMMAND_COMPLETE ) && ( ErrorCode == COMMAND_SUCCESS ) )
-		{
-			if( ConfigDataPtr != NULL )
-			{
-				free( ConfigDataPtr );
-				ConfigDataPtr = NULL;
-			}
-
-			ConfigDataPtr = malloc( sizeof ( CONFIG_DATA ) );
-
-			if( ( ConfigDataPtr != NULL ) && ( DataSize <= sizeof ( CONFIG_DATA ) ) )
-			{
-				memcpy( ConfigDataPtr, DataPtr, sizeof ( CONFIG_DATA ) );
-				Config = CONFIG_VERIFY;
-			}else
-			{
-				Config = CONFIG_READ;
-			}
-		}else
-		{
-			Config = CONFIG_READ;
-		}
-		break;
-
-	default:
-		break;
+		Config.Step = CONFIG_BLOCKED;
 	}
 }
 
