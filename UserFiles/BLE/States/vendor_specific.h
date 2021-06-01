@@ -46,13 +46,13 @@ typedef struct
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-BLE_STATUS Write_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallBackFun );
-BLE_STATUS Write_Link_Layer_Mode( uint8_t* LLMode, VS_Callback CallBackFun );
-BLE_STATUS Write_Role_Mode( uint8_t* RoleMode, VS_Callback CallBackFun );
-
+/* TODO: more Vendor Specific config functions can be added, but for now Read_Config_Data and Write_Config_Data
+ * offers access to all config fields while Read_Public_Address and Write_Public_Address accesses only public address */
 BLE_STATUS Read_Config_Data( CONFIG_DATA* ConfigData, VS_Callback CallBackFun );
+BLE_STATUS Write_Config_Data( CONFIG_DATA* ConfigData, VS_Callback CallBackFun );
+BLE_STATUS Read_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallBackFun );
+BLE_STATUS Write_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallBackFun );
 
-BLE_STATUS Vendor_Specific_Init( void );
 void Vendor_Specific_Process( void );
 
 

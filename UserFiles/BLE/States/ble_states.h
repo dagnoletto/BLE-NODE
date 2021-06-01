@@ -8,6 +8,7 @@
 /* Includes                                                     */
 /****************************************************************/
 #include "hci.h"
+#include "vendor_specific.h"
 
 
 /****************************************************************/
@@ -15,9 +16,15 @@
 /****************************************************************/
 typedef enum
 {
-	VENDOR_SPECIFIC_INIT = 0x00,
-	BLE_INITIAL_SET		 = 0x01,
-	BLE_STANDBY			 = 0x02
+	VENDOR_SPECIFIC_INIT 			= 0x0,
+	BLE_INITIAL_SETUP	 			= 0x1,
+	STANDBY_STATE		 			= 0x2,
+	ADVERTISING_STATE	 			= 0x3,
+	SCANNING_STATE		 			= 0x4,
+	INITIATING_STATE	 			= 0x5,
+	CONNECTION_STATE	 			= 0x6,
+	SYNCHRONIZATION_STATE 			= 0x7,
+	ISOCHRONOUS_BROADCASTING_STATE 	= 0x8
 }BLE_STATES;
 
 

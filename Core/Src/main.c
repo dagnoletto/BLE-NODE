@@ -71,7 +71,7 @@ int main(void)
 {
 	/* USER CODE BEGIN 1 */
 	static uint32_t Timer = 0;
-	static uint32_t Period = 1000UL;
+	static uint32_t Period = 2000UL;
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
@@ -109,6 +109,7 @@ int main(void)
 		/* USER CODE BEGIN 3 */
 		Run_Bluenrg();
 		Run_BLE();
+
 		if( TimeBase_DelayMs( &Timer, Period, TRUE ) )
 		{
 			static uint8_t bdflag = FALSE;
@@ -116,6 +117,13 @@ int main(void)
 
 			Period = 2000UL;
 
+//			if( Get_BLE_State() == BLE_STANDBY )
+//			{
+//			static BD_ADDR_TYPE PA = { { 0,0,0,0,0,0 } };
+//
+//
+//				Read_Public_Address( &PA ,NULL );
+//			}
 //			if( !bdflag )
 //			{
 //			  uint8_t address[6] = {1,2,3,4,5,6};

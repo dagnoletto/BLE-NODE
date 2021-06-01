@@ -5,6 +5,7 @@
 /****************************************************************/
 #include "vendor_specific.h"
 #include "TimeFunctions.h"
+#include "ble_states.h"
 
 
 /****************************************************************/
@@ -62,19 +63,17 @@ typedef struct
 /****************************************************************/
 static BLE_STATUS Request_VS_Config( uint8_t RqtType, CONFIG_JOBS* Jobs, VS_Callback CallBackFun );
 static uint8_t Check_Config_Request( uint8_t Offset, uint8_t* DataPtr, uint16_t DataSize );
-static CONFIG_JOBS* Read_All_Job_List( CONFIG_DATA* ConfigData );
+static CONFIG_JOBS* All_Job_List( CONFIG_DATA* ConfigData );
+static CONFIG_JOBS* Single_Job_List( uint8_t Offset, uint8_t* DataPtr, uint16_t DataSize );
 static void Default_VS_Config_CallBack(void* Data);
-static void Vendor_Specific_Init_Done( void* ConfigData );
 
 
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static BD_ADDR_TYPE DEFAULT_PUBLIC_ADDRESS = { { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 } };
 static VS_STATE_MACHINE Config = { .Step = CONFIG_BLOCKED, .Jobs = NULL };
 static VS_Callback ConfigCallBack;
 static uint32_t ConfigTimeoutCounter;
-static BLE_STATUS VS_Init_Done_Flag = BLE_FALSE;
 
 
 /****************************************************************/
@@ -262,42 +261,14 @@ static void Default_VS_Config_CallBack(void* Data)
 
 
 /****************************************************************/
-/* Read_Config_Data()        	   			     				*/
+/* All_Job_List()        	   			     					*/
 /* Location: 					 								*/
-/* Purpose: Read all configuration fields						*/
+/* Purpose: Load Job List for the read/write all function.		*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-BLE_STATUS Read_Config_Data( CONFIG_DATA* ConfigData, VS_Callback CallBackFun )
-{
-	if( Config.Step == CONFIG_FREE )
-	{
-		CONFIG_JOBS* Jobs = Read_All_Job_List( ConfigData );
-		if( Jobs != NULL )
-		{
-			BLE_STATUS status = Request_VS_Config( CONFIG_READ, Jobs, CallBackFun );
-			if( status != BLE_TRUE )
-			{
-				free ( Jobs );
-			}
-			return ( status );
-		}
-	}
-
-	return (BLE_FALSE);
-}
-
-
-/****************************************************************/
-/* Read_All_Job_List()        	   			     				*/
-/* Location: 					 								*/
-/* Purpose: Load Job List for the read all function.			*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static CONFIG_JOBS* Read_All_Job_List( CONFIG_DATA* ConfigData )
+static CONFIG_JOBS* All_Job_List( CONFIG_DATA* ConfigData )
 {
 	CONFIG_JOBS* Jobs = malloc( sizeof(Jobs->NumberOfJobs) + ( sizeof(JOB_LIST) * 6 ) );
 
@@ -335,62 +306,27 @@ static CONFIG_JOBS* Read_All_Job_List( CONFIG_DATA* ConfigData )
 
 
 /****************************************************************/
-/* Vendor_Specific_Init()        	        					*/
+/* Single_Job_List()        	   			     				*/
 /* Location: 					 								*/
-/* Purpose: Await for vendor specific events and do vendor 		*/
-/* specific configuration.										*/
+/* Purpose: Load single job.									*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-BLE_STATUS Vendor_Specific_Init( void )
+static CONFIG_JOBS* Single_Job_List( uint8_t Offset, uint8_t* DataPtr, uint16_t DataSize )
 {
-	/* TODO: implementar em outra camada esta inicialização? */
-	//TODO: configurar endereços
-	static uint8_t state = 0;
-	static CONFIG_DATA ConfigData;
+	CONFIG_JOBS* Jobs = malloc( sizeof(Jobs->NumberOfJobs) + sizeof(JOB_LIST) );
 
-	switch ( state )
+	if( Jobs != NULL )
 	{
-	case 0:
-		if( Read_Config_Data( &ConfigData, &Vendor_Specific_Init_Done ) == BLE_TRUE )
-		{
-			VS_Init_Done_Flag = BLE_FALSE;
-			state = 1;
-		}
-		break;
+		Jobs->JobList[0].Offset = Offset;
+		Jobs->JobList[0].DataPtr = DataPtr;
+		Jobs->JobList[0].DataSize = DataSize;
 
-	case 1:
-		if( VS_Init_Done_Flag != BLE_FALSE )
-		{
-			state = 0;
-			return ( VS_Init_Done_Flag );
-		}
-		break;
+		Jobs->NumberOfJobs = 1;
 	}
 
-	return ( BLE_FALSE );
-}
-
-
-/****************************************************************/
-/* Vendor_Specific_Init_Done()        	        				*/
-/* Location: 					 								*/
-/* Purpose: Called to indicate the status of configuration 		*/
-/* specific configuration.										*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Vendor_Specific_Init_Done( void* ConfigData )
-{
-	if( ConfigData != NULL )
-	{
-		VS_Init_Done_Flag = BLE_TRUE;
-	}else
-	{
-		VS_Init_Done_Flag = BLE_ERROR;
-	}
+	return ( Jobs );
 }
 
 
@@ -466,6 +402,129 @@ void ACI_Blue_Initialized_Event( REASON_CODE Code )
 		 * reset is requested, this code must change accordingly */
 		Config.Step = CONFIG_BLOCKED;
 	}
+}
+
+
+/****************************************************************/
+/* Read_Config_Data()        	   			     				*/
+/* Location: 					 								*/
+/* Purpose: Read all configuration fields						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+BLE_STATUS Read_Config_Data( CONFIG_DATA* ConfigData, VS_Callback CallBackFun )
+{
+	if( Config.Step == CONFIG_FREE )
+	{
+		CONFIG_JOBS* Jobs = All_Job_List( ConfigData );
+		if( Jobs != NULL )
+		{
+			BLE_STATUS status = Request_VS_Config( CONFIG_READ, Jobs, CallBackFun );
+			if( status != BLE_TRUE )
+			{
+				free ( Jobs );
+			}
+			return ( status );
+		}
+	}
+
+	return (BLE_FALSE);
+}
+
+
+/****************************************************************/
+/* Write_Config_Data()        	   		     					*/
+/* Location: 					 								*/
+/* Purpose: Write all configuration fields 						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+BLE_STATUS Write_Config_Data( CONFIG_DATA* ConfigData, VS_Callback CallBackFun )
+{
+	if( Config.Step == CONFIG_FREE )
+	{
+		BLE_STATES BleState = Get_BLE_State();
+
+		if( BleState == VENDOR_SPECIFIC_INIT /* || BleState == BLE_STANDBY */ ) /* TODO: Verificar em quais circunstâncias a configuração pode ser alterada */
+		{
+			CONFIG_JOBS* Jobs = All_Job_List( ConfigData );
+			if( Jobs != NULL )
+			{
+				BLE_STATUS status = Request_VS_Config( CONFIG_WRITE, Jobs, CallBackFun );
+				if( status != BLE_TRUE )
+				{
+					free ( Jobs );
+				}
+				return ( status );
+			}
+		}
+	}
+
+	return (BLE_FALSE);
+}
+
+
+/****************************************************************/
+/* Read_Public_Address()        	   		     				*/
+/* Location: 					 								*/
+/* Purpose: Read public address 								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+BLE_STATUS Read_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallBackFun )
+{
+	if( Config.Step == CONFIG_FREE )
+	{
+		CONFIG_JOBS* Jobs = Single_Job_List( PUBLIC_ADDRESS_OFFSET, &Public_Address->Byte[0], sizeof(BD_ADDR_TYPE) );
+		if( Jobs != NULL )
+		{
+			BLE_STATUS status = Request_VS_Config( CONFIG_READ, Jobs, CallBackFun );
+			if( status != BLE_TRUE )
+			{
+				free ( Jobs );
+			}
+			return ( status );
+		}
+
+	}
+
+	return (BLE_FALSE);
+}
+
+
+/****************************************************************/
+/* Write_Public_Address()        	   		     				*/
+/* Location: 					 								*/
+/* Purpose: Write public address 								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+BLE_STATUS Write_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallBackFun )
+{
+	if( Config.Step == CONFIG_FREE )
+	{
+		BLE_STATES BleState = Get_BLE_State();
+
+		if( BleState == VENDOR_SPECIFIC_INIT /* || BleState == BLE_STANDBY */ ) /* TODO: Verificar em quais circunstâncias o PA pode ser alterado */
+		{
+			CONFIG_JOBS* Jobs = Single_Job_List( PUBLIC_ADDRESS_OFFSET, &Public_Address->Byte[0], sizeof(BD_ADDR_TYPE) );
+			if( Jobs != NULL )
+			{
+				BLE_STATUS status = Request_VS_Config( CONFIG_WRITE, Jobs, CallBackFun );
+				if( status != BLE_TRUE )
+				{
+					free ( Jobs );
+				}
+				return ( status );
+			}
+		}
+	}
+
+	return (BLE_FALSE);
 }
 
 
