@@ -15,7 +15,9 @@
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-static uint8_t Num_HCI_Command_Packets; /* TODO: setar este valor e ver oque ocorre na inicialização */
+static void Set_Number_Of_HCI_Command_Packets( uint8_t Num_HCI_Cmd_Packets );
+static uint8_t Check_Command_Packets_Available( void );
+static void Decrement_HCI_Command_Packets( void );
 
 
 /****************************************************************/
@@ -31,6 +33,73 @@ static uint8_t Num_HCI_Command_Packets; /* TODO: setar este valor e ver oque oco
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
+/* Assumes the controller can handle at least one HCI Command
+ * before the first Set_Number_Of_HCI_Command_Packets() is called */
+static uint8_t Num_HCI_Command_Packets = 1;
+
+
+/****************************************************************/
+/* Set_Number_Of_HCI_Command_Packets()         					*/
+/* Location: 					 								*/
+/* Purpose: Set the Num_HCI_Command_Packets	used for commands	*/
+/* flow control (see Page 1882 Core_v5.2).						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Set_Number_Of_HCI_Command_Packets( uint8_t Num_HCI_Cmd_Packets )
+{
+	/* This assignment must not be interrupted */
+	EnterCritical();
+
+	Num_HCI_Command_Packets = Num_HCI_Cmd_Packets;
+
+	ExitCritical();
+}
+
+
+/****************************************************************/
+/* Check_Command_Packets_Available()         					*/
+/* Location: 					 								*/
+/* Purpose: Verify if controller can handle more commands.		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Check_Command_Packets_Available( void )
+{
+	uint8_t status;
+
+	EnterCritical();
+
+	/* If there is room for commands */
+	status = Num_HCI_Command_Packets ? TRUE : FALSE;
+
+	ExitCritical();
+
+	return (status);
+}
+
+
+/****************************************************************/
+/* Decrement_HCI_Command_Packets()         						*/
+/* Location: 					 								*/
+/* Purpose: Decrement available HCI packets.					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Decrement_HCI_Command_Packets( void )
+{
+	EnterCritical();
+
+	if ( Num_HCI_Command_Packets )
+	{
+		Num_HCI_Command_Packets--;
+	}
+
+	ExitCritical();
+}
 
 
 /****************************************************************/
@@ -47,6 +116,8 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		TRANSFER_CALL_BACK_MODE CallBackMode,
 		TransferCallBack CallBack)
 {
+	HCI_PACKET_TYPE PacketType = ( HCI_PACKET_TYPE )*( (uint8_t*)DataPtr );
+
 	int8_t Ntries = 3;
 
 	TRANSFER_DESCRIPTOR TransferDesc;
@@ -56,6 +127,11 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 	TransferDesc.DataPtr = (uint8_t*)DataPtr;
 	TransferDesc.DataSize = DataSize;
 
+	if ( ( PacketType == HCI_COMMAND_PACKET ) && ( !Check_Command_Packets_Available() ) )
+	{
+		return (FALSE);
+	}
+
 	/* As the buffer could be blocked awaiting another operation, you should try some times. */
 	while( ( Bluenrg_Add_Frame( &TransferDesc, 7 ).EnqueuedAtIndex < 0 ) && ( Ntries > 0 ) )
 	{
@@ -64,6 +140,10 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 
 	if( Ntries > 0 )
 	{
+		if( PacketType == HCI_COMMAND_PACKET )
+		{
+			Decrement_HCI_Command_Packets(  );
+		}
 		return (TRUE);
 	}else
 	{
@@ -134,7 +214,8 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				/*---------- COMMAND_COMPLETE_EVT ------------*//* Page 2308 Core_v5.2 */
 			case COMMAND_COMPLETE: {
 				OpCode.Val = ( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1];
-				Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[0];
+				uint8_t Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[0];
+				Set_Number_Of_HCI_Command_Packets( Num_HCI_Command_Packets );
 
 				switch( OpCode.Val )
 				{
@@ -344,7 +425,8 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			/*---------- COMMAND_STATUS_EVT --------------*//* Page 2310 Core_v5.2 */
 			case COMMAND_STATUS: {
 				OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
-				Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[1];
+				uint8_t Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[1];
+				Set_Number_Of_HCI_Command_Packets( Num_HCI_Command_Packets );
 
 				switch( OpCode.Val )
 				{

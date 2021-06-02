@@ -932,7 +932,7 @@ typedef enum
 	ADV_SCAN_IND   			 = 0x02, /* Scannable undirected advertising (ADV_SCAN_IND) */
 	ADV_NONCONN_IND			 = 0x03, /* Non connectable undirected advertising (ADV_NONCONN_IND) */
 	ADV_DIRECT_IND_LOW_DUTY  = 0x04, /* Connectable low duty cycle directed advertising (ADV_DIRECT_IND, low duty cycle) */
-}ADVERTISING_TYPE;
+}ADVERTISING_TYPE; /* Legacy advertising PDUs */
 
 
 typedef enum
