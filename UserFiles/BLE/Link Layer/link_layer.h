@@ -64,6 +64,37 @@ typedef struct
 
 
 /*-------------------------------- INITIATING PDUs -------------------------------------*/
+typedef struct
+{
+	BD_ADDR_TYPE InitA; /* Initiator’s address: either public (TxAdd = 0) or random (TxAdd = 1) depending on TxAdd field of advertising PDU header */
+	BD_ADDR_TYPE AdvA;  /* Advertiser’s address: either public (RxAdd = 0) or random (RxAdd = 1) depending on RxAdd field of advertising PDU header */
+	union
+	{
+		struct LLData_Fields
+		{
+			uint32_t 	AA;		    /* The AA field shall contain the ACL connection’s Access Address */
+			uint8_t  	CRCInit[3]; /* The CRCInit field shall contain the initialization value for the CRC calculation for the ACL connection */
+			uint8_t  	WinSize;	/* The WinSize field shall be set to indicate the transmitWindowSize value as transmitWindowSize = WinSize * 1.25 ms */
+			uint16_t 	WinOffset;	/* The WinOffset field shall be set to indicate the transmitWindowOffset as transmitWindowOffset = WinOffset * 1.25 ms */
+			uint16_t 	Interval;	/* The Interval field shall be set to indicate the connInterval as connInterval = Interval * 1.25 ms */
+			uint16_t 	Latency;	/* The Latency field shall be set to indicate the connSlaveLatency as connSlaveLatency = Latency */
+			uint16_t 	Timeout;	/* The Timeout field shall be set to indicate the connSupervisionTimeout as connSupervisionTimeout = Timeout * 10 ms */
+			CHANNEL_MAP ChM;    	/* The ChM field shall contain the channel map indicating Used and Unused data channels. */
+			uint8_t  	Hop :5;	    /* The Hop field shall be set to indicate the hopIncrement used in the data channel selection algorithm */
+			uint8_t  	SCA :3;	    /* The SCA field shall be set to indicate the masterSCA used to determine the worst case Master’s sleep clock accuracy */
+		}__attribute__((packed)) Fields;
+		uint8_t Bytes[sizeof(struct LLData_Fields)];	/* LLData field (22 octets) */
+	}LLData;
+}__attribute__((packed)) CONNECT_IND_PDU; /* Sent by the Link Layer in the Initiating state. Received by the Link Layer in the Advertising state. */
+
+
+typedef CONNECT_IND_PDU AUX_CONNECT_REQ_PDU; /* Sent by the Link Layer in the Initiating state. Received by the Link Layer in the Advertising state. */
+
+
+/* TODO: The AUX_CONNECT_RSP is an extended version based on Common Extended Advertising Payload Format. Must be implemented. */
+
+
+/*-------------------------------- LL DATA PDU -------------------------------------*/
 
 
 /****************************************************************/

@@ -11,18 +11,6 @@
 /****************************************************************/
 /* Type Defines                                                 */
 /****************************************************************/
-typedef enum
-{
-	CONFIG_BLOCKED			 =  0,
-	CONFIG_FAILURE			 =  1,
-	CONFIG_FREE				 =  2,
-	CONFIG_READ 			 =  3,
-	CONFIG_WRITE			 =  4,
-	CONFIG_WAIT 	 		 =  5,
-	CONFIG_SUCCESS 	 		 =  6
-}CONFIG_STEPS;
-
-
 typedef struct
 {
 	uint8_t Offset;
@@ -163,6 +151,20 @@ static uint8_t Check_Config_Request( uint8_t Offset, uint8_t* DataPtr, uint16_t 
 	{
 		return (TRUE);
 	}
+}
+
+
+/****************************************************************/
+/* Get_Config_Step()        	        						*/
+/* Location: 					 								*/
+/* Purpose: Request the configuration step.						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+CONFIG_STEPS Get_Config_Step( void )
+{
+	return (Config.Step);
 }
 
 
@@ -478,7 +480,7 @@ BLE_STATUS Read_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallBa
 {
 	if( Config.Step == CONFIG_FREE )
 	{
-		CONFIG_JOBS* Jobs = Single_Job_List( PUBLIC_ADDRESS_OFFSET, &Public_Address->Byte[0], sizeof(BD_ADDR_TYPE) );
+		CONFIG_JOBS* Jobs = Single_Job_List( PUBLIC_ADDRESS_OFFSET, &Public_Address->Bytes[0], sizeof(BD_ADDR_TYPE) );
 		if( Jobs != NULL )
 		{
 			BLE_STATUS status = Request_VS_Config( CONFIG_READ, Jobs, CallBackFun );
@@ -511,7 +513,7 @@ BLE_STATUS Write_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallB
 
 		if( BleState == VENDOR_SPECIFIC_INIT /* || BleState == BLE_STANDBY */ ) /* TODO: Verificar em quais circunstâncias o PA pode ser alterado */
 		{
-			CONFIG_JOBS* Jobs = Single_Job_List( PUBLIC_ADDRESS_OFFSET, &Public_Address->Byte[0], sizeof(BD_ADDR_TYPE) );
+			CONFIG_JOBS* Jobs = Single_Job_List( PUBLIC_ADDRESS_OFFSET, &Public_Address->Bytes[0], sizeof(BD_ADDR_TYPE) );
 			if( Jobs != NULL )
 			{
 				BLE_STATUS status = Request_VS_Config( CONFIG_WRITE, Jobs, CallBackFun );

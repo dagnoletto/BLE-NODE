@@ -29,6 +29,18 @@
 /****************************************************************/
 /* Type Defines 					                            */
 /****************************************************************/
+typedef enum
+{
+	CONFIG_BLOCKED			 =  0,
+	CONFIG_FAILURE			 =  1,
+	CONFIG_FREE				 =  2,
+	CONFIG_READ 			 =  3,
+	CONFIG_WRITE			 =  4,
+	CONFIG_WAIT 	 		 =  5,
+	CONFIG_SUCCESS 	 		 =  6
+}CONFIG_STEPS;
+
+
 typedef void (*VS_Callback)(void* Data);
 
 
@@ -53,6 +65,7 @@ BLE_STATUS Write_Config_Data( CONFIG_DATA* ConfigData, VS_Callback CallBackFun )
 BLE_STATUS Read_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallBackFun );
 BLE_STATUS Write_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallBackFun );
 
+CONFIG_STEPS Get_Config_Step( void );
 void Vendor_Specific_Process( void );
 
 

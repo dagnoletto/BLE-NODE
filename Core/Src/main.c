@@ -71,7 +71,7 @@ int main(void)
 {
 	/* USER CODE BEGIN 1 */
 	static uint32_t Timer = 0;
-	static uint32_t Period = 2000UL;
+	static uint32_t Period = 500UL;
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
@@ -115,7 +115,11 @@ int main(void)
 			static uint8_t bdflag = FALSE;
 			static uint8_t enable = FALSE;
 
-			Period = 2000UL;
+			//Period = 2000UL;
+
+//			PDU.LLData.Bytes[0] = 0;
+//
+//			uint16_t size = sizeof(PDU);
 
 //			if( Get_BLE_State() == BLE_STANDBY )
 //			{
@@ -365,15 +369,15 @@ int main(void)
 
 		//	HCI_LE_Test_End(  );
 
-			uint8_t Bytes[] = { 1,2,3,4,5 };
-
-			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
-			ACLDataPacketHeader.Data_Total_Length = sizeof(Bytes);
-			ACLDataPacketHeader.BC_Flag = 0;
-			ACLDataPacketHeader.PB_Flag = 0;
-			ACLDataPacketHeader.Handle = 0;
-
-			HCI_Host_ACL_Data( ACLDataPacketHeader, &Bytes[0] );
+//			uint8_t Bytes[] = { 1,2,3,4,5 };
+//
+//			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
+//			ACLDataPacketHeader.Data_Total_Length = sizeof(Bytes);
+//			ACLDataPacketHeader.BC_Flag = 0;
+//			ACLDataPacketHeader.PB_Flag = 0;
+//			ACLDataPacketHeader.Handle = 0;
+//
+//			HCI_Host_ACL_Data( ACLDataPacketHeader, &Bytes[0] );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

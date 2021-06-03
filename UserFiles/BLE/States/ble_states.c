@@ -34,6 +34,7 @@ static void Vendor_Specific_Init_CallBack( void* ConfigData );
 /****************************************************************/
 static BLE_STATES BLEState = VENDOR_SPECIFIC_INIT;
 static BLE_STATUS VS_Init_Done_Flag;
+static BLE_STATUS Standby_Flag = BLE_FALSE;
 static BD_ADDR_TYPE DEFAULT_PUBLIC_ADDRESS = { { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 } };
 
 
@@ -59,11 +60,19 @@ void Run_BLE( void )
 	case BLE_INITIAL_SETUP:
 		if( BLE_Init(  ) )
 		{
+			Standby_Flag = BLE_FALSE;
 			BLEState = STANDBY_STATE;
 		}
 		break;
 
 	case STANDBY_STATE:
+		if( Standby_Flag != BLE_TRUE )
+		{
+			if( ACI_Hal_Device_Standby(  ) )
+			{
+				Standby_Flag = BLE_TRUE;
+			}
+		}
 		break;
 
 	case ADVERTISING_STATE:
@@ -132,9 +141,11 @@ static uint8_t Vendor_Specific_Init( void )
 	{
 		WRITE_CONFIG_DATA  = 0x00,
 		VERIFY_CONFIG_DATA = 0x01,
-		END_CONFIG_MODE	   = 0x02
+		WAIT_CONFIG_END	   = 0x02,
+		END_CONFIG_MODE	   = 0x03
 	}INIT_STEPS;
 
+	static uint8_t Result = FALSE;
 	static INIT_STEPS InitSteps = WRITE_CONFIG_DATA;
 	static CONFIG_DATA* ConfigDataPtr = NULL;
 
@@ -176,7 +187,7 @@ static uint8_t Vendor_Specific_Init( void )
 				memset( ConfigDataPtr, 0, sizeof(CONFIG_DATA) ); /* Clear bytes */
 				if( Read_Config_Data( ConfigDataPtr, &Vendor_Specific_Init_CallBack ) == BLE_TRUE )
 				{
-					InitSteps = END_CONFIG_MODE;
+					InitSteps = WAIT_CONFIG_END;
 				}else
 				{
 					if( ConfigDataPtr != NULL )
@@ -198,11 +209,10 @@ static uint8_t Vendor_Specific_Init( void )
 		}
 		break;
 
-	case END_CONFIG_MODE:
+	case WAIT_CONFIG_END:
 		if( VS_Init_Done_Flag != BLE_FALSE )
 		{
-			uint8_t Result = FALSE;
-
+			Result = FALSE;
 			if( ConfigDataPtr != NULL )
 			{
 				if( memcmp( &ConfigDataPtr->Public_address, &DEFAULT_PUBLIC_ADDRESS, sizeof(BD_ADDR_TYPE) ) == 0 )
@@ -213,6 +223,13 @@ static uint8_t Vendor_Specific_Init( void )
 				free( ConfigDataPtr );
 				ConfigDataPtr = NULL;
 			}
+			InitSteps = END_CONFIG_MODE;
+		}
+		break;
+
+	case END_CONFIG_MODE:
+		if ( Get_Config_Step() == CONFIG_FREE )
+		{
 			InitSteps = WRITE_CONFIG_DATA;
 			return ( Result );
 		}
@@ -239,6 +256,26 @@ static void Vendor_Specific_Init_CallBack( void* ConfigData )
 	}else
 	{
 		VS_Init_Done_Flag = BLE_ERROR;
+	}
+}
+
+
+/****************************************************************/
+/* ACI_Hal_Device_Standby_Event()        	       				*/
+/* Location: 					 								*/
+/* Purpose: Called to indicate the status of standby command.	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void ACI_Hal_Device_Standby_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
+{
+	if( ( Event == COMMAND_COMPLETE ) && ( ErrorCode == COMMAND_SUCCESS ) )
+	{
+		Standby_Flag = BLE_TRUE;
+	}else
+	{
+		Standby_Flag = BLE_ERROR;
 	}
 }
 

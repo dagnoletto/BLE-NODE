@@ -820,7 +820,7 @@ typedef SUPPORTED_FEATURES SUPPORTED_FEATURES_PAGE_0;
 
 typedef struct
 {
-	uint8_t Byte[6];
+	uint8_t Bytes[6];
 }BD_ADDR_TYPE;
 
 
@@ -1008,6 +1008,9 @@ typedef union
 		uint8_t Ch34 :1; /* Channel 34 */
 		uint8_t Ch35 :1; /* Channel 35 */
 		uint8_t Ch36 :1; /* Channel 36 */
+		uint8_t Ch37 :1; /* Channel 37 */
+		uint8_t Ch38 :1; /* Channel 38 */
+		uint8_t Ch39 :1; /* Channel 39 */
 	}__attribute__((packed)) Bits;
 	uint8_t Bytes[sizeof(struct Channel_Map_Bits)];
 }__attribute__((packed)) CHANNEL_MAP;
@@ -1087,9 +1090,9 @@ typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 
 typedef enum /* Return codes for function calls */
 {
-	BLE_ERROR   = -1,
-	BLE_FALSE   = false,
-	BLE_TRUE    = true
+	BLE_ERROR      = -1,
+	BLE_FALSE      = false,
+	BLE_TRUE       = true
 }BLE_STATUS;
 
 

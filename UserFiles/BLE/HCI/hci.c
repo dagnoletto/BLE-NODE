@@ -938,7 +938,7 @@ uint8_t HCI_LE_Set_Random_Address( BD_ADDR_TYPE Random_Address )
 
 	for( int8_t i = 0; i < sizeof(Random_Address); i++ )
 	{
-		PcktPtr->CmdPacket.Parameter[i] = Random_Address.Byte[i];
+		PcktPtr->CmdPacket.Parameter[i] = Random_Address.Bytes[i];
 	}
 
 	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL );
@@ -1043,7 +1043,7 @@ uint8_t HCI_LE_Set_Advertising_Parameters( uint16_t Advertising_Interval_Min, ui
 
 	for( int8_t i = 0; i < sizeof(Peer_Address); i++ )
 	{
-		PcktPtr->CmdPacket.Parameter[i + 7] = Peer_Address.Byte[i];
+		PcktPtr->CmdPacket.Parameter[i + 7] = Peer_Address.Bytes[i];
 	}
 
 	PcktPtr->CmdPacket.Parameter[13] = Advertising_Channel_Map.Val;
@@ -1632,7 +1632,7 @@ uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Wi
 
 	for( int8_t i = 0; i < sizeof(Peer_Address); i++ )
 	{
-		PcktPtr->CmdPacket.Parameter[i + 6] = Peer_Address.Byte[i];
+		PcktPtr->CmdPacket.Parameter[i + 6] = Peer_Address.Bytes[i];
 	}
 
 	PcktPtr->CmdPacket.Parameter[12] = Own_Address_Type;
@@ -1900,7 +1900,7 @@ uint8_t HCI_LE_Add_Device_To_White_List( uint8_t Address_Type, BD_ADDR_TYPE Addr
 
 	for( int8_t i = 0; i < sizeof(Address); i++ )
 	{
-		PcktPtr->CmdPacket.Parameter[i + 1] = Address.Byte[i];
+		PcktPtr->CmdPacket.Parameter[i + 1] = Address.Bytes[i];
 	}
 
 	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL );
@@ -1974,7 +1974,7 @@ uint8_t HCI_LE_Remove_Device_From_White_List( uint8_t Address_Type, BD_ADDR_TYPE
 
 	for( int8_t i = 0; i < sizeof(Address); i++ )
 	{
-		PcktPtr->CmdPacket.Parameter[i + 1] = Address.Byte[i];
+		PcktPtr->CmdPacket.Parameter[i + 1] = Address.Bytes[i];
 	}
 
 	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL );
