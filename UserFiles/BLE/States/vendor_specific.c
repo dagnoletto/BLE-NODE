@@ -169,6 +169,20 @@ CONFIG_STEPS Get_Config_Step( void )
 
 
 /****************************************************************/
+/* Set_Config_Step()        	        						*/
+/* Location: 					 								*/
+/* Purpose: Set the configuration step.							*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Set_Config_Step( CONFIG_STEPS Step )
+{
+	Config.Step = Step;
+}
+
+
+/****************************************************************/
 /* Vendor_Specific_Process()        	        				*/
 /* Location: 					 								*/
 /* Purpose: Process the VS configuration request				*/
@@ -187,34 +201,19 @@ void Vendor_Specific_Process( void )
 
 	case CONFIG_READ:
 		JobIndex = Config.Jobs->NumberOfJobs - 1;
-		if( ACI_Hal_Read_Config_Data( Config.Jobs->JobList[JobIndex].Offset ) )
-		{
-			Config.Step = CONFIG_WAIT;
-			ConfigTimeoutCounter = 0;
-		}else
-		{
-			Config.Step = CONFIG_FAILURE;
-		}
+		ConfigTimeoutCounter = 0;
+		Config.Step = ACI_Hal_Read_Config_Data( Config.Jobs->JobList[JobIndex].Offset ) ? CONFIG_WAIT : CONFIG_FAILURE;
 		break;
 
 	case CONFIG_WRITE:
 		JobIndex = Config.Jobs->NumberOfJobs - 1;
-		if( ACI_Hal_Write_Config_Data( Config.Jobs->JobList[JobIndex].Offset,
-				Config.Jobs->JobList[JobIndex].DataSize, Config.Jobs->JobList[JobIndex].DataPtr ) )
-		{
-			Config.Step = CONFIG_WAIT;
-			ConfigTimeoutCounter = 0;
-		}else
-		{
-			Config.Step = CONFIG_FAILURE;
-		}
+		ConfigTimeoutCounter = 0;
+		Config.Step = ACI_Hal_Write_Config_Data( Config.Jobs->JobList[JobIndex].Offset,
+				Config.Jobs->JobList[JobIndex].DataSize, Config.Jobs->JobList[JobIndex].DataPtr ) ? CONFIG_WAIT : CONFIG_FAILURE;
 		break;
 
 	case CONFIG_WAIT:
-		if( TimeBase_DelayMs( &ConfigTimeoutCounter, 500, TRUE ) )
-		{
-			Config.Step = CONFIG_FAILURE;
-		}
+		Config.Step = TimeBase_DelayMs( &ConfigTimeoutCounter, 500, TRUE ) ? CONFIG_FAILURE : CONFIG_WAIT;
 		break;
 
 	case CONFIG_SUCCESS:
@@ -395,15 +394,9 @@ void ACI_Hal_Write_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES E
 void ACI_Blue_Initialized_Event( REASON_CODE Code )
 {
 	/* Check if initialization was OK */
-	if ( Code == FIRMWARE_STARTED_PROPERLY )
-	{
-		Config.Step = CONFIG_FREE;
-	}else
-	{
-		/* Treat all other modes as blocked. If a different mode after
-		 * reset is requested, this code must change accordingly */
-		Config.Step = CONFIG_BLOCKED;
-	}
+	/* Treat all other modes as blocked. If a different mode after
+	* reset is requested, this code must change accordingly */
+	Config.Step = ( Code == FIRMWARE_STARTED_PROPERLY ) ? CONFIG_FREE : CONFIG_BLOCKED;
 }
 
 

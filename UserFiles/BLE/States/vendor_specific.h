@@ -31,13 +31,13 @@
 /****************************************************************/
 typedef enum
 {
-	CONFIG_BLOCKED			 =  0,
-	CONFIG_FAILURE			 =  1,
-	CONFIG_FREE				 =  2,
-	CONFIG_READ 			 =  3,
-	CONFIG_WRITE			 =  4,
-	CONFIG_WAIT 	 		 =  5,
-	CONFIG_SUCCESS 	 		 =  6
+	CONFIG_BLOCKED,
+	CONFIG_FAILURE,
+	CONFIG_FREE,
+	CONFIG_READ,
+	CONFIG_WRITE,
+	CONFIG_WAIT,
+	CONFIG_SUCCESS
 }CONFIG_STEPS;
 
 
@@ -66,6 +66,7 @@ BLE_STATUS Read_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallBa
 BLE_STATUS Write_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallBackFun );
 
 CONFIG_STEPS Get_Config_Step( void );
+void Set_Config_Step( CONFIG_STEPS Step );
 void Vendor_Specific_Process( void );
 
 
