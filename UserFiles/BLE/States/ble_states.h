@@ -35,6 +35,8 @@ typedef enum
 /****************************************************************/
 void Run_BLE( void );
 BLE_STATES Get_BLE_State( void );
+SUPPORTED_COMMANDS* Get_Supported_Commands( void );
+SUPPORTED_FEATURES* Get_Supported_Features( void );
 
 
 #endif /* BLE_STATES_H_ */

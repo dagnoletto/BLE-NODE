@@ -824,6 +824,18 @@ typedef struct
 }BD_ADDR_TYPE;
 
 
+typedef struct
+{
+	uint8_t Bytes[16]; /* The most significant octet of the key corresponds to Bytes[0] using the notation specified in FIPS 197. */
+}IRK_TYPE; /* Identity Resolving Key (IRK): 128-bit key used to generate and resolve random addresses. */
+
+
+typedef struct
+{
+	uint8_t Bytes[3];
+}HASH_TYPE; /* The hash part of private resolvable address */
+
+
 typedef union
 {
 	struct LE_Event_Mask_Bits

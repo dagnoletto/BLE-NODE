@@ -144,6 +144,34 @@ BLE_STATES Get_BLE_State( void )
 
 
 /****************************************************************/
+/* Get_Supported_Commands()        	       						*/
+/* Location: 					 								*/
+/* Purpose: Get the Controller supported commands.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+SUPPORTED_COMMANDS* Get_Supported_Commands( void )
+{
+	return ( &HCI_Supported_Commands );
+}
+
+
+/****************************************************************/
+/* Get_Supported_Features()        	       						*/
+/* Location: 					 								*/
+/* Purpose: Get the Controller supported features.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+SUPPORTED_FEATURES* Get_Supported_Features( void )
+{
+	return ( &HCI_LMP_Features );
+}
+
+
+/****************************************************************/
 /* BLE_Init()        	       									*/
 /* Location: 					 								*/
 /* Purpose: Init BLE 											*/
@@ -254,7 +282,7 @@ static uint8_t BLE_Init( void )
 		break;
 
 	case GENERATE_RANDOM_ADDRESS:
-		if( Generate_Device_Addresses( &HCI_Supported_Commands, TRUE ) )
+		if( Generate_Device_Addresses( &HCI_Supported_Commands, Get_Default_IRK(), TRUE ) )
 		{
 			BLEInitSteps = BLE_INIT_DONE;
 		}
