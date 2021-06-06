@@ -5,6 +5,7 @@
 /****************************************************************/
 #include "ble_states.h"
 #include "TimeFunctions.h"
+#include "ble_utils.h"
 
 
 /****************************************************************/
@@ -20,6 +21,7 @@ typedef enum
 	LE_READ_BUFFER_SIZE,
 	LE_LOCAL_SUPPORTED_FEATURES,
 	READ_BD_ADDRESS,
+	GENERATE_RANDOM_ADDRESS,
 	CLEAR_TIMER,
 	WAIT_STATUS,
 	BLE_INIT_DONE
@@ -56,9 +58,8 @@ static BLE_STATUS Standby_Flag = BLE_FALSE;
 static SUPPORTED_COMMANDS HCI_Supported_Commands;
 static SUPPORTED_FEATURES HCI_LMP_Features;
 static LE_SUPPORTED_FEATURES HCI_LE_Features;
-static uint16_t LE_ACL_Data_Packet_Length_Sup;
-static uint8_t Total_Num_LE_ACL_Data_Packets_Sup;
-static BD_ADDR_TYPE DEFAULT_PUBLIC_ADDRESS = { { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 } };
+static uint16_t LE_ACL_Data_Packet_Length_Supported;
+static uint8_t Total_Num_LE_ACL_Data_Packets_Supported;
 
 
 /****************************************************************/
@@ -252,6 +253,13 @@ static uint8_t BLE_Init( void )
 		}
 		break;
 
+	case GENERATE_RANDOM_ADDRESS:
+		if( Generate_Device_Addresses( &HCI_Supported_Commands, TRUE ) )
+		{
+			BLEInitSteps = BLE_INIT_DONE;
+		}
+		break;
+
 	case CLEAR_TIMER:
 		BLEInitSteps = WAIT_STATUS;
 		WaitCmdTimer = 0;
@@ -347,9 +355,9 @@ void HCI_LE_Read_Buffer_Size_Complete( CONTROLLER_ERROR_CODES Status, uint16_t L
 {
 	if( Status == COMMAND_SUCCESS )
 	{
-		LE_ACL_Data_Packet_Length_Sup = LE_ACL_Data_Packet_Length;
-		Total_Num_LE_ACL_Data_Packets_Sup = Total_Num_LE_ACL_Data_Packets;
-		if( ( !LE_ACL_Data_Packet_Length_Sup ) || ( !Total_Num_LE_ACL_Data_Packets_Sup ) )
+		LE_ACL_Data_Packet_Length_Supported = LE_ACL_Data_Packet_Length;
+		Total_Num_LE_ACL_Data_Packets_Supported = Total_Num_LE_ACL_Data_Packets;
+		if( ( !LE_ACL_Data_Packet_Length_Supported ) || ( !Total_Num_LE_ACL_Data_Packets_Supported ) )
 		{
 			BLEInitSteps = READ_BUFFER_SIZE;
 		}else
@@ -392,9 +400,9 @@ void HCI_Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* BD_
 {
 	if( Status == COMMAND_SUCCESS )
 	{
-		if( memcmp( &DEFAULT_PUBLIC_ADDRESS, BD_ADDR, sizeof(BD_ADDR_TYPE) ) == 0 )
+		if( memcmp( Get_Public_Device_Address(), BD_ADDR, sizeof(BD_ADDR_TYPE) ) == 0 )
 		{
-			BLEInitSteps = BLE_INIT_DONE;
+			BLEInitSteps = GENERATE_RANDOM_ADDRESS;
 		}else
 		{
 			BLEInitSteps = CLEAR_TIMER;
@@ -481,7 +489,7 @@ static uint8_t Vendor_Specific_Init( void )
 
 		if( ConfigDataPtr != NULL )
 		{
-			ConfigDataPtr->Public_address = DEFAULT_PUBLIC_ADDRESS;
+			ConfigDataPtr->Public_address = *( Get_Public_Device_Address() );
 			ConfigDataPtr->LLWithoutHost = LL_ONLY;
 			ConfigDataPtr->Role = SLAVE_AND_MASTER_12KB;
 
@@ -533,7 +541,7 @@ static uint8_t Vendor_Specific_Init( void )
 			Result = FALSE;
 			if( ConfigDataPtr != NULL )
 			{
-				if( memcmp( &ConfigDataPtr->Public_address, &DEFAULT_PUBLIC_ADDRESS, sizeof(BD_ADDR_TYPE) ) == 0 )
+				if( memcmp( &ConfigDataPtr->Public_address, Get_Public_Device_Address(), sizeof(BD_ADDR_TYPE) ) == 0 )
 				{
 					/* TODO: If the public address was updated, we assume all other fields were updated as well */
 					Result = TRUE;
