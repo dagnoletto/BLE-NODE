@@ -22,6 +22,7 @@ typedef enum
 	LE_LOCAL_SUPPORTED_FEATURES,
 	READ_BD_ADDRESS,
 	GENERATE_RANDOM_ADDRESS,
+	READ_LOCAL_VERSION,
 	CLEAR_TIMER,
 	WAIT_STATUS,
 	BLE_INIT_DONE
@@ -60,6 +61,7 @@ static SUPPORTED_FEATURES HCI_LMP_Features;
 static LE_SUPPORTED_FEATURES HCI_LE_Features;
 static uint16_t LE_ACL_Data_Packet_Length_Supported;
 static uint8_t Total_Num_LE_ACL_Data_Packets_Supported;
+static BLE_VERSION_INFO LocalInfo;
 
 
 /****************************************************************/
@@ -168,6 +170,20 @@ SUPPORTED_COMMANDS* Get_Supported_Commands( void )
 SUPPORTED_FEATURES* Get_Supported_Features( void )
 {
 	return ( &HCI_LMP_Features );
+}
+
+
+/****************************************************************/
+/* Get_Local_Version_Information()        	 					*/
+/* Location: 					 								*/
+/* Purpose: Get the Controller local version.					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+BLE_VERSION_INFO* Get_Local_Version_Information( void )
+{
+	return ( &LocalInfo );
 }
 
 
@@ -284,7 +300,17 @@ static uint8_t BLE_Init( void )
 	case GENERATE_RANDOM_ADDRESS:
 		if( Generate_Device_Addresses( &HCI_Supported_Commands, Get_Default_IRK(), TRUE ) )
 		{
-			BLEInitSteps = BLE_INIT_DONE;
+			BLEInitSteps = READ_LOCAL_VERSION;
+		}
+		break;
+
+	case READ_LOCAL_VERSION:
+		if( HCI_Supported_Commands.Bits.HCI_Read_Local_Version_Information )
+		{
+			BLEInitSteps = HCI_Read_Local_Version_Information( ) ? CLEAR_TIMER : READ_LOCAL_VERSION;
+		}else
+		{
+			BLEInitSteps = CLEAR_TIMER;
 		}
 		break;
 
@@ -477,6 +503,33 @@ static uint8_t Reset_Controller( void )
 void HCI_Reset_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	Controller_Reset_Flag = ( Status == COMMAND_SUCCESS ) ? BLE_TRUE : BLE_ERROR;
+}
+
+
+/****************************************************************/
+/* HCI_Read_Local_Version_Information_Complete() 				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Status,
+		HCI_VERSION HCI_Version, uint16_t HCI_Revision,
+		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name,
+		uint16_t LMP_PAL_Subversion)
+{
+	if( Status == COMMAND_SUCCESS )
+	{
+		LocalInfo.HCI_Version = HCI_Version;
+		LocalInfo.HCI_Revision = HCI_Revision;
+		LocalInfo.LMP_PAL_Version = LMP_PAL_Version;
+		LocalInfo.Manufacturer_Name = Manufacturer_Name;
+		LocalInfo.LMP_PAL_Subversion = LMP_PAL_Subversion;
+
+		BLEInitSteps = BLE_INIT_DONE;
+	}else
+	{
+		BLEInitSteps = READ_LOCAL_VERSION;
+	}
 }
 
 

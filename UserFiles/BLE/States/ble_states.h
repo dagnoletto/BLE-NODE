@@ -30,6 +30,16 @@ typedef enum
 }BLE_STATES;
 
 
+typedef struct
+{
+	HCI_VERSION HCI_Version;
+	uint16_t HCI_Revision;
+	uint8_t LMP_PAL_Version;
+	uint16_t Manufacturer_Name;
+	uint16_t LMP_PAL_Subversion;
+}BLE_VERSION_INFO;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
@@ -37,6 +47,7 @@ void Run_BLE( void );
 BLE_STATES Get_BLE_State( void );
 SUPPORTED_COMMANDS* Get_Supported_Commands( void );
 SUPPORTED_FEATURES* Get_Supported_Features( void );
+BLE_VERSION_INFO* Get_Local_Version_Information( void );
 
 
 #endif /* BLE_STATES_H_ */

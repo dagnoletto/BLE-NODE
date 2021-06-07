@@ -28,7 +28,7 @@ typedef enum
 typedef struct
 {
 	uint8_t hash[3];
-	ResolveAddrCallBack CallBack;
+	StatusCallBack CallBack;
 }RESOLVE_ADDR_STRUCT;
 
 
@@ -232,7 +232,7 @@ uint8_t AES_128_Encrypt( SUPPORTED_COMMANDS* HCI_Sup_Cmd, uint8_t Key[16], uint8
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* PrivateAddress, IRK_TYPE* IRK, ResolveAddrCallBack CallBack )
+uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* PrivateAddress, IRK_TYPE* IRK, StatusCallBack CallBack )
 {
 	uint8_t* DataPtr;
 
@@ -261,57 +261,6 @@ uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* 
 	}
 
 	return (FALSE);
-}
-
-
-/****************************************************************/
-/* Resolve_Private_Address_CallBack()      						*/
-/* Location: 					 								*/
-/* Purpose: 													*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t status)
-{
-	uint8_t comparisonStatus = TRUE;
-
-	/* The most significant octet of the Encrypted_Data corresponds to
-	Encrypted_Data[0] using the notation specified in FIPS 197. */
-	if( status )
-	{
-		for( int8_t i = 0; i < sizeof(ResolveStruct.hash); i++ )
-		{
-			if( ResolveStruct.hash[i] != EncryptedData[ 15 - i ] )
-			{
-				comparisonStatus = FALSE;
-				break;
-			}
-		}
-	}else
-	{
-		comparisonStatus = FALSE;
-	}
-
-
-	if( ResolveStruct.CallBack != NULL )
-	{
-		ResolveStruct.CallBack(comparisonStatus);
-	}
-}
-
-
-/****************************************************************/
-/* Confirm_Local_Private_Addr()      							*/
-/* Location: 					 								*/
-/* Purpose: 													*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Confirm_Local_Private_Addr(uint8_t status)
-{
-	BD_Config = status ? END_ADDRESSES_CONFIG : GENERATE_RANDOM_NUMBER_PART_A;
 }
 
 
@@ -369,6 +318,20 @@ BD_ADDR_TYPE* Get_Private_Device_Address( uint8_t resolvable )
 IRK_TYPE* Get_Default_IRK( void )
 {
 	return ( &DEFAULT_IDENTITY_RESOLVING_KEY );
+}
+
+
+/****************************************************************/
+/* Clear_White_List()        									*/
+/* Location: 					 								*/
+/* Purpose: LE Clear White List.								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Clear_White_List( StatusCallBack CallBack )
+{
+//TODO: fazer
 }
 
 
@@ -439,32 +402,6 @@ static uint8_t Create_Private_Resolvable_Address( uint8_t prand[3] )
 
 
 /****************************************************************/
-/* Hash_CallBack_Function()        								*/
-/* Location: 					 								*/
-/* Purpose: 													*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Hash_CallBack_Function(uint8_t EncryptedData[16], uint8_t status)
-{
-	/* The most significant octet of the Encrypted_Data corresponds to
-	Encrypted_Data[0] using the notation specified in FIPS 197. */
-	if( status )
-	{
-		for( int8_t i = 0; i < sizeof(hash); i++ )
-		{
-			hash[i] = EncryptedData[ 15 - i ];
-		}
-		BD_Config = LOAD_RESOLVABLE_ADDRESS;
-	}else
-	{
-		BD_Config = REQUEST_HASH_CALC;
-	}
-}
-
-
-/****************************************************************/
 /* Check_Bit_Presence()        									*/
 /* Location: 					 								*/
 /* Purpose: Verify if the random part of an random address has	*/
@@ -510,6 +447,83 @@ static uint8_t Check_Bit_Presence( uint8_t Random_Part[], uint8_t Size_In_Bytes 
 	}
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Hash_CallBack_Function()        								*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Hash_CallBack_Function(uint8_t EncryptedData[16], uint8_t status)
+{
+	/* The most significant octet of the Encrypted_Data corresponds to
+	Encrypted_Data[0] using the notation specified in FIPS 197. */
+	if( status )
+	{
+		for( int8_t i = 0; i < sizeof(hash); i++ )
+		{
+			hash[i] = EncryptedData[ 15 - i ];
+		}
+		BD_Config = LOAD_RESOLVABLE_ADDRESS;
+	}else
+	{
+		BD_Config = REQUEST_HASH_CALC;
+	}
+}
+
+
+/****************************************************************/
+/* Resolve_Private_Address_CallBack()      						*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t status)
+{
+	uint8_t comparisonStatus = TRUE;
+
+	/* The most significant octet of the Encrypted_Data corresponds to
+	Encrypted_Data[0] using the notation specified in FIPS 197. */
+	if( status )
+	{
+		for( int8_t i = 0; i < sizeof(ResolveStruct.hash); i++ )
+		{
+			if( ResolveStruct.hash[i] != EncryptedData[ 15 - i ] )
+			{
+				comparisonStatus = FALSE;
+				break;
+			}
+		}
+	}else
+	{
+		comparisonStatus = FALSE;
+	}
+
+
+	if( ResolveStruct.CallBack != NULL )
+	{
+		ResolveStruct.CallBack(comparisonStatus);
+	}
+}
+
+
+/****************************************************************/
+/* Confirm_Local_Private_Addr()      							*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Confirm_Local_Private_Addr(uint8_t status)
+{
+	BD_Config = status ? END_ADDRESSES_CONFIG : GENERATE_RANDOM_NUMBER_PART_A;
 }
 
 

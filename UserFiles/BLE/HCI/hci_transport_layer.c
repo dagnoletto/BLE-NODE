@@ -18,6 +18,7 @@
 static void Set_Number_Of_HCI_Command_Packets( uint8_t Num_HCI_Cmd_Packets );
 static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
+static void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode );
 
 
 /****************************************************************/
@@ -36,6 +37,17 @@ static void Decrement_HCI_Command_Packets( void );
 /* Assumes the controller can handle at least one HCI Command
  * before the first Set_Number_Of_HCI_Command_Packets() is called */
 static uint8_t Num_HCI_Command_Packets = 1;
+
+
+/* Command callback (not all commands have callback). At least one
+ * callback per command is available. That means only one command
+ * type can be sent at any given time. That is generally ok, but
+ * if more than one command of the same type wants to be enqueued,
+ * the command callback must be modified to become and array */
+#define CMD_CALLBACK_NAME(OpcodeVal) OpcodeVal ## _CMD_CALLBACK
+
+
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CLEAR_WHITE_LIST) = { .Status = FALSE, .FunPtr = NULL };
 
 
 /****************************************************************/
@@ -116,7 +128,9 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		TRANSFER_CALL_BACK_MODE CallBackMode,
 		TransferCallBack CallBack)
 {
-	HCI_PACKET_TYPE PacketType = ( HCI_PACKET_TYPE )*( (uint8_t*)DataPtr );
+	FRAME_ENQUEUE_STATUS Status;
+	HCI_SERIAL_COMMAND_PCKT* CmdPacket = (HCI_SERIAL_COMMAND_PCKT*)( DataPtr ); /* Assume it is a command packet */
+	CMD_CALLBACK* CallBackPtr;
 
 	int8_t Ntries = 3;
 
@@ -127,23 +141,52 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 	TransferDesc.DataPtr = (uint8_t*)DataPtr;
 	TransferDesc.DataSize = DataSize;
 
-	if ( ( PacketType == HCI_COMMAND_PACKET ) && ( !Check_Command_Packets_Available() ) )
+	if ( CmdPacket->PacketType == HCI_COMMAND_PACKET )
 	{
-		return (FALSE);
+		if( !Check_Command_Packets_Available() )
+		{
+			return (FALSE);
+		}else
+		{
+			CallBackPtr = Get_Command_CallBack( CmdPacket->CmdPacket.OpCode );
+			if( CallBackPtr != NULL )
+			{
+				if( CallBackPtr->Status )
+				{
+					return (FALSE); /* This command was already loaded and is waiting for conclusion */
+				}
+			}
+		}
 	}
 
-	/* As the buffer could be blocked awaiting another operation, you should try some times. */
-	while( ( Bluenrg_Add_Frame( &TransferDesc, 7 ).EnqueuedAtIndex < 0 ) && ( Ntries > 0 ) )
+	do
 	{
+		/* As the buffer could be blocked awaiting another operation, you should try some times. */
+		Status = Bluenrg_Add_Frame( &TransferDesc, 7 );
 		Ntries--;
-	}
+	}while( ( Status.EnqueuedAtIndex < 0 ) &&  ( Ntries > 0 ) );
 
-	if( Ntries > 0 )
+
+	if( Status.EnqueuedAtIndex >= 0 )
 	{
-		if( PacketType == HCI_COMMAND_PACKET )
+		if( CmdPacket->PacketType == HCI_COMMAND_PACKET )
 		{
 			Decrement_HCI_Command_Packets(  );
+
+			if( CallBackPtr != NULL )
+			{
+				CallBackPtr->Status = TRUE;
+				CallBackPtr->FunPtr = NULL; //TODO
+			}
 		}
+
+		/* This is the first successfully enqueued write message, so, request transmission */
+		if( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) )
+		{
+			/* Request transmission */
+			Request_Frame();
+		}
+
 		return (TRUE);
 	}else
 	{
@@ -165,10 +208,11 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 {
 	/* TODO: talvez melhorar a decodificação usando vetores indexados (look-up tables)
 	 * lembre-se da linguagem P4. */
+
+	HCI_PACKET_TYPE PacketType = *DataPtr;
+
 	if( Status == TRANSFER_DONE )
 	{
-		HCI_PACKET_TYPE PacketType = *DataPtr;
-
 		switch( PacketType )
 		{
 		case HCI_ACL_DATA_PACKET: {
@@ -216,6 +260,16 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				OpCode.Val = ( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1];
 				uint8_t Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[0];
 				Set_Number_Of_HCI_Command_Packets( Num_HCI_Command_Packets );
+
+				CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
+				void* CmdCallBackFun = NULL; /* Function pointer */
+
+				if( CmdCallBack != NULL )
+				{
+					CmdCallBackFun = CmdCallBack->FunPtr;
+					CmdCallBack->Status = FALSE;
+					CmdCallBack->FunPtr = NULL;
+				}
 
 				switch( OpCode.Val )
 				{
@@ -427,6 +481,16 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
 				uint8_t Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[1];
 				Set_Number_Of_HCI_Command_Packets( Num_HCI_Command_Packets );
+
+				CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
+				void* CmdCallBackFun = NULL; /* Function pointer */
+
+				if( CmdCallBack != NULL )
+				{
+					CmdCallBackFun = CmdCallBack->FunPtr;
+					CmdCallBack->Status = FALSE;
+					CmdCallBack->FunPtr = NULL;
+				}
 
 				switch( OpCode.Val )
 				{
@@ -755,6 +819,60 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 		default: /* The controller shall not issue HCI_COMMAND_PACKET packet */
 			break;
 		}
+	}else if( PacketType == HCI_EVENT_PACKET )
+	{
+		HCI_EVENT_PCKT* EventPacketPtr = ( HCI_EVENT_PCKT* )( DataPtr + 1 );
+		HCI_COMMAND_OPCODE OpCode;
+
+		switch ( EventPacketPtr->Event_Code )
+		{
+		case COMMAND_COMPLETE:
+		case COMMAND_STATUS:
+			Clear_Command_CallBack( OpCode );
+			break;
+		}
+	}
+}
+
+
+/****************************************************************/
+/* Clear_Command_CallBack()                    		            */
+/* Purpose: Clear the command callback from the Opcode.			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode )
+{
+	CMD_CALLBACK* CallBackPtr = Get_Command_CallBack( OpCode );
+
+	if( CallBackPtr != NULL )
+	{
+		CallBackPtr->Status = FALSE;
+		CallBackPtr->FunPtr = NULL;
+	}
+}
+
+
+/****************************************************************/
+/* Get_Command_CallBack()                    		            */
+/* Purpose: Get the command callback pointer from the Opcode.	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+CMD_CALLBACK* Get_Command_CallBack( HCI_COMMAND_OPCODE OpCode )
+{
+	switch ( OpCode.Val )
+	{
+	case HCI_LE_CLEAR_WHITE_LIST:
+		return ( &CMD_CALLBACK_NAME(HCI_LE_CLEAR_WHITE_LIST) );
+		break;
+
+		/* Not all commands have callback */
+	default:
+		return (NULL);
+		break;
 	}
 }
 

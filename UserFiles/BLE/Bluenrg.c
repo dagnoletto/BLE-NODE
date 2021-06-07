@@ -118,7 +118,6 @@ inline static void Release_Frame(void) __attribute__((always_inline));
 static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* ManagerPtr);
 inline static CALLBACK_DESC* Search_For_Free_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
 inline static void Release_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
-static void Request_Frame(void);
 static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index);
 static uint8_t* Internal_malloc(TRANSFER_DESCRIPTOR* TransferDescPtr, uint16_t DataSize);
 static void Internal_free(TRANSFER_DESCRIPTOR* TransferDescPtr);
@@ -465,14 +464,6 @@ FRAME_ENQUEUE_STATUS Bluenrg_Add_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int
 		{
 			/* It was not possible to enqueue the frame, so dispose allocated memory  */
 			Internal_free( TransferDescPtr );
-		}else
-		{
-			/* This is the first successfully enqueued write message, so, request transmission */
-			if( ( Status.EnqueuedAtIndex == 0 ) && ( BufferManager.NumberOfFilledBuffers == 1 ) )
-			{
-				/* Request transmission */
-				Request_Frame();
-			}
 		}
 	}else
 	{
@@ -813,7 +804,7 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Request_Frame(void)
+void Request_Frame(void)
 {
 	static volatile uint8_t Acquire = 0;
 
