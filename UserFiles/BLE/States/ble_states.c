@@ -23,6 +23,7 @@ typedef enum
 	READ_BD_ADDRESS,
 	GENERATE_RANDOM_ADDRESS,
 	READ_LOCAL_VERSION,
+	CLEAR_WHITE_LIST,
 	CLEAR_TIMER,
 	WAIT_STATUS,
 	BLE_INIT_DONE
@@ -36,6 +37,8 @@ static uint8_t Reset_Controller( void );
 static uint8_t Vendor_Specific_Init( void );
 static uint8_t BLE_Init( void );
 static void Vendor_Specific_Init_CallBack( void* ConfigData );
+static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
+static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
 
 
 /****************************************************************/
@@ -230,7 +233,7 @@ static uint8_t BLE_Init( void )
 			Event_Mask.Bits.Read_Remote_Extended_Features_Complete_event = 1;
 			Event_Mask.Bits.LE_Meta_event = 1;
 
-			BLEInitSteps = HCI_Set_Event_Mask( Event_Mask ) ? CLEAR_TIMER : SET_EVENT_MASK;
+			BLEInitSteps = HCI_Set_Event_Mask( Event_Mask, &Set_Event_Mask_Complete, NULL ) ? CLEAR_TIMER : SET_EVENT_MASK;
 		}else
 		{
 			BLEInitSteps = SET_LE_EVENT_MASK;
@@ -314,6 +317,16 @@ static uint8_t BLE_Init( void )
 		}
 		break;
 
+	case CLEAR_WHITE_LIST:
+		if( HCI_Supported_Commands.Bits.HCI_LE_Clear_White_List )
+		{
+			BLEInitSteps = HCI_LE_Clear_White_List( &Clear_White_List_Complete, NULL ) ? CLEAR_TIMER: CLEAR_WHITE_LIST;
+		}else
+		{
+			BLEInitSteps = CLEAR_TIMER;
+		}
+		break;
+
 	case CLEAR_TIMER:
 		BLEInitSteps = WAIT_STATUS;
 		WaitCmdTimer = 0;
@@ -375,12 +388,26 @@ void HCI_Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status, 
 
 
 /****************************************************************/
-/* HCI_Set_Event_Mask_Complete()      							*/
+/* Clear_White_List_Complete()        							*/
+/* Location: 					 								*/
+/* Purpose: 													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status )
+static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? BLE_INIT_DONE : CLEAR_WHITE_LIST;
+}
+
+
+/****************************************************************/
+/* Set_Event_Mask_Complete()      								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? SET_LE_EVENT_MASK : SET_EVENT_MASK;
 }
@@ -525,7 +552,7 @@ void HCI_Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Status,
 		LocalInfo.Manufacturer_Name = Manufacturer_Name;
 		LocalInfo.LMP_PAL_Subversion = LMP_PAL_Subversion;
 
-		BLEInitSteps = BLE_INIT_DONE;
+		BLEInitSteps = CLEAR_WHITE_LIST;
 	}else
 	{
 		BLEInitSteps = READ_LOCAL_VERSION;

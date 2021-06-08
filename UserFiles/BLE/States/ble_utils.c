@@ -322,20 +322,6 @@ IRK_TYPE* Get_Default_IRK( void )
 
 
 /****************************************************************/
-/* Clear_White_List()        									*/
-/* Location: 					 								*/
-/* Purpose: LE Clear White List.								*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-uint8_t Clear_White_List( StatusCallBack CallBack )
-{
-//TODO: fazer
-}
-
-
-/****************************************************************/
 /* Create_Static_Address()        								*/
 /* Location: 					 								*/
 /* Purpose: create static random address.						*/
@@ -523,7 +509,7 @@ static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t 
 /****************************************************************/
 static void Confirm_Local_Private_Addr(uint8_t status)
 {
-	BD_Config = status ? END_ADDRESSES_CONFIG : GENERATE_RANDOM_NUMBER_PART_A;
+	BD_Config = status ? END_ADDRESSES_CONFIG : VERIFY_RESOLVABLE_ADDRESS;
 }
 
 

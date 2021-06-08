@@ -101,7 +101,8 @@ typedef struct
 typedef struct
 {
 	uint8_t Status; /* BUSY/FREE */
-	void* FunPtr; /* Function pointer */
+	void* CmdCompleteCallBack; /* Function pointer */
+	void* CmdStatusCallBack; /* Function pointer */
 }CMD_CALLBACK;
 
 
@@ -110,7 +111,7 @@ typedef struct
 /****************************************************************/
 uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		TRANSFER_CALL_BACK_MODE CallBackMode,
-		TransferCallBack CallBack);
+		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack);
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
 CMD_CALLBACK* Get_Command_CallBack( HCI_COMMAND_OPCODE OpCode );
 int8_t HCI_Get_Max_Transfer_Queue_Size(void);//TODO

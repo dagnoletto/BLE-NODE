@@ -31,6 +31,7 @@
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
+static const CMD_CALLBACK NullCmdCallBack = { .Status = FALSE, .CmdCompleteCallBack = NULL, .CmdStatusCallBack = NULL };
 
 
 /****************************************************************/
@@ -51,7 +52,7 @@ uint8_t ACI_Hal_Get_Fw_Build_Number( void )
 	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_GET_FW_BUILD_NUMBER;
 	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
 
 	return (Status);
 }
@@ -99,7 +100,7 @@ uint8_t ACI_Hal_Write_Config_Data( uint8_t Offset, uint8_t Length, uint8_t Value
 		PcktPtr->CmdPacket.Parameter[i + 2] = Value[i];
 	}
 
-	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
 
 	free( PcktPtr );
 
@@ -144,7 +145,7 @@ uint8_t ACI_Hal_Read_Config_Data( uint8_t Offset )
 	PcktPtr->CmdPacket.Parameter_Total_Length = 1;
 	PcktPtr->CmdPacket.Parameter[0] = Offset;
 
-	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
 
 	free( PcktPtr );
 
@@ -193,7 +194,7 @@ uint8_t ACI_Hal_Set_Tx_Power_Level( uint8_t EN_HIGH_POWER, uint8_t PA_LEVEL )
 		PcktPtr->CmdPacket.Parameter[0] = EN_HIGH_POWER;
 		PcktPtr->CmdPacket.Parameter[1] = PA_LEVEL;
 
-		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL );
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
 
 		free( PcktPtr );
 
@@ -242,7 +243,7 @@ uint8_t ACI_Hal_Device_Standby( void )
 	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_DEVICE_STANDBY;
 	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
 
 	return (Status);
 }
@@ -289,7 +290,7 @@ uint8_t ACI_Hal_LE_Tx_Test_Packet_Number( void )
 	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER;
 	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
 
 	return (Status);
 }
@@ -338,7 +339,7 @@ uint8_t ACI_Hal_Tone_Start( uint8_t ChannelID )
 		PcktPtr->CmdPacket.Parameter_Total_Length = 1;
 		PcktPtr->CmdPacket.Parameter[0] = ChannelID;
 
-		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL );
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
 
 		free( PcktPtr );
 
@@ -379,7 +380,7 @@ uint8_t ACI_Hal_Tone_Stop( void )
 	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_TONE_STOP;
 	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
 
 	return (Status);
 }
@@ -416,7 +417,7 @@ uint8_t ACI_Hal_Get_Link_Status( void )
 	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_GET_LINK_STATUS;
 	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
 
 	return (Status);
 }
@@ -455,7 +456,7 @@ uint8_t ACI_Hal_Get_Anchor_Period( void )
 	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_GET_ANCHOR_PERIOD;
 	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
 
 	return (Status);
 }

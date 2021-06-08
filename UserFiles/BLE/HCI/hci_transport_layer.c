@@ -47,7 +47,10 @@ static uint8_t Num_HCI_Command_Packets = 1;
 #define CMD_CALLBACK_NAME(OpcodeVal) OpcodeVal ## _CMD_CALLBACK
 
 
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CLEAR_WHITE_LIST) = { .Status = FALSE, .FunPtr = NULL };
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_DISCONNECT);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_REMOTE_VERSION_INFORMATION);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_SET_EVENT_MASK);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CLEAR_WHITE_LIST);
 
 
 /****************************************************************/
@@ -126,7 +129,7 @@ static void Decrement_HCI_Command_Packets( void )
 /****************************************************************/
 uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		TRANSFER_CALL_BACK_MODE CallBackMode,
-		TransferCallBack CallBack)
+		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack)
 {
 	FRAME_ENQUEUE_STATUS Status;
 	HCI_SERIAL_COMMAND_PCKT* CmdPacket = (HCI_SERIAL_COMMAND_PCKT*)( DataPtr ); /* Assume it is a command packet */
@@ -169,14 +172,15 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 
 	if( Status.EnqueuedAtIndex >= 0 )
 	{
-		if( CmdPacket->PacketType == HCI_COMMAND_PACKET )
+		if( CmdPacket->PacketType == HCI_COMMAND_PACKET ) //TODO: verificar como as que não tem opcode podem ser chamadas por aqui
 		{
 			Decrement_HCI_Command_Packets(  );
 
 			if( CallBackPtr != NULL )
 			{
 				CallBackPtr->Status = TRUE;
-				CallBackPtr->FunPtr = NULL; //TODO
+				CallBackPtr->CmdCompleteCallBack = CmdCallBack->CmdCompleteCallBack;
+				CallBackPtr->CmdStatusCallBack = CmdCallBack->CmdStatusCallBack;
 			}
 		}
 
@@ -266,15 +270,19 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				if( CmdCallBack != NULL )
 				{
-					CmdCallBackFun = CmdCallBack->FunPtr;
+					CmdCallBackFun = CmdCallBack->CmdCompleteCallBack;
 					CmdCallBack->Status = FALSE;
-					CmdCallBack->FunPtr = NULL;
+					CmdCallBack->CmdCompleteCallBack = NULL;
+					CmdCallBack->CmdStatusCallBack = NULL;
 				}
 
 				switch( OpCode.Val )
 				{
 				case HCI_SET_EVENT_MASK:
-					HCI_Set_Event_Mask_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_RESET:
@@ -364,7 +372,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					break;
 
 				case HCI_LE_CLEAR_WHITE_LIST:
-					HCI_LE_Clear_White_List_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_ADD_DEVICE_TO_WHITE_LIST:
@@ -483,27 +494,29 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				Set_Number_Of_HCI_Command_Packets( Num_HCI_Command_Packets );
 
 				CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
-				void* CmdCallBackFun = NULL; /* Function pointer */
-
-				if( CmdCallBack != NULL )
-				{
-					CmdCallBackFun = CmdCallBack->FunPtr;
-					CmdCallBack->Status = FALSE;
-					CmdCallBack->FunPtr = NULL;
-				}
+				void* CmdCallBackFun = ( CmdCallBack != NULL ) ? CmdCallBack->CmdStatusCallBack : NULL; /* Function pointer */
 
 				switch( OpCode.Val )
 				{
 				case HCI_DISCONNECT:
-					HCI_Disconnect_Status( EventPacketPtr->Event_Parameter[0] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
+					}
 					break;
 
 				case HCI_READ_REMOTE_VERSION_INFORMATION:
-					HCI_Read_Remote_Version_Information_Status( EventPacketPtr->Event_Parameter[0] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
+					}
 					break;
 
 				case HCI_SET_EVENT_MASK:
-					HCI_Set_Event_Mask_Status( EventPacketPtr->Event_Parameter[0] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
+					}
 					break;
 
 				case HCI_RESET:
@@ -591,7 +604,10 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					break;
 
 				case HCI_LE_CLEAR_WHITE_LIST:
-					HCI_LE_Clear_White_List_Status( EventPacketPtr->Event_Parameter[0] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
+					}
 					break;
 
 				case HCI_LE_ADD_DEVICE_TO_WHITE_LIST:
@@ -849,7 +865,8 @@ static void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode )
 	if( CallBackPtr != NULL )
 	{
 		CallBackPtr->Status = FALSE;
-		CallBackPtr->FunPtr = NULL;
+		CallBackPtr->CmdCompleteCallBack = NULL;
+		CallBackPtr->CmdStatusCallBack = NULL;
 	}
 }
 
@@ -865,14 +882,21 @@ CMD_CALLBACK* Get_Command_CallBack( HCI_COMMAND_OPCODE OpCode )
 {
 	switch ( OpCode.Val )
 	{
-	case HCI_LE_CLEAR_WHITE_LIST:
-		return ( &CMD_CALLBACK_NAME(HCI_LE_CLEAR_WHITE_LIST) );
-		break;
+	case HCI_DISCONNECT: return ( &CMD_CALLBACK_NAME(HCI_DISCONNECT) );
+	break;
 
-		/* Not all commands have callback */
-	default:
-		return (NULL);
-		break;
+	case HCI_READ_REMOTE_VERSION_INFORMATION: return ( &CMD_CALLBACK_NAME(HCI_READ_REMOTE_VERSION_INFORMATION) );
+	break;
+
+	case HCI_SET_EVENT_MASK: return ( &CMD_CALLBACK_NAME(HCI_SET_EVENT_MASK) );
+	break;
+
+	case HCI_LE_CLEAR_WHITE_LIST: return ( &CMD_CALLBACK_NAME(HCI_LE_CLEAR_WHITE_LIST) );
+	break;
+
+	/* Not all commands have callback */
+	default: return (NULL);
+	break;
 	}
 }
 

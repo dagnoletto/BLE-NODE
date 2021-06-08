@@ -1111,19 +1111,19 @@ typedef enum /* Return codes for function calls */
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+typedef void (*DefCmdComplete)( CONTROLLER_ERROR_CODES Status ); /* Default Command Complete CallBack */
+typedef void (*DefCmdStatus)( CONTROLLER_ERROR_CODES Status );	 /* Default Command Status CallBack */
+
+
 /*----------------------- COMMANDS AND THEIR EVENTS ------------------------------*/
-uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
-void 	HCI_Disconnect_Status( CONTROLLER_ERROR_CODES Status );
+uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason, DefCmdStatus StatusCallBack );
 void	HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
 
-uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle );
-void 	HCI_Read_Remote_Version_Information_Status( CONTROLLER_ERROR_CODES Status );
+uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle, DefCmdStatus StatusCallBack );
 void 	HCI_Read_Remote_Version_Information_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, HCI_VERSION Version,
 		uint16_t Manufacturer_Name, uint16_t Subversion );
 
-uint8_t HCI_Set_Event_Mask( EVENT_MASK Event_Mask );
-void 	HCI_Set_Event_Mask_Status( CONTROLLER_ERROR_CODES Status );
-void 	HCI_Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
+uint8_t HCI_Set_Event_Mask( EVENT_MASK Event_Mask, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
 uint8_t HCI_Read_Transmit_Power_Level( uint16_t Connection_Handle, uint8_t Type );
 void 	HCI_Read_Transmit_Power_Level_Status( CONTROLLER_ERROR_CODES Status );
@@ -1221,9 +1221,7 @@ uint8_t HCI_LE_Read_White_List_Size( void );
 void 	HCI_LE_Read_White_List_Size_Status( CONTROLLER_ERROR_CODES Status );
 void 	HCI_LE_Read_White_List_Size_Complete( CONTROLLER_ERROR_CODES Status, uint8_t White_List_Size );
 
-uint8_t HCI_LE_Clear_White_List( void );
-void 	HCI_LE_Clear_White_List_Status( CONTROLLER_ERROR_CODES Status );
-void 	HCI_LE_Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
+uint8_t HCI_LE_Clear_White_List( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
 uint8_t HCI_LE_Add_Device_To_White_List( uint8_t Address_Type, BD_ADDR_TYPE Address );
 void 	HCI_LE_Add_Device_To_White_List_Status( CONTROLLER_ERROR_CODES Status );
