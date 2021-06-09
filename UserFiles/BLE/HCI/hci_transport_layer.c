@@ -19,6 +19,20 @@ static void Set_Number_Of_HCI_Command_Packets( uint8_t Num_HCI_Cmd_Packets );
 static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
 static void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode );
+static void Command_Complete_Handler( DefCmdComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void Read_Transmit_Power_Level_Complete( TxPwrLvlComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void Read_Local_Version_Information_Complete( ReadLocalVerInfoComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void Read_Local_Supported_Commands_Complete( ReadLocalSupCmdsComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void Read_Local_Supported_Features_Complete( ReadLocalSupFeaturesComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void Read_BD_ADDR_Complete( ReadBDADDRComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void Read_RSSI_Complete( ReadRSSIComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void LE_Read_Buffer_Size_Complete( LEReadBufferSizeComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void LE_Read_Local_Supported_Features_Complete( LEReadLocalSuppFeaturesComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( LEReadAdvPhyChannelTxPowerComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void LE_Read_White_List_Size_Complete( LEReadWhiteListSizeComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void LE_Read_Channel_Map_Complete( LEReadChannelMapComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void LE_Encrypt_Complete( LEEncryptComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] );
+static void Command_Status_Handler( uint8_t Event_Parameter[] );
 
 
 /****************************************************************/
@@ -45,58 +59,59 @@ static uint8_t Num_HCI_Command_Packets = 1;
  * if more than one command of the same type wants to be enqueued,
  * the command callback must be modified to become and array */
 #define CMD_CALLBACK_NAME(OpcodeVal) OpcodeVal ## _CMD_CALLBACK
+#define CMD_CALLBACK_NAME_HANDLER(OpcodeVal, handler) OpcodeVal ## _CMD_CALLBACK = { .CmdCompleteHandler = handler }
 
 
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_DISCONNECT);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_REMOTE_VERSION_INFORMATION);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_SET_EVENT_MASK);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CLEAR_WHITE_LIST);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_TRANSMIT_POWER_LEVEL);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_RESET);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_LOCAL_VERSION_INFORMATION);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_LOCAL_SUPPORTED_COMMANDS);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_LOCAL_SUPPORTED_FEATURES);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_BD_ADDR);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_RSSI);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_EVENT_MASK);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_BUFFER_SIZE);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_LOCAL_SUPPORTED_FEATURES);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_RANDOM_ADDRESS);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_ADVERTISING_PARAMETERS);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_ADVERTISING_DATA);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_SCAN_RESPONSE_DATA);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_ADVERTISING_ENABLE);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_SCAN_PARAMETERS);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_SCAN_ENABLE);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CREATE_CONNECTION);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CREATE_CONNECTION_CANCEL);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_WHITE_LIST_SIZE);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_ADD_DEVICE_TO_WHITE_LIST);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CONNECTION_UPDATE);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_CHANNEL_MAP);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_REMOTE_FEATURES);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_ENCRYPT);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_RAND);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_ENABLE_ENCRYPTION);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_LONG_TERM_KEY_REQUEST_REPLY);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_SUPPORTED_STATES);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_RECEIVER_TEST_V1);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_TRANSMITTER_TEST_V1);
-static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_TEST_END);
-static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_GET_FW_BUILD_NUMBER);
-static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_WRITE_CONFIG_DATA);
-static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_READ_CONFIG_DATA);
-static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_SET_TX_POWER_LEVEL);
-static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_DEVICE_STANDBY);
-static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER);
-static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_TONE_START);
-static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_TONE_STOP);
-static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_GET_LINK_STATUS);
-static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_GET_ANCHOR_PERIOD);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_DISCONNECT, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_READ_REMOTE_VERSION_INFORMATION, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_SET_EVENT_MASK, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_CLEAR_WHITE_LIST, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_READ_TRANSMIT_POWER_LEVEL, &Read_Transmit_Power_Level_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_RESET, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_READ_LOCAL_VERSION_INFORMATION, &Read_Local_Version_Information_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_READ_LOCAL_SUPPORTED_COMMANDS, &Read_Local_Supported_Commands_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_READ_LOCAL_SUPPORTED_FEATURES, &Read_Local_Supported_Features_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_READ_BD_ADDR, &Read_BD_ADDR_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_READ_RSSI, &Read_RSSI_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_SET_EVENT_MASK, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_READ_BUFFER_SIZE, &LE_Read_Buffer_Size_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_READ_LOCAL_SUPPORTED_FEATURES, &LE_Read_Local_Supported_Features_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_SET_RANDOM_ADDRESS, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_SET_ADVERTISING_PARAMETERS, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER, &LE_Read_Advertising_Physical_Channel_Tx_Power_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_SET_ADVERTISING_DATA, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_SET_SCAN_RESPONSE_DATA, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_SET_ADVERTISING_ENABLE, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_SET_SCAN_PARAMETERS, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_SET_SCAN_ENABLE, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_CREATE_CONNECTION, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_CREATE_CONNECTION_CANCEL, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_READ_WHITE_LIST_SIZE, &LE_Read_White_List_Size_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_ADD_DEVICE_TO_WHITE_LIST, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_CONNECTION_UPDATE, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_READ_CHANNEL_MAP, &LE_Read_Channel_Map_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_READ_REMOTE_FEATURES, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_ENCRYPT, &LE_Encrypt_Complete);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_RAND, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_ENABLE_ENCRYPTION, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_LONG_TERM_KEY_REQUEST_REPLY, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_READ_SUPPORTED_STATES, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_RECEIVER_TEST_V1, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_TRANSMITTER_TEST_V1, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(HCI_LE_TEST_END, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(VS_ACI_HAL_GET_FW_BUILD_NUMBER, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(VS_ACI_HAL_WRITE_CONFIG_DATA, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(VS_ACI_HAL_READ_CONFIG_DATA, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(VS_ACI_HAL_SET_TX_POWER_LEVEL, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(VS_ACI_HAL_DEVICE_STANDBY, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(VS_ACI_HAL_TONE_START, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(VS_ACI_HAL_TONE_STOP, &Command_Complete_Handler);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(VS_ACI_HAL_GET_LINK_STATUS, NULL);
+static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(VS_ACI_HAL_GET_ANCHOR_PERIOD, NULL);
 
 
 /****************************************************************/
@@ -324,200 +339,200 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 				switch( OpCode.Val )
 				{
-				case HCI_SET_EVENT_MASK:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_SET_EVENT_MASK:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_RESET:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_RESET:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_READ_TRANSMIT_POWER_LEVEL:
-					if( CmdCallBackFun != NULL )
-					{
-						( (TxPwrLvlComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
-								EventPacketPtr->Event_Parameter[6] );
-					}
-					break;
+				//				case HCI_READ_TRANSMIT_POWER_LEVEL:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (TxPwrLvlComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
+				//								EventPacketPtr->Event_Parameter[6] );
+				//					}
+				//					break;
 
-				case HCI_READ_LOCAL_VERSION_INFORMATION:
-					if( CmdCallBackFun != NULL )
-					{
-						( (ReadLocalVerInfoComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4],
-								( EventPacketPtr->Event_Parameter[6]  << 8 ) | EventPacketPtr->Event_Parameter[5], EventPacketPtr->Event_Parameter[7],
-								( EventPacketPtr->Event_Parameter[9]  << 8 ) | EventPacketPtr->Event_Parameter[8],
-								( EventPacketPtr->Event_Parameter[11] << 8 ) | EventPacketPtr->Event_Parameter[10] );
-					}
-					break;
+				//				case HCI_READ_LOCAL_VERSION_INFORMATION:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (ReadLocalVerInfoComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4],
+				//								( EventPacketPtr->Event_Parameter[6]  << 8 ) | EventPacketPtr->Event_Parameter[5], EventPacketPtr->Event_Parameter[7],
+				//								( EventPacketPtr->Event_Parameter[9]  << 8 ) | EventPacketPtr->Event_Parameter[8],
+				//								( EventPacketPtr->Event_Parameter[11] << 8 ) | EventPacketPtr->Event_Parameter[10] );
+				//					}
+				//					break;
 
-				case HCI_READ_LOCAL_SUPPORTED_COMMANDS:
-					if( CmdCallBackFun != NULL )
-					{
-						( (ReadLocalSupCmdsComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (SUPPORTED_COMMANDS*)( &(EventPacketPtr->Event_Parameter[4]) ) );
-					}
-					break;
+				//				case HCI_READ_LOCAL_SUPPORTED_COMMANDS:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (ReadLocalSupCmdsComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (SUPPORTED_COMMANDS*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+				//					}
+				//					break;
 
-				case HCI_READ_LOCAL_SUPPORTED_FEATURES:
-					if( CmdCallBackFun != NULL )
-					{
-						( (ReadLocalSupFeaturesComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
-					}
-					break;
+				//				case HCI_READ_LOCAL_SUPPORTED_FEATURES:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (ReadLocalSupFeaturesComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+				//					}
+				//					break;
 
-				case HCI_READ_BD_ADDR:
-					if( CmdCallBackFun != NULL )
-					{
-						( (ReadBDADDRComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[4])) );
-					}
-					break;
+				//				case HCI_READ_BD_ADDR:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (ReadBDADDRComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[4])) );
+				//					}
+				//					break;
 
-				case HCI_READ_RSSI:
-					if( CmdCallBackFun != NULL )
-					{
-						( (ReadRSSIComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
-								EventPacketPtr->Event_Parameter[6] );
-					}
-					break;
+				//				case HCI_READ_RSSI:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (ReadRSSIComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
+				//								EventPacketPtr->Event_Parameter[6] );
+				//					}
+				//					break;
 
-				case HCI_LE_SET_EVENT_MASK:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_SET_EVENT_MASK:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_READ_BUFFER_SIZE:
-					if( CmdCallBackFun != NULL )
-					{
-						( (LEReadBufferSizeComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
-								EventPacketPtr->Event_Parameter[6] );
-					}
-					break;
+				//				case HCI_LE_READ_BUFFER_SIZE:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (LEReadBufferSizeComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
+				//								EventPacketPtr->Event_Parameter[6] );
+				//					}
+				//					break;
 
-				case HCI_LE_READ_LOCAL_SUPPORTED_FEATURES:
-					if( CmdCallBackFun != NULL )
-					{
-						( (LEReadLocalSuppFeaturesComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (LE_SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
-					}
-					break;
+				//				case HCI_LE_READ_LOCAL_SUPPORTED_FEATURES:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (LEReadLocalSuppFeaturesComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (LE_SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+				//					}
+				//					break;
 
-				case HCI_LE_SET_RANDOM_ADDRESS:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_SET_RANDOM_ADDRESS:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_SET_ADVERTISING_PARAMETERS:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_SET_ADVERTISING_PARAMETERS:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER:
-					if( CmdCallBackFun != NULL )
-					{
-						( (LEReadAdvPhyChannelTxPowerComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4] );
-					}
-					break;
+				//				case HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (LEReadAdvPhyChannelTxPowerComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4] );
+				//					}
+				//					break;
 
-				case HCI_LE_SET_ADVERTISING_DATA:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_SET_ADVERTISING_DATA:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_SET_SCAN_RESPONSE_DATA:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_SET_SCAN_RESPONSE_DATA:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_SET_ADVERTISING_ENABLE:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_SET_ADVERTISING_ENABLE:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_SET_SCAN_PARAMETERS:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_SET_SCAN_PARAMETERS:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_SET_SCAN_ENABLE:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_SET_SCAN_ENABLE:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_CREATE_CONNECTION_CANCEL:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_CREATE_CONNECTION_CANCEL:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_READ_WHITE_LIST_SIZE:
-					if( CmdCallBackFun != NULL )
-					{
-						( (LEReadWhiteListSizeComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4] );
-					}
-					break;
+				//				case HCI_LE_READ_WHITE_LIST_SIZE:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (LEReadWhiteListSizeComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4] );
+				//					}
+				//					break;
 
-				case HCI_LE_CLEAR_WHITE_LIST:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_CLEAR_WHITE_LIST:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_ADD_DEVICE_TO_WHITE_LIST:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_ADD_DEVICE_TO_WHITE_LIST:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+				//				case HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+				//					}
+				//					break;
 
-				case HCI_LE_READ_CHANNEL_MAP:
-					if( CmdCallBackFun != NULL )
-					{
-						( ( LEReadChannelMapComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4], (CHANNEL_MAP*)(&(EventPacketPtr->Event_Parameter[6])) );
-					}
-					break;
+				//				case HCI_LE_READ_CHANNEL_MAP:
+				//					if( CmdCallBackFun != NULL )
+				//					{
+				//						( ( LEReadChannelMapComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4], (CHANNEL_MAP*)(&(EventPacketPtr->Event_Parameter[6])) );
+				//					}
+				//					break;
 
-				case HCI_LE_ENCRYPT:
-					if( CmdCallBackFun != NULL )
-					{
-						( (LEEncryptComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]) );
-					}
-					break;
+//				case HCI_LE_ENCRYPT:
+//					if( CmdCallBackFun != NULL )
+//					{
+//						( (LEEncryptComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]) );
+//					}
+//					break;
 
 				case HCI_LE_RAND:
 					if( CmdCallBackFun != NULL )
@@ -547,26 +562,26 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					}
 					break;
 
-				case HCI_LE_RECEIVER_TEST_V1:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+					//				case HCI_LE_RECEIVER_TEST_V1:
+					//					if( CmdCallBackFun != NULL )
+					//					{
+					//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					//					}
+					//					break;
 
-				case HCI_LE_TRANSMITTER_TEST_V1:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+					//				case HCI_LE_TRANSMITTER_TEST_V1:
+					//					if( CmdCallBackFun != NULL )
+					//					{
+					//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					//					}
+					//					break;
 
-				case HCI_LE_TEST_END:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+					//				case HCI_LE_TEST_END:
+					//					if( CmdCallBackFun != NULL )
+					//					{
+					//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					//					}
+					//					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
 					if( CmdCallBackFun != NULL )
@@ -575,12 +590,12 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					}
 					break;
 
-				case VS_ACI_HAL_WRITE_CONFIG_DATA:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+					//				case VS_ACI_HAL_WRITE_CONFIG_DATA:
+					//					if( CmdCallBackFun != NULL )
+					//					{
+					//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					//					}
+					//					break;
 
 				case VS_ACI_HAL_READ_CONFIG_DATA:
 					if( CmdCallBackFun != NULL )
@@ -589,19 +604,19 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					}
 					break;
 
-				case VS_ACI_HAL_SET_TX_POWER_LEVEL:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+					//				case VS_ACI_HAL_SET_TX_POWER_LEVEL:
+					//					if( CmdCallBackFun != NULL )
+					//					{
+					//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					//					}
+					//					break;
 
-				case VS_ACI_HAL_DEVICE_STANDBY:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+					//				case VS_ACI_HAL_DEVICE_STANDBY:
+					//					if( CmdCallBackFun != NULL )
+					//					{
+					//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					//					}
+					//					break;
 
 				case VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER:
 					if( CmdCallBackFun != NULL )
@@ -612,19 +627,19 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					}
 					break;
 
-				case VS_ACI_HAL_TONE_START:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+					//				case VS_ACI_HAL_TONE_START:
+					//					if( CmdCallBackFun != NULL )
+					//					{
+					//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					//					}
+					//					break;
 
-				case VS_ACI_HAL_TONE_STOP:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
-					}
-					break;
+					//				case VS_ACI_HAL_TONE_STOP:
+					//					if( CmdCallBackFun != NULL )
+					//					{
+					//						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					//					}
+					//					break;
 
 				case VS_ACI_HAL_GET_LINK_STATUS:
 					if( CmdCallBackFun != NULL )
@@ -657,27 +672,11 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 
 			/*---------- COMMAND_STATUS_EVT --------------*//* Page 2310 Core_v5.2 */
-			case COMMAND_STATUS: {
-				uint8_t Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[1];
-				Set_Number_Of_HCI_Command_Packets( Num_HCI_Command_Packets );
+			case COMMAND_STATUS:
+				Command_Status_Handler( (uint8_t*)( &EventPacketPtr->Event_Parameter[0] ) );
+				break;
 
-				OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
-				CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
-
-				CONTROLLER_ERROR_CODES Status = EventPacketPtr->Event_Parameter[0];
-				void* CmdCallBackFun = ( CmdCallBack != NULL ) ? CmdCallBack->CmdStatusCallBack : NULL; /* Function pointer */
-
-				if( CmdCallBackFun != NULL )
-				{
-					( (DefCmdStatus)CmdCallBackFun )( Status );
-				}else
-				{
-					HCI_Command_Status( Status, Num_HCI_Command_Packets, OpCode );
-				}
-			}
-			break;
-
-			/*---------- HARDWARE_ERROR_EVT ------------*//* Page 2312 Core_v5.2 */
+				/*---------- HARDWARE_ERROR_EVT ------------*//* Page 2312 Core_v5.2 */
 			case HARDWARE_ERROR:
 				HCI_Hardware_Error( EventPacketPtr->Event_Parameter[0] );
 				break;
@@ -808,6 +807,288 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			Clear_Command_CallBack( OpCode );
 			break;
 		}
+	}
+}
+
+
+/****************************************************************/
+/* Command_Complete_Handler()       	           		        */
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Command_Complete_Handler( DefCmdComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3] );
+	}else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* Read_Transmit_Power_Level_Complete()            		        */
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Read_Transmit_Power_Level_Complete( TxPwrLvlComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], ( Event_Parameter[5] << 8 ) | Event_Parameter[4], Event_Parameter[6] );
+	}else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* Read_Local_Version_Information_Complete()       		        */
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Read_Local_Version_Information_Complete( ReadLocalVerInfoComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], Event_Parameter[4],
+				( Event_Parameter[6]  << 8 ) | Event_Parameter[5], Event_Parameter[7],
+				( Event_Parameter[9]  << 8 ) | Event_Parameter[8],
+				( Event_Parameter[11] << 8 ) | Event_Parameter[10] );
+	}else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* Read_Local_Supported_Commands_Complete()       		        */
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Read_Local_Supported_Commands_Complete( ReadLocalSupCmdsComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], (SUPPORTED_COMMANDS*)( &Event_Parameter[4] ) );
+	}else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* Read_Local_Supported_Features_Complete()   		 		    */
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Read_Local_Supported_Features_Complete( ReadLocalSupFeaturesComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], (SUPPORTED_FEATURES*)( &Event_Parameter[4] ) );
+	}else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* Read_BD_ADDR_Complete()   		 		   					*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Read_BD_ADDR_Complete( ReadBDADDRComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], (BD_ADDR_TYPE*)(&Event_Parameter[4]) );
+	}else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* Read_RSSI_Complete()   		 		   						*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Read_RSSI_Complete( ReadRSSIComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], ( Event_Parameter[5] << 8 ) | Event_Parameter[4], Event_Parameter[6] );
+	}else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* LE_Read_Buffer_Size_Complete()   	   						*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Read_Buffer_Size_Complete( LEReadBufferSizeComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], ( Event_Parameter[5] << 8 ) | Event_Parameter[4], Event_Parameter[6] );
+	}else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* LE_Read_Local_Supported_Features_Complete()  				*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Read_Local_Supported_Features_Complete( LEReadLocalSuppFeaturesComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], (LE_SUPPORTED_FEATURES*)( &Event_Parameter[4] ) );
+	}else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* LE_Read_Advertising_Physical_Channel_Tx_Power_Complete()  	*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( LEReadAdvPhyChannelTxPowerComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], Event_Parameter[4] );
+	}
+	else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* LE_Read_White_List_Size_Complete()  							*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Read_White_List_Size_Complete( LEReadWhiteListSizeComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], Event_Parameter[4] );
+	}
+	else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* LE_Read_Channel_Map_Complete()  								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Read_Channel_Map_Complete( LEReadChannelMapComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], ( Event_Parameter[5] << 8 ) | Event_Parameter[4], (CHANNEL_MAP*)(&Event_Parameter[6]) );
+	}
+	else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* LE_Encrypt_Complete()  										*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Encrypt_Complete( LEEncryptComplete CmdCallBackFun, HCI_COMMAND_OPCODE OpCode, uint8_t Event_Parameter[] )
+{
+	if( CmdCallBackFun != NULL )
+	{
+		CmdCallBackFun( Event_Parameter[3], &Event_Parameter[4] );
+	}
+	else
+	{
+		HCI_Command_Complete( Event_Parameter[0], OpCode, &( Event_Parameter[3] ) );
+	}
+}
+
+
+/****************************************************************/
+/* Command_Status_Handler()       	             		        */
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Command_Status_Handler( uint8_t Event_Parameter[] )
+{
+	HCI_COMMAND_OPCODE OpCode;
+
+	Set_Number_Of_HCI_Command_Packets( Event_Parameter[1] );
+
+	OpCode.Val = ( Event_Parameter[3] << 8 ) | Event_Parameter[2];
+	CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
+
+	void* CmdCallBackFun = ( CmdCallBack != NULL ) ? CmdCallBack->CmdStatusCallBack : NULL; /* Function pointer */
+
+	if( CmdCallBackFun != NULL )
+	{
+		( (DefCmdStatus)CmdCallBackFun )( Event_Parameter[0] );
+	}else
+	{
+		HCI_Command_Status( Event_Parameter[0], Event_Parameter[1], OpCode );
 	}
 }
 
