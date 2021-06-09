@@ -54,6 +54,8 @@ static uint8_t Check_Config_Request( uint8_t Offset, uint8_t* DataPtr, uint16_t 
 static CONFIG_JOBS* All_Job_List( CONFIG_DATA* ConfigData );
 static CONFIG_JOBS* Single_Job_List( uint8_t Offset, uint8_t* DataPtr, uint16_t DataSize );
 static void Default_VS_Config_CallBack(void* Data);
+static void Hal_Write_Config_Data_Event( CONTROLLER_ERROR_CODES Status );
+static void Hal_Read_Config_Data_Event( CONTROLLER_ERROR_CODES Status, uint8_t* DataPtr, uint8_t DataSize );
 
 
 /****************************************************************/
@@ -202,14 +204,16 @@ void Vendor_Specific_Process( void )
 	case CONFIG_READ:
 		JobIndex = Config.Jobs->NumberOfJobs - 1;
 		ConfigTimeoutCounter = 0;
-		Config.Step = ACI_Hal_Read_Config_Data( Config.Jobs->JobList[JobIndex].Offset ) ? CONFIG_WAIT : CONFIG_FAILURE;
+		Config.Step = ACI_Hal_Read_Config_Data( Config.Jobs->JobList[JobIndex].Offset,
+				&Hal_Read_Config_Data_Event, NULL ) ? CONFIG_WAIT : CONFIG_FAILURE;
 		break;
 
 	case CONFIG_WRITE:
 		JobIndex = Config.Jobs->NumberOfJobs - 1;
 		ConfigTimeoutCounter = 0;
 		Config.Step = ACI_Hal_Write_Config_Data( Config.Jobs->JobList[JobIndex].Offset,
-				Config.Jobs->JobList[JobIndex].DataSize, Config.Jobs->JobList[JobIndex].DataPtr ) ? CONFIG_WAIT : CONFIG_FAILURE;
+				Config.Jobs->JobList[JobIndex].DataSize, Config.Jobs->JobList[JobIndex].DataPtr,
+				&Hal_Write_Config_Data_Event, NULL ) ? CONFIG_WAIT : CONFIG_FAILURE;
 		break;
 
 	case CONFIG_WAIT:
@@ -332,17 +336,17 @@ static CONFIG_JOBS* Single_Job_List( uint8_t Offset, uint8_t* DataPtr, uint16_t 
 
 
 /****************************************************************/
-/* ACI_Hal_Read_Config_Data_Event()               		      	*/
+/* Hal_Read_Config_Data_Event()         	      		      	*/
 /* Purpose: Vendor Specific Event 								*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void ACI_Hal_Read_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint8_t* DataPtr, uint8_t DataSize )
+static void Hal_Read_Config_Data_Event( CONTROLLER_ERROR_CODES Status, uint8_t* DataPtr, uint8_t DataSize )
 {
 	if ( ( Config.Step == CONFIG_WAIT ) && ( Config.RqtType == CONFIG_READ ) )
 	{
-		if( ( Event == COMMAND_COMPLETE ) && ( ErrorCode == COMMAND_SUCCESS ) )
+		if( Status == COMMAND_SUCCESS )
 		{
 			int8_t Index = Config.Jobs->NumberOfJobs - 1;
 			if( DataSize == Config.Jobs->JobList[Index].DataSize )
@@ -362,17 +366,17 @@ void ACI_Hal_Read_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES Er
 
 
 /****************************************************************/
-/* ACI_Hal_Write_Config_Data_Event()               		      	*/
+/* Hal_Write_Config_Data_Event()               			      	*/
 /* Purpose: Vendor Specific Event 								*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void ACI_Hal_Write_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
+static void Hal_Write_Config_Data_Event( CONTROLLER_ERROR_CODES Status )
 {
 	if ( ( Config.Step == CONFIG_WAIT ) && ( Config.RqtType == CONFIG_WRITE ) )
 	{
-		if( ( Event == COMMAND_COMPLETE ) && ( ErrorCode == COMMAND_SUCCESS ) )
+		if( Status == COMMAND_SUCCESS )
 		{
 			Config.Step = CONFIG_SUCCESS;
 

@@ -51,6 +51,52 @@ static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_DISCONNECT);
 static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_REMOTE_VERSION_INFORMATION);
 static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_SET_EVENT_MASK);
 static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CLEAR_WHITE_LIST);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_TRANSMIT_POWER_LEVEL);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_RESET);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_LOCAL_VERSION_INFORMATION);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_LOCAL_SUPPORTED_COMMANDS);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_LOCAL_SUPPORTED_FEATURES);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_BD_ADDR);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_READ_RSSI);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_EVENT_MASK);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_BUFFER_SIZE);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_LOCAL_SUPPORTED_FEATURES);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_RANDOM_ADDRESS);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_ADVERTISING_PARAMETERS);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_ADVERTISING_DATA);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_SCAN_RESPONSE_DATA);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_ADVERTISING_ENABLE);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_SCAN_PARAMETERS);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_SCAN_ENABLE);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CREATE_CONNECTION);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CREATE_CONNECTION_CANCEL);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_WHITE_LIST_SIZE);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_ADD_DEVICE_TO_WHITE_LIST);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_CONNECTION_UPDATE);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_CHANNEL_MAP);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_REMOTE_FEATURES);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_ENCRYPT);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_RAND);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_ENABLE_ENCRYPTION);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_LONG_TERM_KEY_REQUEST_REPLY);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_READ_SUPPORTED_STATES);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_RECEIVER_TEST_V1);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_TRANSMITTER_TEST_V1);
+static CMD_CALLBACK CMD_CALLBACK_NAME(HCI_LE_TEST_END);
+static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_GET_FW_BUILD_NUMBER);
+static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_WRITE_CONFIG_DATA);
+static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_READ_CONFIG_DATA);
+static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_SET_TX_POWER_LEVEL);
+static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_DEVICE_STANDBY);
+static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER);
+static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_TONE_START);
+static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_TONE_STOP);
+static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_GET_LINK_STATUS);
+static CMD_CALLBACK CMD_CALLBACK_NAME(VS_ACI_HAL_GET_ANCHOR_PERIOD);
 
 
 /****************************************************************/
@@ -286,89 +332,149 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					break;
 
 				case HCI_RESET:
-					HCI_Reset_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_READ_TRANSMIT_POWER_LEVEL:
-					HCI_Read_Transmit_Power_Level_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
-							EventPacketPtr->Event_Parameter[6] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (TxPwrLvlComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
+								EventPacketPtr->Event_Parameter[6] );
+					}
 					break;
 
 				case HCI_READ_LOCAL_VERSION_INFORMATION:
-					HCI_Read_Local_Version_Information_Complete( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4],
-							( EventPacketPtr->Event_Parameter[6]  << 8 ) | EventPacketPtr->Event_Parameter[5], EventPacketPtr->Event_Parameter[7],
-							( EventPacketPtr->Event_Parameter[9]  << 8 ) | EventPacketPtr->Event_Parameter[8],
-							( EventPacketPtr->Event_Parameter[11] << 8 ) | EventPacketPtr->Event_Parameter[10] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (ReadLocalVerInfoComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4],
+								( EventPacketPtr->Event_Parameter[6]  << 8 ) | EventPacketPtr->Event_Parameter[5], EventPacketPtr->Event_Parameter[7],
+								( EventPacketPtr->Event_Parameter[9]  << 8 ) | EventPacketPtr->Event_Parameter[8],
+								( EventPacketPtr->Event_Parameter[11] << 8 ) | EventPacketPtr->Event_Parameter[10] );
+					}
 					break;
 
 				case HCI_READ_LOCAL_SUPPORTED_COMMANDS:
-					HCI_Read_Local_Supported_Commands_Complete( EventPacketPtr->Event_Parameter[3], (SUPPORTED_COMMANDS*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+					if( CmdCallBackFun != NULL )
+					{
+						( (ReadLocalSupCmdsComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (SUPPORTED_COMMANDS*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+					}
 					break;
 
 				case HCI_READ_LOCAL_SUPPORTED_FEATURES:
-					HCI_Read_Local_Supported_Features_Complete( EventPacketPtr->Event_Parameter[3], (SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+					if( CmdCallBackFun != NULL )
+					{
+						( (ReadLocalSupFeaturesComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+					}
 					break;
 
 				case HCI_READ_BD_ADDR:
-					HCI_Read_BD_ADDR_Complete( EventPacketPtr->Event_Parameter[3], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[4])) );
+					if( CmdCallBackFun != NULL )
+					{
+						( (ReadBDADDRComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[4])) );
+					}
 					break;
 
 				case HCI_READ_RSSI:
-					HCI_Read_RSSI_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
-							EventPacketPtr->Event_Parameter[6] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (ReadRSSIComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
+								EventPacketPtr->Event_Parameter[6] );
+					}
 					break;
 
 				case HCI_LE_SET_EVENT_MASK:
-					HCI_LE_Set_Event_Mask_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_READ_BUFFER_SIZE:
-					HCI_LE_Read_Buffer_Size_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
-							EventPacketPtr->Event_Parameter[6] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (LEReadBufferSizeComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
+								EventPacketPtr->Event_Parameter[6] );
+					}
 					break;
 
 				case HCI_LE_READ_LOCAL_SUPPORTED_FEATURES:
-					HCI_LE_Read_Local_Supported_Features_Complete( EventPacketPtr->Event_Parameter[3], (LE_SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+					if( CmdCallBackFun != NULL )
+					{
+						( (LEReadLocalSuppFeaturesComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (LE_SUPPORTED_FEATURES*)( &(EventPacketPtr->Event_Parameter[4]) ) );
+					}
 					break;
 
 				case HCI_LE_SET_RANDOM_ADDRESS:
-					HCI_LE_Set_Random_Address_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_SET_ADVERTISING_PARAMETERS:
-					HCI_LE_Set_Advertising_Parameters_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER:
-					HCI_LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (LEReadAdvPhyChannelTxPowerComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4] );
+					}
 					break;
 
 				case HCI_LE_SET_ADVERTISING_DATA:
-					HCI_LE_Set_Advertising_Data_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_SET_SCAN_RESPONSE_DATA:
-					HCI_LE_Set_Scan_Response_Data_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_SET_ADVERTISING_ENABLE:
-					HCI_LE_Set_Advertising_Enable_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_SET_SCAN_PARAMETERS:
-					HCI_LE_Set_Scan_Parameters_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_SET_SCAN_ENABLE:
-					HCI_LE_Set_Scan_Enable_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_CREATE_CONNECTION_CANCEL:
-					HCI_LE_Create_Connection_Cancel_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_READ_WHITE_LIST_SIZE:
-					HCI_LE_Read_White_List_Size_Complete( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (LEReadWhiteListSizeComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4] );
+					}
 					break;
 
 				case HCI_LE_CLEAR_WHITE_LIST:
@@ -379,103 +485,166 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					break;
 
 				case HCI_LE_ADD_DEVICE_TO_WHITE_LIST:
-					HCI_LE_Add_Device_To_White_List_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST:
-					HCI_LE_Remove_Device_From_White_List_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION:
-					HCI_LE_Set_Host_Channel_Classification_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_READ_CHANNEL_MAP:
-					HCI_LE_Read_Channel_Map_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4], (CHANNEL_MAP*)(&(EventPacketPtr->Event_Parameter[6])) );
+					if( CmdCallBackFun != NULL )
+					{
+						( ( LEReadChannelMapComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4], (CHANNEL_MAP*)(&(EventPacketPtr->Event_Parameter[6])) );
+					}
 					break;
 
 				case HCI_LE_ENCRYPT:
-					HCI_LE_Encrypt_Complete( EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]) );
+					if( CmdCallBackFun != NULL )
+					{
+						( (LEEncryptComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]) );
+					}
 					break;
 
 				case HCI_LE_RAND:
-					HCI_LE_Rand_Complete( EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]) );
+					if( CmdCallBackFun != NULL )
+					{
+						( (LERandComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]) );
+					}
 					break;
 
 				case HCI_LE_LONG_TERM_KEY_REQUEST_REPLY:
-					HCI_LE_Long_Term_Key_Request_Reply_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (LELongTermKeyRqtReplyComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
+					}
 					break;
 
 				case HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY:
-					HCI_LE_Long_Term_Key_Request_Negative_Reply_Complete( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (LELongTermKeyRqtNegReplyComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
+					}
 					break;
 
 				case HCI_LE_READ_SUPPORTED_STATES:
-					HCI_LE_Read_Supported_States_Complete( EventPacketPtr->Event_Parameter[3], (SUPPORTED_LE_STATES*)(&(EventPacketPtr->Event_Parameter[4])) );
+					if( CmdCallBackFun != NULL )
+					{
+						( (LEReadSupportedStatesComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], (SUPPORTED_LE_STATES*)(&(EventPacketPtr->Event_Parameter[4])) );
+					}
 					break;
 
 				case HCI_LE_RECEIVER_TEST_V1:
-					HCI_LE_Receiver_Test_v1_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_TRANSMITTER_TEST_V1:
-					HCI_LE_Transmitter_Test_v1_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case HCI_LE_TEST_END:
-					HCI_LE_Test_End_Complete( EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
-					ACI_Hal_Get_Fw_Build_Number_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (HalGetFwBuildNumberComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], ( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4] );
+					}
 					break;
 
 				case VS_ACI_HAL_WRITE_CONFIG_DATA:
-					ACI_Hal_Write_Config_Data_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case VS_ACI_HAL_READ_CONFIG_DATA:
-					ACI_Hal_Read_Config_Data_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]), EventPacketPtr->Parameter_Total_Length - 4 );
+					if( CmdCallBackFun != NULL )
+					{
+						( (HalReadConfigDataComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]), EventPacketPtr->Parameter_Total_Length - 4 );
+					}
 					break;
 
 				case VS_ACI_HAL_SET_TX_POWER_LEVEL:
-					ACI_Hal_Set_Tx_Power_Level_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case VS_ACI_HAL_DEVICE_STANDBY:
-					ACI_Hal_Device_Standby_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
-				case VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER: {
-					uint32_t PacketCounter = ( EventPacketPtr->Event_Parameter[7] << 24 ) | ( EventPacketPtr->Event_Parameter[6] << 16 ) |
-							( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4];
-
-					ACI_Hal_LE_Tx_Test_Packet_Number_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], PacketCounter );
-				}
-				break;
+				case VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER:
+					if( CmdCallBackFun != NULL )
+					{
+						uint32_t PacketCounter = ( EventPacketPtr->Event_Parameter[7] << 24 ) | ( EventPacketPtr->Event_Parameter[6] << 16 ) |
+								( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4];
+						( (HalLETxTestPacketNumberComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], PacketCounter );
+					}
+					break;
 
 				case VS_ACI_HAL_TONE_START:
-					ACI_Hal_Tone_Start_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case VS_ACI_HAL_TONE_STOP:
-					ACI_Hal_Tone_Stop_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3] );
+					if( CmdCallBackFun != NULL )
+					{
+						( (DefCmdComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3] );
+					}
 					break;
 
 				case VS_ACI_HAL_GET_LINK_STATUS:
-					ACI_Hal_Get_Link_Status_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]), &(EventPacketPtr->Event_Parameter[12]) );
+					if( CmdCallBackFun != NULL )
+					{
+						( (HalGetLinkStatusComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], &(EventPacketPtr->Event_Parameter[4]), &(EventPacketPtr->Event_Parameter[12]) );
+					}
 					break;
 
-				case VS_ACI_HAL_GET_ANCHOR_PERIOD: {
-					uint32_t AnchorInterval = ( EventPacketPtr->Event_Parameter[7] << 24 ) | ( EventPacketPtr->Event_Parameter[6] << 16 ) |
-							( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4];
+				case VS_ACI_HAL_GET_ANCHOR_PERIOD:
+					if( CmdCallBackFun != NULL )
+					{
+						uint32_t AnchorInterval = ( EventPacketPtr->Event_Parameter[7] << 24 ) | ( EventPacketPtr->Event_Parameter[6] << 16 ) |
+								( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4];
 
-					uint32_t Maxslot = ( EventPacketPtr->Event_Parameter[11] << 24 ) | ( EventPacketPtr->Event_Parameter[10] << 16 ) |
-							( EventPacketPtr->Event_Parameter[9] << 8 ) | EventPacketPtr->Event_Parameter[8];
+						uint32_t Maxslot = ( EventPacketPtr->Event_Parameter[11] << 24 ) | ( EventPacketPtr->Event_Parameter[10] << 16 ) |
+								( EventPacketPtr->Event_Parameter[9] << 8 ) | EventPacketPtr->Event_Parameter[8];
 
-					ACI_Hal_Get_Anchor_Period_Event( COMMAND_COMPLETE, EventPacketPtr->Event_Parameter[3], AnchorInterval, Maxslot );
-				}
-				break;
+						( (HalGetAnchorPeriodComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[3], AnchorInterval, Maxslot );
+					}
+					break;
 
 				default:
 					HCI_Command_Complete( Num_HCI_Command_Packets, OpCode, &( EventPacketPtr->Event_Parameter[3] ) );
@@ -489,231 +658,23 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 			/*---------- COMMAND_STATUS_EVT --------------*//* Page 2310 Core_v5.2 */
 			case COMMAND_STATUS: {
-				OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
 				uint8_t Num_HCI_Command_Packets = EventPacketPtr->Event_Parameter[1];
 				Set_Number_Of_HCI_Command_Packets( Num_HCI_Command_Packets );
 
+				OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
 				CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
+
+				CONTROLLER_ERROR_CODES Status = EventPacketPtr->Event_Parameter[0];
 				void* CmdCallBackFun = ( CmdCallBack != NULL ) ? CmdCallBack->CmdStatusCallBack : NULL; /* Function pointer */
 
-				switch( OpCode.Val )
+				if( CmdCallBackFun != NULL )
 				{
-				case HCI_DISCONNECT:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
-					}
-					break;
-
-				case HCI_READ_REMOTE_VERSION_INFORMATION:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
-					}
-					break;
-
-				case HCI_SET_EVENT_MASK:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
-					}
-					break;
-
-				case HCI_RESET:
-					HCI_Reset_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_READ_TRANSMIT_POWER_LEVEL:
-					HCI_Read_Transmit_Power_Level_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_READ_LOCAL_VERSION_INFORMATION:
-					HCI_Read_Local_Version_Information_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_READ_LOCAL_SUPPORTED_COMMANDS:
-					HCI_Read_Local_Supported_Commands_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_READ_LOCAL_SUPPORTED_FEATURES:
-					HCI_Read_Local_Supported_Features_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_READ_BD_ADDR:
-					HCI_Read_BD_ADDR_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_READ_RSSI:
-					HCI_Read_RSSI_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_SET_EVENT_MASK:
-					HCI_LE_Set_Event_Mask_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_READ_BUFFER_SIZE:
-					HCI_LE_Read_Buffer_Size_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_READ_LOCAL_SUPPORTED_FEATURES:
-					HCI_LE_Read_Local_Supported_Features_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_SET_RANDOM_ADDRESS:
-					HCI_LE_Set_Random_Address_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_SET_ADVERTISING_PARAMETERS:
-					HCI_LE_Set_Advertising_Parameters_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER:
-					HCI_LE_Read_Advertising_Physical_Channel_Tx_Power_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_SET_ADVERTISING_DATA:
-					HCI_LE_Set_Advertising_Data_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_SET_SCAN_RESPONSE_DATA:
-					HCI_LE_Set_Scan_Response_Data_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_SET_ADVERTISING_ENABLE:
-					HCI_LE_Set_Advertising_Enable_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_SET_SCAN_PARAMETERS:
-					HCI_LE_Set_Scan_Parameters_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_SET_SCAN_ENABLE:
-					HCI_LE_Set_Scan_Enable_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_CREATE_CONNECTION:
-					HCI_LE_Create_Connection_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_CREATE_CONNECTION_CANCEL:
-					HCI_LE_Create_Connection_Cancel_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_READ_WHITE_LIST_SIZE:
-					HCI_LE_Read_White_List_Size_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_CLEAR_WHITE_LIST:
-					if( CmdCallBackFun != NULL )
-					{
-						( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
-					}
-					break;
-
-				case HCI_LE_ADD_DEVICE_TO_WHITE_LIST:
-					HCI_LE_Add_Device_To_White_List_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST:
-					HCI_LE_Remove_Device_From_White_List_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_CONNECTION_UPDATE:
-					HCI_LE_Connection_Update_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION:
-					HCI_LE_Set_Host_Channel_Classification_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_READ_CHANNEL_MAP:
-					HCI_LE_Read_Channel_Map_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_READ_REMOTE_FEATURES:
-					HCI_LE_Read_Remote_Features_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_ENCRYPT:
-					HCI_LE_Encrypt_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_RAND:
-					HCI_LE_Rand_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_ENABLE_ENCRYPTION:
-					HCI_LE_Enable_Encryption_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_LONG_TERM_KEY_REQUEST_REPLY:
-					HCI_LE_Long_Term_Key_Request_Reply_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY:
-					HCI_LE_Long_Term_Key_Request_Negative_Reply_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_READ_SUPPORTED_STATES:
-					HCI_LE_Read_Supported_States_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_RECEIVER_TEST_V1:
-					HCI_LE_Receiver_Test_v1_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_TRANSMITTER_TEST_V1:
-					HCI_LE_Transmitter_Test_v1_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case HCI_LE_TEST_END:
-					HCI_LE_Test_End_Status( EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case VS_ACI_HAL_GET_FW_BUILD_NUMBER:
-					ACI_Hal_Get_Fw_Build_Number_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], 0 );
-					break;
-
-				case VS_ACI_HAL_WRITE_CONFIG_DATA:
-					ACI_Hal_Write_Config_Data_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case VS_ACI_HAL_READ_CONFIG_DATA:
-					ACI_Hal_Read_Config_Data_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], NULL, 0 );
-					break;
-
-				case VS_ACI_HAL_SET_TX_POWER_LEVEL:
-					ACI_Hal_Set_Tx_Power_Level_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case VS_ACI_HAL_DEVICE_STANDBY:
-					ACI_Hal_Device_Standby_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER:
-					ACI_Hal_LE_Tx_Test_Packet_Number_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], 0 );
-					break;
-
-				case VS_ACI_HAL_TONE_START:
-					ACI_Hal_Tone_Start_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case VS_ACI_HAL_TONE_STOP:
-					ACI_Hal_Tone_Stop_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0] );
-					break;
-
-				case VS_ACI_HAL_GET_LINK_STATUS:
-					ACI_Hal_Get_Link_Status_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], NULL, NULL );
-					break;
-
-				case VS_ACI_HAL_GET_ANCHOR_PERIOD:
-					ACI_Hal_Get_Anchor_Period_Event( COMMAND_STATUS, EventPacketPtr->Event_Parameter[0], 0, 0 );
-					break;
-
-				default:
-					HCI_Command_Status( EventPacketPtr->Event_Parameter[0], Num_HCI_Command_Packets, OpCode );
-					break;
-				}}
+					( (DefCmdStatus)CmdCallBackFun )( Status );
+				}else
+				{
+					HCI_Command_Status( Status, Num_HCI_Command_Packets, OpCode );
+				}
+			}
 			break;
 
 			/*---------- HARDWARE_ERROR_EVT ------------*//* Page 2312 Core_v5.2 */
@@ -883,20 +844,107 @@ CMD_CALLBACK* Get_Command_CallBack( HCI_COMMAND_OPCODE OpCode )
 	switch ( OpCode.Val )
 	{
 	case HCI_DISCONNECT: return ( &CMD_CALLBACK_NAME(HCI_DISCONNECT) );
-	break;
 
 	case HCI_READ_REMOTE_VERSION_INFORMATION: return ( &CMD_CALLBACK_NAME(HCI_READ_REMOTE_VERSION_INFORMATION) );
-	break;
 
 	case HCI_SET_EVENT_MASK: return ( &CMD_CALLBACK_NAME(HCI_SET_EVENT_MASK) );
-	break;
 
 	case HCI_LE_CLEAR_WHITE_LIST: return ( &CMD_CALLBACK_NAME(HCI_LE_CLEAR_WHITE_LIST) );
-	break;
+
+	case HCI_READ_TRANSMIT_POWER_LEVEL: return ( &CMD_CALLBACK_NAME(HCI_READ_TRANSMIT_POWER_LEVEL) );
+
+	case HCI_RESET: return ( &CMD_CALLBACK_NAME(HCI_RESET) );
+
+	case HCI_READ_LOCAL_VERSION_INFORMATION: return ( &CMD_CALLBACK_NAME(HCI_READ_LOCAL_VERSION_INFORMATION) );
+
+	case HCI_READ_LOCAL_SUPPORTED_COMMANDS: return ( &CMD_CALLBACK_NAME(HCI_READ_LOCAL_SUPPORTED_COMMANDS) );
+
+	case HCI_READ_LOCAL_SUPPORTED_FEATURES: return ( &CMD_CALLBACK_NAME(HCI_READ_LOCAL_SUPPORTED_FEATURES) );
+
+	case HCI_READ_BD_ADDR: return ( &CMD_CALLBACK_NAME(HCI_READ_BD_ADDR) );
+
+	case HCI_READ_RSSI: return ( &CMD_CALLBACK_NAME(HCI_READ_RSSI) );
+
+	case HCI_LE_SET_EVENT_MASK: return ( &CMD_CALLBACK_NAME(HCI_LE_SET_EVENT_MASK) );
+
+	case HCI_LE_READ_BUFFER_SIZE: return ( &CMD_CALLBACK_NAME(HCI_LE_READ_BUFFER_SIZE) );
+
+	case HCI_LE_READ_LOCAL_SUPPORTED_FEATURES: return ( &CMD_CALLBACK_NAME(HCI_LE_READ_LOCAL_SUPPORTED_FEATURES) );
+
+	case HCI_LE_SET_RANDOM_ADDRESS: return ( &CMD_CALLBACK_NAME(HCI_LE_SET_RANDOM_ADDRESS) );
+
+	case HCI_LE_SET_ADVERTISING_PARAMETERS: return ( &CMD_CALLBACK_NAME(HCI_LE_SET_ADVERTISING_PARAMETERS) );
+
+	case HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER: return ( &CMD_CALLBACK_NAME(HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER) );
+
+	case HCI_LE_SET_ADVERTISING_DATA: return ( &CMD_CALLBACK_NAME(HCI_LE_SET_ADVERTISING_DATA) );
+
+	case HCI_LE_SET_SCAN_RESPONSE_DATA: return ( &CMD_CALLBACK_NAME(HCI_LE_SET_SCAN_RESPONSE_DATA) );
+
+	case HCI_LE_SET_ADVERTISING_ENABLE: return ( &CMD_CALLBACK_NAME(HCI_LE_SET_ADVERTISING_ENABLE) );
+
+	case HCI_LE_SET_SCAN_PARAMETERS: return ( &CMD_CALLBACK_NAME(HCI_LE_SET_SCAN_PARAMETERS) );
+
+	case HCI_LE_SET_SCAN_ENABLE: return ( &CMD_CALLBACK_NAME(HCI_LE_SET_SCAN_ENABLE) );
+
+	case HCI_LE_CREATE_CONNECTION: return ( &CMD_CALLBACK_NAME(HCI_LE_CREATE_CONNECTION) );
+
+	case HCI_LE_CREATE_CONNECTION_CANCEL: return ( &CMD_CALLBACK_NAME(HCI_LE_CREATE_CONNECTION_CANCEL) );
+
+	case HCI_LE_READ_WHITE_LIST_SIZE: return ( &CMD_CALLBACK_NAME(HCI_LE_READ_WHITE_LIST_SIZE) );
+
+	case HCI_LE_ADD_DEVICE_TO_WHITE_LIST: return ( &CMD_CALLBACK_NAME(HCI_LE_ADD_DEVICE_TO_WHITE_LIST) );
+
+	case HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST: return ( &CMD_CALLBACK_NAME(HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST) );
+
+	case HCI_LE_CONNECTION_UPDATE: return ( &CMD_CALLBACK_NAME(HCI_LE_CONNECTION_UPDATE) );
+
+	case HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION: return ( &CMD_CALLBACK_NAME(HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION) );
+
+	case HCI_LE_READ_CHANNEL_MAP: return ( &CMD_CALLBACK_NAME(HCI_LE_READ_CHANNEL_MAP) );
+
+	case HCI_LE_READ_REMOTE_FEATURES: return ( &CMD_CALLBACK_NAME(HCI_LE_READ_REMOTE_FEATURES) );
+
+	case HCI_LE_ENCRYPT: return ( &CMD_CALLBACK_NAME(HCI_LE_ENCRYPT) );
+
+	case HCI_LE_RAND: return ( &CMD_CALLBACK_NAME(HCI_LE_RAND) );
+
+	case HCI_LE_ENABLE_ENCRYPTION: return ( &CMD_CALLBACK_NAME(HCI_LE_ENABLE_ENCRYPTION) );
+
+	case HCI_LE_LONG_TERM_KEY_REQUEST_REPLY: return ( &CMD_CALLBACK_NAME(HCI_LE_LONG_TERM_KEY_REQUEST_REPLY) );
+
+	case HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY: return ( &CMD_CALLBACK_NAME(HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY) );
+
+	case HCI_LE_READ_SUPPORTED_STATES: return ( &CMD_CALLBACK_NAME(HCI_LE_READ_SUPPORTED_STATES) );
+
+	case HCI_LE_RECEIVER_TEST_V1: return ( &CMD_CALLBACK_NAME(HCI_LE_RECEIVER_TEST_V1) );
+
+	case HCI_LE_TRANSMITTER_TEST_V1: return ( &CMD_CALLBACK_NAME(HCI_LE_TRANSMITTER_TEST_V1) );
+
+	case HCI_LE_TEST_END: return ( &CMD_CALLBACK_NAME(HCI_LE_TEST_END) );
+
+	case VS_ACI_HAL_GET_FW_BUILD_NUMBER: return ( &CMD_CALLBACK_NAME(VS_ACI_HAL_GET_FW_BUILD_NUMBER) );
+
+	case VS_ACI_HAL_WRITE_CONFIG_DATA: return ( &CMD_CALLBACK_NAME(VS_ACI_HAL_WRITE_CONFIG_DATA) );
+
+	case VS_ACI_HAL_READ_CONFIG_DATA: return ( &CMD_CALLBACK_NAME(VS_ACI_HAL_READ_CONFIG_DATA) );
+
+	case VS_ACI_HAL_SET_TX_POWER_LEVEL: return ( &CMD_CALLBACK_NAME(VS_ACI_HAL_SET_TX_POWER_LEVEL) );
+
+	case VS_ACI_HAL_DEVICE_STANDBY: return ( &CMD_CALLBACK_NAME(VS_ACI_HAL_DEVICE_STANDBY) );
+
+	case VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER: return ( &CMD_CALLBACK_NAME(VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER) );
+
+	case VS_ACI_HAL_TONE_START: return ( &CMD_CALLBACK_NAME(VS_ACI_HAL_TONE_START) );
+
+	case VS_ACI_HAL_TONE_STOP: return ( &CMD_CALLBACK_NAME(VS_ACI_HAL_TONE_STOP) );
+
+	case VS_ACI_HAL_GET_LINK_STATUS: return ( &CMD_CALLBACK_NAME(VS_ACI_HAL_GET_LINK_STATUS) );
+
+	case VS_ACI_HAL_GET_ANCHOR_PERIOD: return ( &CMD_CALLBACK_NAME(VS_ACI_HAL_GET_ANCHOR_PERIOD) );
 
 	/* Not all commands have callback */
 	default: return (NULL);
-	break;
 	}
 }
 

@@ -34,11 +34,27 @@ typedef enum
 /* Static functions declaration                                 */
 /****************************************************************/
 static uint8_t Reset_Controller( void );
+static void Reset_Complete( CONTROLLER_ERROR_CODES Status );
 static uint8_t Vendor_Specific_Init( void );
 static uint8_t BLE_Init( void );
 static void Vendor_Specific_Init_CallBack( void* ConfigData );
 static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
 static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
+static void Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Status,
+		HCI_VERSION HCI_Version, uint16_t HCI_Revision,
+		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name,
+		uint16_t LMP_PAL_Subversion);
+static void Read_Local_Supported_Commands_Complete( CONTROLLER_ERROR_CODES Status,
+		SUPPORTED_COMMANDS* Supported_Commands );
+static void Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status,
+		SUPPORTED_FEATURES* LMP_Features );
+static void Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* BD_ADDR );
+static void LE_Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Read_Buffer_Size_Complete( CONTROLLER_ERROR_CODES Status, uint16_t LE_ACL_Data_Packet_Length,
+		uint8_t Total_Num_LE_ACL_Data_Packets );
+static void LE_Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status,
+		LE_SUPPORTED_FEATURES* LE_Features );
+static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status );
 
 
 /****************************************************************/
@@ -104,7 +120,7 @@ void Run_BLE( void )
 	case STANDBY_STATE:
 		if( Standby_Flag != BLE_TRUE )
 		{
-			if( ACI_Hal_Device_Standby(  ) )
+			if( ACI_Hal_Device_Standby( &Hal_Device_Standby_Event, NULL ) )
 			{
 				Standby_Flag = BLE_TRUE;
 			}
@@ -205,14 +221,14 @@ static uint8_t BLE_Init( void )
 	switch ( BLEInitSteps )
 	{
 	case LOCAL_SUPPORTED_COMMANDS:
-		BLEInitSteps = HCI_Read_Local_Supported_Commands( ) ? CLEAR_TIMER : LOCAL_SUPPORTED_COMMANDS;
+		BLEInitSteps = HCI_Read_Local_Supported_Commands( &Read_Local_Supported_Commands_Complete, NULL ) ? CLEAR_TIMER : LOCAL_SUPPORTED_COMMANDS;
 		break;
 
 	case LOCAL_SUPPORTED_FEATURES:
 		memset( &HCI_LMP_Features, 0, sizeof(HCI_LMP_Features) );
 		if( HCI_Supported_Commands.Bits.HCI_Read_Local_Supported_Features )
 		{
-			BLEInitSteps = HCI_Read_Local_Supported_Features( ) ? CLEAR_TIMER : LOCAL_SUPPORTED_FEATURES;
+			BLEInitSteps = HCI_Read_Local_Supported_Features( &Read_Local_Supported_Features_Complete, NULL ) ? CLEAR_TIMER : LOCAL_SUPPORTED_FEATURES;
 		}else
 		{
 			BLEInitSteps = SET_EVENT_MASK;
@@ -248,7 +264,7 @@ static uint8_t BLE_Init( void )
 			/* Enable all events from the LE Controller */
 			memset( &LE_Event_Mask, 0xFF, sizeof(LE_Event_Mask) );
 
-			BLEInitSteps = HCI_LE_Set_Event_Mask( LE_Event_Mask ) ? CLEAR_TIMER : SET_LE_EVENT_MASK;
+			BLEInitSteps = HCI_LE_Set_Event_Mask( LE_Event_Mask, &LE_Set_Event_Mask_Complete, NULL ) ? CLEAR_TIMER : SET_LE_EVENT_MASK;
 		}else
 		{
 			BLEInitSteps = CLEAR_TIMER;
@@ -262,7 +278,7 @@ static uint8_t BLE_Init( void )
 			BLEInitSteps = CLEAR_TIMER;
 		}else if( HCI_Supported_Commands.Bits.HCI_LE_Read_Buffer_Size_v1 )
 		{
-			BLEInitSteps = HCI_LE_Read_Buffer_Size( ) ? CLEAR_TIMER : LE_READ_BUFFER_SIZE;
+			BLEInitSteps = HCI_LE_Read_Buffer_Size( &LE_Read_Buffer_Size_Complete, NULL ) ? CLEAR_TIMER : LE_READ_BUFFER_SIZE;
 		}else
 		{
 			BLEInitSteps = READ_BUFFER_SIZE;
@@ -283,7 +299,7 @@ static uint8_t BLE_Init( void )
 	case LE_LOCAL_SUPPORTED_FEATURES:
 		if( HCI_Supported_Commands.Bits.HCI_LE_Read_Local_Supported_Features )
 		{
-			BLEInitSteps = HCI_LE_Read_Local_Supported_Features( ) ? CLEAR_TIMER : LE_LOCAL_SUPPORTED_FEATURES;
+			BLEInitSteps = HCI_LE_Read_Local_Supported_Features( &LE_Read_Local_Supported_Features_Complete, NULL ) ? CLEAR_TIMER : LE_LOCAL_SUPPORTED_FEATURES;
 		}else
 		{
 			BLEInitSteps = CLEAR_TIMER;
@@ -293,7 +309,7 @@ static uint8_t BLE_Init( void )
 	case READ_BD_ADDRESS:
 		if( HCI_Supported_Commands.Bits.HCI_Read_BD_ADDR )
 		{
-			BLEInitSteps = HCI_Read_BD_ADDR(  ) ? CLEAR_TIMER : READ_BD_ADDRESS;
+			BLEInitSteps = HCI_Read_BD_ADDR( &Read_BD_ADDR_Complete, NULL ) ? CLEAR_TIMER : READ_BD_ADDRESS;
 		}else
 		{
 			BLEInitSteps = CLEAR_TIMER;
@@ -310,7 +326,7 @@ static uint8_t BLE_Init( void )
 	case READ_LOCAL_VERSION:
 		if( HCI_Supported_Commands.Bits.HCI_Read_Local_Version_Information )
 		{
-			BLEInitSteps = HCI_Read_Local_Version_Information( ) ? CLEAR_TIMER : READ_LOCAL_VERSION;
+			BLEInitSteps = HCI_Read_Local_Version_Information( &Read_Local_Version_Information_Complete, NULL ) ? CLEAR_TIMER : READ_LOCAL_VERSION;
 		}else
 		{
 			BLEInitSteps = CLEAR_TIMER;
@@ -350,12 +366,12 @@ static uint8_t BLE_Init( void )
 
 
 /****************************************************************/
-/* HCI_Read_Local_Supported_Commands_Complete()      			*/
+/* Read_Local_Supported_Commands_Complete()      				*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_Read_Local_Supported_Commands_Complete( CONTROLLER_ERROR_CODES Status, SUPPORTED_COMMANDS* Supported_Commands )
+static void Read_Local_Supported_Commands_Complete( CONTROLLER_ERROR_CODES Status, SUPPORTED_COMMANDS* Supported_Commands )
 {
 	if( Status == COMMAND_SUCCESS )
 	{
@@ -369,12 +385,12 @@ void HCI_Read_Local_Supported_Commands_Complete( CONTROLLER_ERROR_CODES Status, 
 
 
 /****************************************************************/
-/* HCI_Read_Local_Supported_Features_Complete()      			*/
+/* Read_Local_Supported_Features_Complete()      				*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status, SUPPORTED_FEATURES* LMP_Features )
+static void Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status, SUPPORTED_FEATURES* LMP_Features )
 {
 	if( Status == COMMAND_SUCCESS )
 	{
@@ -414,24 +430,24 @@ static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status )
 
 
 /****************************************************************/
-/* HCI_LE_Set_Event_Mask_Complete()      						*/
+/* LE_Set_Event_Mask_Complete()      							*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_LE_Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status )
+static void LE_Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? LE_READ_BUFFER_SIZE : SET_LE_EVENT_MASK;
 }
 
 
 /****************************************************************/
-/* HCI_LE_Read_Buffer_Size_Complete()      						*/
+/* LE_Read_Buffer_Size_Complete()      							*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_LE_Read_Buffer_Size_Complete( CONTROLLER_ERROR_CODES Status, uint16_t LE_ACL_Data_Packet_Length,
+static void LE_Read_Buffer_Size_Complete( CONTROLLER_ERROR_CODES Status, uint16_t LE_ACL_Data_Packet_Length,
 		uint8_t Total_Num_LE_ACL_Data_Packets )
 {
 	if( Status == COMMAND_SUCCESS )
@@ -453,12 +469,12 @@ void HCI_LE_Read_Buffer_Size_Complete( CONTROLLER_ERROR_CODES Status, uint16_t L
 
 
 /****************************************************************/
-/* HCI_LE_Read_Local_Supported_Features_Complete()      		*/
+/* LE_Read_Local_Supported_Features_Complete()    		  		*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_LE_Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status, LE_SUPPORTED_FEATURES* LE_Features )
+static void LE_Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status, LE_SUPPORTED_FEATURES* LE_Features )
 {
 	if( Status == COMMAND_SUCCESS )
 	{
@@ -472,12 +488,12 @@ void HCI_LE_Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Statu
 
 
 /****************************************************************/
-/* HCI_Read_BD_ADDR_Complete()      							*/
+/* Read_BD_ADDR_Complete()      								*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* BD_ADDR )
+static void Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* BD_ADDR )
 {
 	if( Status == COMMAND_SUCCESS )
 	{
@@ -514,7 +530,7 @@ static uint8_t Reset_Controller( void )
 	{
 		Controller_Reset_Flag = BLE_FALSE;
 		Set_Config_Step( CONFIG_BLOCKED );
-		HCI_Reset( );
+		HCI_Reset( &Reset_Complete, NULL );
 	}
 
 	return (status);
@@ -522,24 +538,24 @@ static uint8_t Reset_Controller( void )
 
 
 /****************************************************************/
-/* HCI_Reset_Complete()        	       							*/
+/* Reset_Complete()        	       								*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_Reset_Complete( CONTROLLER_ERROR_CODES Status )
+static void Reset_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	Controller_Reset_Flag = ( Status == COMMAND_SUCCESS ) ? BLE_TRUE : BLE_ERROR;
 }
 
 
 /****************************************************************/
-/* HCI_Read_Local_Version_Information_Complete() 				*/
+/* Read_Local_Version_Information_Complete() 					*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Status,
+static void Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Status,
 		HCI_VERSION HCI_Version, uint16_t HCI_Revision,
 		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name,
 		uint16_t LMP_PAL_Subversion)
@@ -695,16 +711,16 @@ static void Vendor_Specific_Init_CallBack( void* ConfigData )
 
 
 /****************************************************************/
-/* ACI_Hal_Device_Standby_Event()        	       				*/
+/* Hal_Device_Standby_Event()        	    	   				*/
 /* Location: 					 								*/
 /* Purpose: Called to indicate the status of standby command.	*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void ACI_Hal_Device_Standby_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode )
+static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status )
 {
-	if( ( Event == COMMAND_COMPLETE ) && ( ErrorCode == COMMAND_SUCCESS ) )
+	if( Status == COMMAND_SUCCESS )
 	{
 		Standby_Flag = BLE_TRUE;
 	}else

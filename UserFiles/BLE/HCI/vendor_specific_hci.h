@@ -66,35 +66,32 @@ typedef enum
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-uint8_t ACI_Hal_Get_Fw_Build_Number( void );
-void 	ACI_Hal_Get_Fw_Build_Number_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint16_t RevisionNumber );
+typedef void (*HalGetFwBuildNumberComplete)( CONTROLLER_ERROR_CODES Status, uint16_t RevisionNumber );
+uint8_t ACI_Hal_Get_Fw_Build_Number( HalGetFwBuildNumberComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
-uint8_t ACI_Hal_Write_Config_Data( uint8_t Offset, uint8_t Length, uint8_t Value[] );
-void    ACI_Hal_Write_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+uint8_t ACI_Hal_Write_Config_Data( uint8_t Offset, uint8_t Length, uint8_t Value[],
+		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
-uint8_t ACI_Hal_Read_Config_Data( uint8_t Offset );
-void 	ACI_Hal_Read_Config_Data_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint8_t* DataPtr, uint8_t DataSize );
+typedef void (*HalReadConfigDataComplete)( CONTROLLER_ERROR_CODES Status, uint8_t* DataPtr, uint8_t DataSize );
+uint8_t ACI_Hal_Read_Config_Data( uint8_t Offset, HalReadConfigDataComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
-uint8_t ACI_Hal_Set_Tx_Power_Level( uint8_t EN_HIGH_POWER, uint8_t PA_LEVEL );
-void	ACI_Hal_Set_Tx_Power_Level_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+uint8_t ACI_Hal_Set_Tx_Power_Level( uint8_t EN_HIGH_POWER, uint8_t PA_LEVEL,
+		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
-uint8_t ACI_Hal_Device_Standby( void );
-void 	ACI_Hal_Device_Standby_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+uint8_t ACI_Hal_Device_Standby( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
-uint8_t ACI_Hal_LE_Tx_Test_Packet_Number( void );
-void	ACI_Hal_LE_Tx_Test_Packet_Number_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint32_t PacketCounter );
+typedef void (*HalLETxTestPacketNumberComplete)( CONTROLLER_ERROR_CODES Status, uint32_t PacketCounter );
+uint8_t ACI_Hal_LE_Tx_Test_Packet_Number( HalLETxTestPacketNumberComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
-uint8_t ACI_Hal_Tone_Start( uint8_t ChannelID );
-void 	ACI_Hal_Tone_Start_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+uint8_t ACI_Hal_Tone_Start( uint8_t ChannelID, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
-uint8_t ACI_Hal_Tone_Stop( void );
-void 	ACI_Hal_Tone_Stop_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode );
+uint8_t ACI_Hal_Tone_Stop( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
-uint8_t ACI_Hal_Get_Link_Status( void );
-void 	ACI_Hal_Get_Link_Status_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint8_t* LinkStatus, uint8_t* Connection_Handle );
+typedef void (*HalGetLinkStatusComplete)( CONTROLLER_ERROR_CODES Status, uint8_t* LinkStatus, uint8_t* Connection_Handle );
+uint8_t ACI_Hal_Get_Link_Status( HalGetLinkStatusComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
-uint8_t ACI_Hal_Get_Anchor_Period( void );
-void 	ACI_Hal_Get_Anchor_Period_Event( EVENT_CODE Event, CONTROLLER_ERROR_CODES ErrorCode, uint32_t AnchorInterval, uint32_t Maxslot );
+typedef void (*HalGetAnchorPeriodComplete)( CONTROLLER_ERROR_CODES Status, uint32_t AnchorInterval, uint32_t Maxslot );
+uint8_t ACI_Hal_Get_Anchor_Period( HalGetAnchorPeriodComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
 void 	ACI_Blue_Initialized_Event( REASON_CODE Code );
 void	ACI_Blue_Lost_Event( uint8_t* LostEventsMap );

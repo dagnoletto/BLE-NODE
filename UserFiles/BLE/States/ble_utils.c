@@ -50,6 +50,8 @@ static uint8_t Check_Bit_Presence( uint8_t Random_Part[], uint8_t Size_In_Bytes 
 static void Hash_CallBack_Function(uint8_t EncryptedData[16], uint8_t status);
 static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t status);
 static void Confirm_Local_Private_Addr(uint8_t status);
+static void LE_Encrypt_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Encrypted_Data[16] );
+static void LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] );
 
 
 /****************************************************************/
@@ -86,7 +88,7 @@ uint8_t Generate_Device_Addresses( SUPPORTED_COMMANDS* HCI_Sup_Cmd, IRK_TYPE* IR
 		TimeoutCounter = 0;
 		if( HCI_Sup_Cmd->Bits.HCI_LE_Rand )
 		{
-			BD_Config = HCI_LE_Rand( ) ? WAIT_OPERATION_A : GENERATE_RANDOM_NUMBER_PART_A;
+			BD_Config = HCI_LE_Rand( &LE_Rand_Complete, NULL ) ? WAIT_OPERATION_A : GENERATE_RANDOM_NUMBER_PART_A;
 		}else
 		{
 			BD_Config = GENERATE_RANDOM_MANUALLY;
@@ -100,7 +102,7 @@ uint8_t Generate_Device_Addresses( SUPPORTED_COMMANDS* HCI_Sup_Cmd, IRK_TYPE* IR
 
 		if( HCI_Sup_Cmd->Bits.HCI_LE_Rand )
 		{
-			BD_Config = HCI_LE_Rand( ) ? WAIT_OPERATION_B : GENERATE_RANDOM_NUMBER_PART_B;
+			BD_Config = HCI_LE_Rand( &LE_Rand_Complete, NULL ) ? WAIT_OPERATION_B : GENERATE_RANDOM_NUMBER_PART_B;
 		}else
 		{
 			BD_Config = GENERATE_RANDOM_MANUALLY;
@@ -212,7 +214,7 @@ uint8_t AES_128_Encrypt( SUPPORTED_COMMANDS* HCI_Sup_Cmd, uint8_t Key[16], uint8
 	{
 		if( HCI_Sup_Cmd->Bits.HCI_LE_Encrypt ) /* The module supports encryption. */
 		{
-			Encrypt_CallBack = HCI_LE_Encrypt( &Key[0], &Plaintext_Data[0] ) ? CallBack : NULL;
+			Encrypt_CallBack = HCI_LE_Encrypt( &Key[0], &Plaintext_Data[0], &LE_Encrypt_Complete, NULL ) ? CallBack : NULL;
 			return ( ( Encrypt_CallBack == NULL ) ? FALSE : TRUE );
 		}else
 		{
@@ -514,14 +516,14 @@ static void Confirm_Local_Private_Addr(uint8_t status)
 
 
 /****************************************************************/
-/* HCI_LE_Rand_Complete()        								*/
+/* LE_Rand_Complete()        									*/
 /* Location: 					 								*/
 /* Purpose: 													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] )
+static void LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] )
 {
 	if( Status == COMMAND_SUCCESS )
 	{
@@ -543,14 +545,14 @@ void HCI_LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[
 
 
 /****************************************************************/
-/* HCI_LE_Encrypt_Complete()        							*/
+/* LE_Encrypt_Complete()        								*/
 /* Location: 					 								*/
 /* Purpose: 													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_LE_Encrypt_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Encrypted_Data[16] )
+static void LE_Encrypt_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Encrypted_Data[16] )
 {
 	/* The most significant octet of the Encrypted_Data corresponds to
 	Encrypted_Data[0] using the notation specified in FIPS 197. */
