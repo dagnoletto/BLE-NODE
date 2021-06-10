@@ -112,9 +112,6 @@ int main(void)
 
 		if( TimeBase_DelayMs( &Timer, Period, TRUE ) )
 		{
-			static uint8_t bdflag = FALSE;
-			static uint8_t enable = FALSE;
-
 //			uint8_t Bytes[] = { 1,2,3,4,5 };
 //
 //			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;

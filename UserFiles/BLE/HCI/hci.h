@@ -1114,6 +1114,8 @@ typedef enum /* Return codes for function calls */
 /*----------------------- CALLBACKS FOR COMMANDS ------------------------------*/
 typedef void (*DefCmdComplete)( CONTROLLER_ERROR_CODES Status ); /* Default Command Complete CallBack */
 typedef void (*DefCmdStatus)( CONTROLLER_ERROR_CODES Status );	 /* Default Command Status CallBack */
+typedef void (*ReadRemoteVerInfoComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, HCI_VERSION Version,
+		uint16_t Manufacturer_Name, uint16_t Subversion );
 typedef void (*TxPwrLvlComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, int8_t TX_Power_Level );
 typedef void (*ReadLocalVerInfoComplete)( CONTROLLER_ERROR_CODES Status, HCI_VERSION HCI_Version, uint16_t HCI_Revision,
 		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name, uint16_t LMP_PAL_Subversion );
@@ -1127,6 +1129,7 @@ typedef void (*LEReadLocalSuppFeaturesComplete)( CONTROLLER_ERROR_CODES Status, 
 typedef void (*LEReadAdvPhyChannelTxPowerComplete)( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level );
 typedef void (*LEReadWhiteListSizeComplete)( CONTROLLER_ERROR_CODES Status, uint8_t White_List_Size );
 typedef void (*LEReadChannelMapComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CHANNEL_MAP* Channel_Map );
+typedef void (*LEReadRemoteFeaturesComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
 typedef void (*LEEncryptComplete)( CONTROLLER_ERROR_CODES Status, uint8_t Encrypted_Data[16] );
 typedef void (*LERandComplete)( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] );
 typedef void (*LELongTermKeyRqtReplyComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
@@ -1137,9 +1140,7 @@ typedef void (*LEReadSupportedStatesComplete)( CONTROLLER_ERROR_CODES Status, SU
 /*------------------------ COMMANDS AND SOME EVENTS -------------------------------*/
 uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason, DefCmdStatus StatusCallBack );
 void	HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
-uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle, DefCmdStatus StatusCallBack );
-void 	HCI_Read_Remote_Version_Information_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, HCI_VERSION Version,
-		uint16_t Manufacturer_Name, uint16_t Subversion );
+uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle, ReadRemoteVerInfoComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_Set_Event_Mask( EVENT_MASK Event_Mask, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_Read_Transmit_Power_Level( uint16_t Connection_Handle, uint8_t Type,
 		TxPwrLvlComplete CompleteCallBack, DefCmdStatus StatusCallBack );
@@ -1186,8 +1187,7 @@ uint8_t HCI_LE_Connection_Update( uint16_t Connection_Handle, uint16_t Connectio
 void 	HCI_LE_Connection_Update_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint16_t Connection_Interval,
 		uint16_t Connection_Latency, uint16_t Supervision_Timeout );
 uint8_t HCI_LE_Read_Channel_Map( uint16_t Connection_Handle, LEReadChannelMapComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-uint8_t HCI_LE_Read_Remote_Features( uint16_t Connection_Handle, DefCmdStatus StatusCallBack );
-void 	HCI_LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
+uint8_t HCI_LE_Read_Remote_Features( uint16_t Connection_Handle, LEReadRemoteFeaturesComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Encrypt( uint8_t Key[16], uint8_t Plaintext_Data[16], LEEncryptComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Rand( LERandComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Enable_Encryption( uint16_t Connection_Handle, uint8_t Random_Number[8],

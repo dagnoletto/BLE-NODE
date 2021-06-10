@@ -31,7 +31,6 @@
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static const CMD_CALLBACK NullCmdCallBack = { .Status = FALSE, .CmdCompleteCallBack = NULL, .CmdStatusCallBack = NULL };
 
 
 /****************************************************************/

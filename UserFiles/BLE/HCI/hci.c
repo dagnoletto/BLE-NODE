@@ -31,7 +31,6 @@
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static const CMD_CALLBACK NullCmdCallBack = { .Status = FALSE, .CmdCompleteCallBack = NULL, .CmdStatusCallBack = NULL };
 
 
 /****************************************************************/
@@ -119,7 +118,8 @@ uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reaso
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle, DefCmdStatus StatusCallBack )
+uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle,
+		ReadRemoteVerInfoComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
 	uint8_t Status = FALSE;
 
@@ -135,7 +135,7 @@ uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle, DefCmdS
 		PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
 		PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
 
-		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = NULL, .CmdStatusCallBack = StatusCallBack };
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
 		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
@@ -1482,7 +1482,8 @@ uint8_t HCI_LE_Read_Channel_Map( uint16_t Connection_Handle,
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t HCI_LE_Read_Remote_Features( uint16_t Connection_Handle, DefCmdStatus StatusCallBack )
+uint8_t HCI_LE_Read_Remote_Features( uint16_t Connection_Handle,
+		LEReadRemoteFeaturesComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
 	uint8_t Status;
 
@@ -1496,7 +1497,7 @@ uint8_t HCI_LE_Read_Remote_Features( uint16_t Connection_Handle, DefCmdStatus St
 	PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
 	PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
 
-	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = NULL, .CmdStatusCallBack = StatusCallBack };
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
 	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
@@ -1921,45 +1922,6 @@ __attribute__((weak)) void HCI_Encryption_Change( CONTROLLER_ERROR_CODES Status,
 
 
 /****************************************************************/
-/* HCI_Read_Remote_Version_Information_Complete()               */
-/* Location: 2304 Core_v5.2		 								*/
-/* Purpose: The HCI_Read_Remote_Version_Information_Complete 	*/
-/* event is used to indicate the completion of the process 		*/
-/* obtaining the version information of the remote Controller 	*/
-/* specified by the Connection_Handle event parameter. The		*/
-/* Connection_Handle shall be for an ACL connection. The 		*/
-/* Version event parameter defines the specification version of */
-/* the BR/EDR or LE Controller. The Manufacturer_Name event 	*/
-/* parameter indicates the manufacturer of the remote 			*/
-/* Controller. The Subversion event parameter is controlled by 	*/
-/* the manufacturer and is implementation dependent. The		*/
-/* Subversion event parameter defines the various revisions 	*/
-/* that each version of the Bluetooth hardware will go through 	*/
-/* as design processes change and errors are fixed. This allows */
-/* the software to determine what Bluetooth hardware is being 	*/
-/* used and, if necessary, to work around various bugs in the 	*/
-/* hardware. When the Connection_Handle is associated with a 	*/
-/* BR/EDR ACL-U logical link, the Version event parameter shall */
-/* be LMP VersNr parameter, the Manufacturer_Name event 		*/
-/* parameter shall be the CompId parameter, and the Subversion 	*/
-/* event parameter shall be the LMP SubVersNr parameter. When 	*/
-/* the Connection_Handle is associated with an LE-U logical 	*/
-/* link, the Version event parameter shall be Link Layer VersNr */
-/* parameter, the Manufacturer_Name event parameter shall be 	*/
-/* the CompId parameter, and the Subversion event parameter 	*/
-/* shall be the SubVersNr parameter.							*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-__attribute__((weak)) void HCI_Read_Remote_Version_Information_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, HCI_VERSION Version,
-		uint16_t Manufacturer_Name, uint16_t Subversion )
-{
-	/* The user should implement at higher layers since it is weak. */
-}
-
-
-/****************************************************************/
 /* HCI_Command_Complete()                						*/
 /* Location: 2308 Core_v5.2		 								*/
 /* Purpose: Called when no handler is provided for the command	*/
@@ -2188,29 +2150,6 @@ __attribute__((weak)) void HCI_LE_Connection_Update_Complete( CONTROLLER_ERROR_C
 
 
 /****************************************************************/
-/* HCI_LE_Read_Remote_Features_Complete()                		*/
-/* Location: 2386 Core_v5.2		 								*/
-/* Purpose: The HCI_LE_Read_Remote_Features_Complete event is 	*/
-/* used to indicate the completion of the process of the 		*/
-/* Controller obtaining the features used on the connection and */
-/* the features supported by the remote Bluetooth device 		*/
-/* specified by the Connection_Handle event parameter. Note: If */
-/* the features are requested more than once while a connection */
-/* exists between the two devices, the second and subsequent 	*/
-/* requests may report a cached copy of the features rather 	*/
-/* than fetching the feature mask again.						*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-__attribute__((weak)) void HCI_LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle,
-		LE_SUPPORTED_FEATURES* LE_Features )
-{
-	/* The user should implement at higher layers since it is weak. */
-}
-
-
-/****************************************************************/
 /* HCI_LE_Long_Term_Key_Request()                				*/
 /* Location: 2387 Core_v5.2		 								*/
 /* Purpose: The HCI_LE_Long_Term_Key_Request event indicates 	*/
@@ -2272,7 +2211,9 @@ uint8_t HCI_Host_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t
 
 		memcpy( &(PcktPtr->ACLDataPacket.Data[0]), &Data[0], ACLDataPacketHeader.Data_Total_Length );
 
-		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, (CMD_CALLBACK*)&NullCmdCallBack );
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = NULL, .CmdStatusCallBack = NULL };
+
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
 		free( PcktPtr );
 	}

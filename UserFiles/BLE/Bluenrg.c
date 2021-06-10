@@ -1489,5 +1489,31 @@ __attribute__((weak)) void Bluenrg_free_Request(uint8_t* DataPtr)
 
 
 /****************************************************************/
+/* Bluenrg_Get_Max_Transfer_Queue_Size()     	       	    	*/
+/* Purpose: Return the transfer queue size					 	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+int8_t Bluenrg_Get_Max_Transfer_Queue_Size(void)
+{
+	return ( SIZE_OF_FRAME_BUFFER );
+}
+
+
+/****************************************************************/
+/* Bluenrg_Get_Max_CallBack_Queue_Size()     	       	    	*/
+/* Purpose: Return the callback queue size					 	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+int8_t Bluenrg_Get_Max_CallBack_Queue_Size(void)
+{
+	return ( SIZE_OF_CALLBACK_BUFFER );
+}
+
+
+/****************************************************************/
 /* End of file	                                                */
 /****************************************************************/
