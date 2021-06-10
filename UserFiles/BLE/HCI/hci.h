@@ -1111,74 +1111,61 @@ typedef enum /* Return codes for function calls */
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+/*----------------------- CALLBACKS FOR COMMANDS ------------------------------*/
 typedef void (*DefCmdComplete)( CONTROLLER_ERROR_CODES Status ); /* Default Command Complete CallBack */
 typedef void (*DefCmdStatus)( CONTROLLER_ERROR_CODES Status );	 /* Default Command Status CallBack */
+typedef void (*TxPwrLvlComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, int8_t TX_Power_Level );
+typedef void (*ReadLocalVerInfoComplete)( CONTROLLER_ERROR_CODES Status, HCI_VERSION HCI_Version, uint16_t HCI_Revision,
+		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name, uint16_t LMP_PAL_Subversion );
+typedef void (*ReadLocalSupCmdsComplete)( CONTROLLER_ERROR_CODES Status, SUPPORTED_COMMANDS* Supported_Commands );
+typedef void (*ReadLocalSupFeaturesComplete)( CONTROLLER_ERROR_CODES Status, SUPPORTED_FEATURES* LMP_Features );
+typedef void (*ReadBDADDRComplete)( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* BD_ADDR );
+typedef void (*ReadRSSIComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Handle, int8_t RSSI );
+typedef void (*LEReadBufferSizeComplete)( CONTROLLER_ERROR_CODES Status, uint16_t LE_ACL_Data_Packet_Length,
+		uint8_t Total_Num_LE_ACL_Data_Packets );
+typedef void (*LEReadLocalSuppFeaturesComplete)( CONTROLLER_ERROR_CODES Status, LE_SUPPORTED_FEATURES* LE_Features );
+typedef void (*LEReadAdvPhyChannelTxPowerComplete)( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level );
+typedef void (*LEReadWhiteListSizeComplete)( CONTROLLER_ERROR_CODES Status, uint8_t White_List_Size );
+typedef void (*LEReadChannelMapComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CHANNEL_MAP* Channel_Map );
+typedef void (*LEEncryptComplete)( CONTROLLER_ERROR_CODES Status, uint8_t Encrypted_Data[16] );
+typedef void (*LERandComplete)( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] );
+typedef void (*LELongTermKeyRqtReplyComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
+typedef void (*LELongTermKeyRqtNegReplyComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
+typedef void (*LEReadSupportedStatesComplete)( CONTROLLER_ERROR_CODES Status, SUPPORTED_LE_STATES* LE_States );
 
 
-/*----------------------- COMMANDS AND THEIR EVENTS ------------------------------*/
+/*------------------------ COMMANDS AND SOME EVENTS -------------------------------*/
 uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason, DefCmdStatus StatusCallBack );
 void	HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
-
 uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle, DefCmdStatus StatusCallBack );
 void 	HCI_Read_Remote_Version_Information_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, HCI_VERSION Version,
 		uint16_t Manufacturer_Name, uint16_t Subversion );
-
 uint8_t HCI_Set_Event_Mask( EVENT_MASK Event_Mask, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*TxPwrLvlComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, int8_t TX_Power_Level );
 uint8_t HCI_Read_Transmit_Power_Level( uint16_t Connection_Handle, uint8_t Type,
 		TxPwrLvlComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_Reset( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*ReadLocalVerInfoComplete)( CONTROLLER_ERROR_CODES Status, HCI_VERSION HCI_Version, uint16_t HCI_Revision,
-		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name, uint16_t LMP_PAL_Subversion );
 uint8_t HCI_Read_Local_Version_Information( ReadLocalVerInfoComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*ReadLocalSupCmdsComplete)( CONTROLLER_ERROR_CODES Status, SUPPORTED_COMMANDS* Supported_Commands );
 uint8_t HCI_Read_Local_Supported_Commands( ReadLocalSupCmdsComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*ReadLocalSupFeaturesComplete)( CONTROLLER_ERROR_CODES Status, SUPPORTED_FEATURES* LMP_Features );
 uint8_t HCI_Read_Local_Supported_Features( ReadLocalSupFeaturesComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*ReadBDADDRComplete)( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* BD_ADDR );
 uint8_t HCI_Read_BD_ADDR( ReadBDADDRComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*ReadRSSIComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Handle, int8_t RSSI );
 uint8_t HCI_Read_RSSI( uint16_t Handle, ReadRSSIComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Set_Event_Mask( LE_EVENT_MASK LE_Event_Mask, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*LEReadBufferSizeComplete)( CONTROLLER_ERROR_CODES Status, uint16_t LE_ACL_Data_Packet_Length,
-		uint8_t Total_Num_LE_ACL_Data_Packets );
 uint8_t HCI_LE_Read_Buffer_Size( LEReadBufferSizeComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*LEReadLocalSuppFeaturesComplete)( CONTROLLER_ERROR_CODES Status, LE_SUPPORTED_FEATURES* LE_Features );
 uint8_t HCI_LE_Read_Local_Supported_Features( LEReadLocalSuppFeaturesComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Set_Random_Address( BD_ADDR_TYPE Random_Address, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Set_Advertising_Parameters( uint16_t Advertising_Interval_Min, uint16_t Advertising_Interval_Max, ADVERTISING_TYPE Advertising_Type,
 		ADDRESS_TYPE Own_Address_Type, ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address,
 		ADV_CHANNEL_MAP Advertising_Channel_Map, uint8_t Advertising_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*LEReadAdvPhyChannelTxPowerComplete)( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level );
 uint8_t HCI_LE_Read_Advertising_Physical_Channel_Tx_Power( LEReadAdvPhyChannelTxPowerComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[],
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Set_Scan_Response_Data( uint8_t Scan_Response_Data_Length, uint8_t Scan_Response_Data[],
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Set_Advertising_Enable( uint8_t Advertising_Enable, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Set_Scan_Parameters( LE_SCAN_TYPE LE_Scan_Type, uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window,
 		ADDRESS_TYPE Own_Address_Type, uint8_t Scanning_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Set_Scan_Enable( uint8_t LE_Scan_Enable, uint8_t Filter_Duplicates,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window, uint8_t Initiator_Filter_Policy,
 		ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADDRESS_TYPE Own_Address_Type,
 		uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
@@ -1186,61 +1173,36 @@ uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Wi
 void 	HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, ADDRESS_TYPE Peer_Address_Type,
 		BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
 		uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy );
-
 uint8_t HCI_LE_Create_Connection_Cancel( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*LEReadWhiteListSizeComplete)( CONTROLLER_ERROR_CODES Status, uint8_t White_List_Size );
 uint8_t HCI_LE_Read_White_List_Size( LEReadWhiteListSizeComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Clear_White_List( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Add_Device_To_White_List( uint8_t Address_Type, BD_ADDR_TYPE Address,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Remove_Device_From_White_List( uint8_t Address_Type, BD_ADDR_TYPE Address,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Set_Host_Channel_Classification( CHANNEL_MAP Channel_Map, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Connection_Update( uint16_t Connection_Handle, uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max,
 		uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length, DefCmdStatus StatusCallBack );
 void 	HCI_LE_Connection_Update_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint16_t Connection_Interval,
 		uint16_t Connection_Latency, uint16_t Supervision_Timeout );
-
-typedef void (*LEReadChannelMapComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CHANNEL_MAP* Channel_Map );
 uint8_t HCI_LE_Read_Channel_Map( uint16_t Connection_Handle, LEReadChannelMapComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Read_Remote_Features( uint16_t Connection_Handle, DefCmdStatus StatusCallBack );
 void 	HCI_LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
-
-typedef void (*LEEncryptComplete)( CONTROLLER_ERROR_CODES Status, uint8_t Encrypted_Data[16] );
 uint8_t HCI_LE_Encrypt( uint8_t Key[16], uint8_t Plaintext_Data[16], LEEncryptComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*LERandComplete)( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] );
 uint8_t HCI_LE_Rand( LERandComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Enable_Encryption( uint16_t Connection_Handle, uint8_t Random_Number[8],
 		uint16_t Encrypted_Diversifier, uint8_t Long_Term_Key[16], DefCmdStatus StatusCallBack );
 void 	HCI_Encryption_Change( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Encryption_Enabled );
-
-typedef void (*LELongTermKeyRqtReplyComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
 uint8_t HCI_LE_Long_Term_Key_Request_Reply( uint16_t Connection_Handle, uint8_t Long_Term_Key[16],
 		LELongTermKeyRqtReplyComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*LELongTermKeyRqtNegReplyComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
 uint8_t HCI_LE_Long_Term_Key_Request_Negative_Reply( uint16_t Connection_Handle,
 		LELongTermKeyRqtNegReplyComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
-typedef void (*LEReadSupportedStatesComplete)( CONTROLLER_ERROR_CODES Status, SUPPORTED_LE_STATES* LE_States );
 uint8_t HCI_LE_Read_Supported_States( LEReadSupportedStatesComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 /* TODO: implement further Receiver Test versions */
 uint8_t HCI_LE_Receiver_Test_v1( uint8_t RX_Channel, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 /* TODO: implement further transmitter Test versions */
 uint8_t HCI_LE_Transmitter_Test_v1( uint8_t TX_Channel, uint8_t Test_Data_Length, uint8_t Packet_Payload,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
-
 uint8_t HCI_LE_Test_End( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
 

@@ -103,7 +103,7 @@ typedef struct
 	uint8_t Status; /* BUSY/FREE */
 	void* CmdCompleteCallBack; /* Function pointer */
 	void* CmdStatusCallBack; /* Function pointer */
-	void* CmdCompleteHandler; /* Function pointer */
+	void (*CmdCompleteHandler)(void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr); /* Function pointer */
 }CMD_CALLBACK;
 
 
