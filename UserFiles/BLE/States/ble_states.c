@@ -30,13 +30,31 @@ typedef enum
 }BLE_INIT_STEPS;
 
 
+typedef enum
+{
+	DISABLE_ADVERTISING,
+	SET_ADV_PARAMETERS,
+	WAIT_OPERATION,
+}ADV_CONFIG_STEPS;
+
+
+typedef struct
+{
+	ADV_CONFIG_STEPS Actual;
+	ADV_CONFIG_STEPS Next;
+}ADV_CONFIG;
+
+
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
+static void Set_BLE_State( BLE_STATES NewBLEState );
 static uint8_t Reset_Controller( void );
 static void Reset_Complete( CONTROLLER_ERROR_CODES Status );
 static uint8_t Vendor_Specific_Init( void );
 static uint8_t BLE_Init( void );
+static uint8_t Advertising_Config( void );
+static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void Vendor_Specific_Init_CallBack( void* ConfigData );
 static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
 static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
@@ -81,6 +99,8 @@ static LE_SUPPORTED_FEATURES HCI_LE_Features;
 static uint16_t LE_ACL_Data_Packet_Length_Supported;
 static uint8_t Total_Num_LE_ACL_Data_Packets_Supported;
 static BLE_VERSION_INFO LocalInfo;
+static ADVERTISING_PARAMETERS* AdvertisingParameters = NULL;
+static ADV_CONFIG AdvConfig = { DISABLE_ADVERTISING, DISABLE_ADVERTISING };
 
 
 /****************************************************************/
@@ -93,19 +113,19 @@ static BLE_VERSION_INFO LocalInfo;
 /****************************************************************/
 void Run_BLE( void )
 {
-	switch( BLEState )
+	switch( Get_BLE_State() )
 	{
 	case RESET_CONTROLLER:
 		if( Reset_Controller(  ) )
 		{
-			BLEState = VENDOR_SPECIFIC_INIT;
+			Set_BLE_State( VENDOR_SPECIFIC_INIT );
 		}
 		break;
 
 	case VENDOR_SPECIFIC_INIT:
 		if( Vendor_Specific_Init(  ) )
 		{
-			BLEState = BLE_INITIAL_SETUP;
+			Set_BLE_State( BLE_INITIAL_SETUP );
 		}
 		break;
 
@@ -113,7 +133,7 @@ void Run_BLE( void )
 		if( BLE_Init(  ) )
 		{
 			Standby_Flag = BLE_FALSE;
-			BLEState = STANDBY_STATE;
+			Set_BLE_State( STANDBY_STATE );
 		}
 		break;
 
@@ -124,6 +144,13 @@ void Run_BLE( void )
 			{
 				Standby_Flag = BLE_TRUE;
 			}
+		}
+		break;
+
+	case CONFIG_ADVERTISING:
+		if( Advertising_Config(  ) )
+		{
+			Set_BLE_State( ADVERTISING_STATE );
 		}
 		break;
 
@@ -161,6 +188,20 @@ void Run_BLE( void )
 BLE_STATES Get_BLE_State( void )
 {
 	return( BLEState );
+}
+
+
+/****************************************************************/
+/* Set_BLE_State()        	       								*/
+/* Location: 					 								*/
+/* Purpose: Set the operating BLE state							*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Set_BLE_State( BLE_STATES NewBLEState )
+{
+	BLEState = NewBLEState;
 }
 
 
@@ -203,6 +244,40 @@ SUPPORTED_FEATURES* Get_Supported_Features( void )
 BLE_VERSION_INFO* Get_Local_Version_Information( void )
 {
 	return ( &LocalInfo );
+}
+
+
+/****************************************************************/
+/* Enter_Advertising_Mode()        	 							*/
+/* Location: 					 								*/
+/* Purpose: Put the controller in advertising mode or update	*/
+/* parameters if already in advertising.						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar )
+{
+	BLE_STATES State = Get_BLE_State( );
+	if( ( State == STANDBY_STATE ) || ( State == ADVERTISING_STATE ) )
+	{
+		if( AdvertisingParameters != NULL )
+		{
+			free(AdvertisingParameters);
+			AdvertisingParameters = NULL;
+		}
+
+		AdvertisingParameters = malloc( sizeof(ADVERTISING_PARAMETERS) );
+
+		if( AdvertisingParameters != NULL )
+		{
+			*AdvertisingParameters = *AdvPar;
+			Set_BLE_State( CONFIG_ADVERTISING );
+			return (TRUE);
+		}
+	}
+
+	return (FALSE);
 }
 
 
@@ -362,6 +437,59 @@ static uint8_t BLE_Init( void )
 	}
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Advertising_Config()        	   								*/
+/* Location: 					 								*/
+/* Purpose: Configure advertising type							*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Advertising_Config( void )
+{
+	static uint32_t AdvConfigTimeout = 0;
+
+	switch( AdvConfig.Actual )
+	{
+	case DISABLE_ADVERTISING:
+		AdvConfigTimeout = 0;
+		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Enable )
+		{
+			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
+			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_ADV_PARAMETERS : AdvConfig.Actual;
+		}
+		break;
+
+	case SET_ADV_PARAMETERS:
+		break;
+
+	case WAIT_OPERATION:
+		if( TimeBase_DelayMs( &AdvConfigTimeout, 500, TRUE ) )
+		{
+			AdvConfig.Actual = DISABLE_ADVERTISING;
+			AdvConfig.Next = DISABLE_ADVERTISING;
+		}
+		break;
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* LE_Set_Advertising_Enable_Complete()        	   				*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	AdvConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? AdvConfig.Next : DISABLE_ADVERTISING;
 }
 
 

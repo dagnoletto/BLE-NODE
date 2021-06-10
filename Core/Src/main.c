@@ -112,6 +112,10 @@ int main(void)
 
 		if( TimeBase_DelayMs( &Timer, Period, TRUE ) )
 		{
+			ADVERTISING_PARAMETERS Adv;
+			Adv.Advertising_Type = ADV_IND;
+			Enter_Advertising_Mode( &Adv );
+
 //			uint8_t Bytes[] = { 1,2,3,4,5 };
 //
 //			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;

@@ -21,6 +21,7 @@ typedef enum
 	VENDOR_SPECIFIC_INIT,
 	BLE_INITIAL_SETUP,
 	STANDBY_STATE,
+	CONFIG_ADVERTISING,
 	ADVERTISING_STATE,
 	SCANNING_STATE,
 	INITIATING_STATE,
@@ -40,6 +41,19 @@ typedef struct
 }BLE_VERSION_INFO;
 
 
+typedef struct
+{
+	uint16_t Advertising_Interval_Min;
+	uint16_t Advertising_Interval_Max;
+	ADVERTISING_TYPE Advertising_Type;
+	ADDRESS_TYPE Own_Address_Type;
+	ADDRESS_TYPE Peer_Address_Type;
+	BD_ADDR_TYPE Peer_Address;
+	ADV_CHANNEL_MAP Advertising_Channel_Map;
+	uint8_t Advertising_Filter_Policy;
+}ADVERTISING_PARAMETERS;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
@@ -48,6 +62,7 @@ BLE_STATES Get_BLE_State( void );
 SUPPORTED_COMMANDS* Get_Supported_Commands( void );
 SUPPORTED_FEATURES* Get_Supported_Features( void );
 BLE_VERSION_INFO* Get_Local_Version_Information( void );
+uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar );
 
 
 #endif /* BLE_STATES_H_ */
