@@ -110,11 +110,30 @@ int main(void)
 		Run_Bluenrg();
 		Run_BLE();
 
-		if( TimeBase_DelayMs( &Timer, Period, TRUE ) )
+		static uint8_t flag= 0;
+		if( TimeBase_DelayMs( &Timer, Period, TRUE )  )
 		{
 			ADVERTISING_PARAMETERS Adv;
+			static uint8_t Data[] = "Teste";
+
+			if(!flag)
+			{
+			Adv.Advertising_Interval_Min = 160;
+			Adv.Advertising_Interval_Max = 320;
 			Adv.Advertising_Type = ADV_IND;
+			Adv.Own_Address_Type = PUBLIC_DEV_ADDR;
+			Adv.Peer_Address_Type = PUBLIC_DEV_ADDR;
+			memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
+			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
+			Adv.Advertising_Filter_Policy = 0;
+			Adv.Adv_Data_Length = sizeof(Data);
+			Adv.Adv_Data_Ptr = &Data[0];
+			Adv.ScanRsp_Data_Length = sizeof(Data);
+			Adv.Scan_Data_Ptr = &Data[0];
+
 			Enter_Advertising_Mode( &Adv );
+			}
+			flag = 1;
 
 //			uint8_t Bytes[] = { 1,2,3,4,5 };
 //

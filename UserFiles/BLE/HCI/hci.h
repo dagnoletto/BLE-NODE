@@ -1155,8 +1155,8 @@ uint8_t HCI_LE_Read_Buffer_Size( LEReadBufferSizeComplete CompleteCallBack, DefC
 uint8_t HCI_LE_Read_Local_Supported_Features( LEReadLocalSuppFeaturesComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Set_Random_Address( BD_ADDR_TYPE Random_Address, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Set_Advertising_Parameters( uint16_t Advertising_Interval_Min, uint16_t Advertising_Interval_Max, ADVERTISING_TYPE Advertising_Type,
-		ADDRESS_TYPE Own_Address_Type, ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address,
-		ADV_CHANNEL_MAP Advertising_Channel_Map, uint8_t Advertising_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
+		ADDRESS_TYPE Own_Address_Type, ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADV_CHANNEL_MAP Advertising_Channel_Map,
+		uint8_t Advertising_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Read_Advertising_Physical_Channel_Tx_Power( LEReadAdvPhyChannelTxPowerComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[],
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );

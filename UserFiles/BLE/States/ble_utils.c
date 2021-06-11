@@ -324,6 +324,63 @@ IRK_TYPE* Get_Default_IRK( void )
 
 
 /****************************************************************/
+/* Get_Max_Advertising_Data_Length()        					*/
+/* Location: 					 								*/
+/* Purpose: Get the maximum data bytes allowed for advertising	*/
+/* data for advertising.										*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Get_Max_Advertising_Data_Length( void )
+{
+	/* MAX_ADVERTISING_DATA_LENGTH - (Length byte) - (AD Type byte) */
+	return ( MAX_ADVERTISING_DATA_LENGTH - 2 );
+}
+
+
+/****************************************************************/
+/* Get_Max_Scan_Response_Data_Length()        					*/
+/* Location: 					 								*/
+/* Purpose: Get the maximum data bytes allowed for scan 		*/
+/* response data.												*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Get_Max_Scan_Response_Data_Length( void )
+{
+	/* MAX_SCAN_RESPONSE_DATA_LENGTH - (Length byte) - (AD Type byte) */
+	return ( MAX_SCAN_RESPONSE_DATA_LENGTH - 2 );
+}
+
+
+/****************************************************************/
+/* Format_AD_Structure()        								*/
+/* Location: 					 								*/
+/* Purpose: Format the advertising structure for advertising 	*/
+/* and returns the size of the structure .						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Format_AD_Structure( uint8_t DestArray[], uint8_t DestArraySize, ADVERTISING_TYPE ADType, uint8_t UserData[], uint8_t UserDataSize )
+{
+	if( ( DestArraySize >= ( UserDataSize + 2 ) ) && ( UserDataSize <= Get_Max_Advertising_Data_Length() ) )
+	{
+		*( &DestArray[0] ) = UserDataSize + 1; /* UserDataSize + ADType */
+		*( &DestArray[1] ) = (uint8_t)ADType;
+		memcpy( &DestArray[2], &UserData[0], UserDataSize );
+		return ( DestArray[0] + 1 );
+	}else
+	{
+		memset( &DestArray[0], 0, DestArraySize );
+		return (0);
+	}
+}
+
+
+/****************************************************************/
 /* Create_Static_Address()        								*/
 /* Location: 					 								*/
 /* Purpose: create static random address.						*/

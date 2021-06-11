@@ -34,6 +34,9 @@ BD_ADDR_TYPE* Get_Public_Device_Address( void );
 BD_ADDR_TYPE* Get_Static_Device_Address( void );
 BD_ADDR_TYPE* Get_Private_Device_Address( uint8_t resolvable );
 IRK_TYPE* Get_Default_IRK( void );
+uint8_t Get_Max_Advertising_Data_Length( void );
+uint8_t Get_Max_Scan_Response_Data_Length( void );
+uint8_t Format_AD_Structure( uint8_t DestArray[], uint8_t DestArraySize, ADVERTISING_TYPE ADType, uint8_t UserData[], uint8_t UserDataSize );
 
 
 /****************************************************************/

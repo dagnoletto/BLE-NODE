@@ -34,6 +34,12 @@ typedef enum
 {
 	DISABLE_ADVERTISING,
 	SET_ADV_PARAMETERS,
+	READ_ADV_POWER,
+	SET_ADV_POWER,
+	SET_ADV_DATA,
+	SET_SCAN_RSP_DATA,
+	ENABLE_ADVERTISING,
+	END_ADV_CONFIG,
 	WAIT_OPERATION,
 }ADV_CONFIG_STEPS;
 
@@ -42,6 +48,7 @@ typedef struct
 {
 	ADV_CONFIG_STEPS Actual;
 	ADV_CONFIG_STEPS Next;
+	ADV_CONFIG_STEPS Prev;
 }ADV_CONFIG;
 
 
@@ -55,6 +62,9 @@ static uint8_t Vendor_Specific_Init( void );
 static uint8_t BLE_Init( void );
 static uint8_t Advertising_Config( void );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level );
+static void LE_Set_Data_Complete( CONTROLLER_ERROR_CODES Status );
 static void Vendor_Specific_Init_CallBack( void* ConfigData );
 static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
 static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
@@ -100,6 +110,7 @@ static uint16_t LE_ACL_Data_Packet_Length_Supported;
 static uint8_t Total_Num_LE_ACL_Data_Packets_Supported;
 static BLE_VERSION_INFO LocalInfo;
 static ADVERTISING_PARAMETERS* AdvertisingParameters = NULL;
+static int8_t Adv_TX_Power_Level;
 static ADV_CONFIG AdvConfig = { DISABLE_ADVERTISING, DISABLE_ADVERTISING };
 
 
@@ -155,6 +166,7 @@ void Run_BLE( void )
 		break;
 
 	case ADVERTISING_STATE:
+		Set_BLE_State( ADVERTISING_STATE ); //TODO: teste
 		break;
 
 	case SCANNING_STATE:
@@ -261,19 +273,23 @@ uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar )
 	BLE_STATES State = Get_BLE_State( );
 	if( ( State == STANDBY_STATE ) || ( State == ADVERTISING_STATE ) )
 	{
-		if( AdvertisingParameters != NULL )
+		if( ( AdvPar->Adv_Data_Length <= Get_Max_Advertising_Data_Length() )
+				&& ( AdvPar->ScanRsp_Data_Length <= Get_Max_Scan_Response_Data_Length() ) )
 		{
-			free(AdvertisingParameters);
-			AdvertisingParameters = NULL;
-		}
+			if( AdvertisingParameters != NULL )
+			{
+				free(AdvertisingParameters);
+				AdvertisingParameters = NULL;
+			}
 
-		AdvertisingParameters = malloc( sizeof(ADVERTISING_PARAMETERS) );
+			AdvertisingParameters = malloc( sizeof(ADVERTISING_PARAMETERS) );
 
-		if( AdvertisingParameters != NULL )
-		{
-			*AdvertisingParameters = *AdvPar;
-			Set_BLE_State( CONFIG_ADVERTISING );
-			return (TRUE);
+			if( AdvertisingParameters != NULL )
+			{
+				*AdvertisingParameters = *AdvPar;
+				Set_BLE_State( CONFIG_ADVERTISING );
+				return (TRUE);
+			}
 		}
 	}
 
@@ -460,10 +476,80 @@ static uint8_t Advertising_Config( void )
 		{
 			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
 			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_ADV_PARAMETERS : AdvConfig.Actual;
+			AdvConfig.Prev = DISABLE_ADVERTISING;
 		}
 		break;
 
 	case SET_ADV_PARAMETERS:
+		AdvConfigTimeout = 0;
+		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Parameters )
+		{
+			AdvConfig.Actual = HCI_LE_Set_Advertising_Parameters( AdvertisingParameters->Advertising_Interval_Min, AdvertisingParameters->Advertising_Interval_Max, AdvertisingParameters->Advertising_Type,
+					AdvertisingParameters->Own_Address_Type, AdvertisingParameters->Peer_Address_Type, AdvertisingParameters->Peer_Address,
+					AdvertisingParameters->Advertising_Channel_Map, AdvertisingParameters->Advertising_Filter_Policy, &LE_Set_Advertising_Parameters_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_PARAMETERS;
+			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? READ_ADV_POWER : AdvConfig.Actual;
+		}
+		break;
+
+	case READ_ADV_POWER:
+		AdvConfigTimeout = 0;
+		if( HCI_Supported_Commands.Bits.HCI_LE_Read_Advertising_Physical_Channel_Tx_Power )
+		{
+			AdvConfig.Actual = HCI_LE_Read_Advertising_Physical_Channel_Tx_Power( &LE_Read_Advertising_Physical_Channel_Tx_Power_Complete, NULL ) ? WAIT_OPERATION : READ_ADV_POWER;
+			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_ADV_POWER : AdvConfig.Actual;
+		}else
+		{
+			AdvConfig.Actual = SET_ADV_DATA;
+		}
+		break;
+
+	case SET_ADV_POWER:
+		/* So far there is no HCI standard command to adjust specifically the advertising power, this step is for the future */
+		/* We can used the ACI_Hal_Set_Tx_Power_Level from vendor_specific_hci, but is for all channels, not only advertising */
+		AdvConfig.Actual = SET_ADV_DATA;
+		break;
+
+	case SET_ADV_DATA:
+		AdvConfigTimeout = 0;
+		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Data )
+		{
+			uint8_t AdvData[ AdvertisingParameters->Adv_Data_Length + 2 ];
+
+			uint8_t AdvDataLen = Format_AD_Structure( &AdvData[0], sizeof(AdvData), AdvertisingParameters->Advertising_Type, AdvertisingParameters->Adv_Data_Ptr, AdvertisingParameters->Adv_Data_Length );
+
+			AdvConfig.Actual = HCI_LE_Set_Advertising_Data( AdvDataLen, &AdvData[0], &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_DATA;
+			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_SCAN_RSP_DATA : AdvConfig.Actual;
+			AdvConfig.Prev = SET_ADV_DATA;
+		}
+		break;
+
+	case SET_SCAN_RSP_DATA:
+		AdvConfigTimeout = 0;
+		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Scan_Response_Data )
+		{
+			uint8_t ScanRspData[ AdvertisingParameters->ScanRsp_Data_Length + 2 ];
+
+			uint8_t ScanRspDataLen = Format_AD_Structure( &ScanRspData[0], sizeof(ScanRspData), AdvertisingParameters->Advertising_Type, AdvertisingParameters->Scan_Data_Ptr, AdvertisingParameters->ScanRsp_Data_Length );
+
+			AdvConfig.Actual = HCI_LE_Set_Scan_Response_Data( ScanRspDataLen, &ScanRspData[0], &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_RSP_DATA;
+			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? ENABLE_ADVERTISING : AdvConfig.Actual;
+			AdvConfig.Prev = SET_SCAN_RSP_DATA;
+		}
+		break;
+
+	case ENABLE_ADVERTISING:
+		AdvConfigTimeout = 0;
+		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Enable )
+		{
+			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( TRUE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : ENABLE_ADVERTISING;
+			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? END_ADV_CONFIG : AdvConfig.Actual;
+			AdvConfig.Prev = ENABLE_ADVERTISING;
+		}
+		break;
+
+	case END_ADV_CONFIG:
+		AdvConfig.Actual = DISABLE_ADVERTISING;
+		return (TRUE);
 		break;
 
 	case WAIT_OPERATION:
@@ -472,6 +558,9 @@ static uint8_t Advertising_Config( void )
 			AdvConfig.Actual = DISABLE_ADVERTISING;
 			AdvConfig.Next = DISABLE_ADVERTISING;
 		}
+		break;
+
+	default:
 		break;
 	}
 
@@ -489,7 +578,53 @@ static uint8_t Advertising_Config( void )
 /****************************************************************/
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status )
 {
-	AdvConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? AdvConfig.Next : DISABLE_ADVERTISING;
+	AdvConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? AdvConfig.Next : AdvConfig.Prev;
+}
+
+
+/****************************************************************/
+/* LE_Set_Advertising_Parameters_Complete()        	 			*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? AdvConfig.Next : SET_ADV_PARAMETERS;
+}
+
+
+/****************************************************************/
+/* LE_Read_Advertising_Physical_Channel_Tx_Power_Complete()    	*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level )
+{
+	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? AdvConfig.Next : READ_ADV_POWER;
+	if( Status == COMMAND_SUCCESS )
+	{
+		Adv_TX_Power_Level = TX_Power_Level;
+	}
+}
+
+
+/****************************************************************/
+/* LE_Set_Data_Complete()   					 				*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Set_Data_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? AdvConfig.Next : AdvConfig.Prev;
 }
 
 

@@ -51,6 +51,10 @@ typedef struct
 	BD_ADDR_TYPE Peer_Address;
 	ADV_CHANNEL_MAP Advertising_Channel_Map;
 	uint8_t Advertising_Filter_Policy;
+	uint8_t Adv_Data_Length;
+	uint8_t* Adv_Data_Ptr;
+	uint8_t ScanRsp_Data_Length;
+	uint8_t* Scan_Data_Ptr;
 }ADVERTISING_PARAMETERS;
 
 

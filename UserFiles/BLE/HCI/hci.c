@@ -654,8 +654,8 @@ uint8_t HCI_LE_Set_Random_Address( BD_ADDR_TYPE Random_Address, DefCmdComplete C
 /* Description:													*/
 /****************************************************************/
 uint8_t HCI_LE_Set_Advertising_Parameters( uint16_t Advertising_Interval_Min, uint16_t Advertising_Interval_Max, ADVERTISING_TYPE Advertising_Type,
-		ADDRESS_TYPE Own_Address_Type, ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address,
-		ADV_CHANNEL_MAP Advertising_Channel_Map, uint8_t Advertising_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
+		ADDRESS_TYPE Own_Address_Type, ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADV_CHANNEL_MAP Advertising_Channel_Map,
+		uint8_t Advertising_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
 	uint8_t Status;
 
@@ -753,17 +753,18 @@ uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Ad
 	if( Advertising_Data_Length <= MAX_ADVERTISING_DATA_LENGTH )
 	{
 
-		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + Advertising_Data_Length;
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + MAX_ADVERTISING_DATA_LENGTH + 1;
 		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
 		PcktPtr->PacketType = HCI_COMMAND_PACKET;
 		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_ADVERTISING_DATA;
-		PcktPtr->CmdPacket.Parameter_Total_Length = Advertising_Data_Length;
+		PcktPtr->CmdPacket.Parameter_Total_Length = MAX_ADVERTISING_DATA_LENGTH + 1;
 
-		for( uint8_t i = 0; i < Advertising_Data_Length; i++ )
-		{
-			PcktPtr->CmdPacket.Parameter[i] = Advertising_Data[i];
-		}
+		memset( &( PcktPtr->CmdPacket.Parameter[0] ), 0, PcktPtr->CmdPacket.Parameter_Total_Length );
+
+		PcktPtr->CmdPacket.Parameter[0] = Advertising_Data_Length;
+
+		memcpy( &( PcktPtr->CmdPacket.Parameter[1] ), &Advertising_Data[0], Advertising_Data_Length );
 
 		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
@@ -801,17 +802,18 @@ uint8_t HCI_LE_Set_Scan_Response_Data( uint8_t Scan_Response_Data_Length, uint8_
 	if( Scan_Response_Data_Length <= MAX_SCAN_RESPONSE_DATA_LENGTH )
 	{
 
-		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + Scan_Response_Data_Length;
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + MAX_SCAN_RESPONSE_DATA_LENGTH + 1;
 		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
 		PcktPtr->PacketType = HCI_COMMAND_PACKET;
 		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_SCAN_RESPONSE_DATA;
-		PcktPtr->CmdPacket.Parameter_Total_Length = Scan_Response_Data_Length;
+		PcktPtr->CmdPacket.Parameter_Total_Length = MAX_SCAN_RESPONSE_DATA_LENGTH + 1;
 
-		for( uint8_t i = 0; i < Scan_Response_Data_Length; i++ )
-		{
-			PcktPtr->CmdPacket.Parameter[i] = Scan_Response_Data[i];
-		}
+		memset( &( PcktPtr->CmdPacket.Parameter[0] ), 0, PcktPtr->CmdPacket.Parameter_Total_Length );
+
+		PcktPtr->CmdPacket.Parameter[0] = Scan_Response_Data_Length;
+
+		memcpy( &( PcktPtr->CmdPacket.Parameter[1] ), &Scan_Response_Data[0], Scan_Response_Data_Length );
 
 		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
