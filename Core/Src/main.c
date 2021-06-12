@@ -30,6 +30,7 @@
 #include "TimeFunctions.h"
 #include "Bluenrg.h"
 #include "ble_states.h"
+#include "gap.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -114,36 +115,36 @@ int main(void)
 		if( TimeBase_DelayMs( &Timer, Period, TRUE )  )
 		{
 			ADVERTISING_PARAMETERS Adv;
-			static uint8_t Data[] = "Teste";
+			static uint8_t Data[] = { 8, COMPLETE_LOCAL_NAME_TYPE, 'P', 'i', 't', 'o', 'c','a','!' };
 
 			if(!flag)
 			{
-			Adv.Advertising_Interval_Min = 160;
-			Adv.Advertising_Interval_Max = 320;
-			Adv.Advertising_Type = ADV_IND;
-			Adv.Own_Address_Type = PUBLIC_DEV_ADDR;
-			Adv.Peer_Address_Type = PUBLIC_DEV_ADDR;
-			memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
-			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
-			Adv.Advertising_Filter_Policy = 0;
-			Adv.Adv_Data_Length = sizeof(Data);
-			Adv.Adv_Data_Ptr = &Data[0];
-			Adv.ScanRsp_Data_Length = sizeof(Data);
-			Adv.Scan_Data_Ptr = &Data[0];
+				Adv.Advertising_Interval_Min = 160;
+				Adv.Advertising_Interval_Max = 320;
+				Adv.Advertising_Type = ADV_IND;
+				Adv.Own_Address_Type = PUBLIC_DEV_ADDR;
+				Adv.Peer_Address_Type = PUBLIC_DEV_ADDR;
+				memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
+				Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
+				Adv.Advertising_Filter_Policy = 0;
+				Adv.Adv_Data_Length = sizeof(Data);
+				Adv.Adv_Data_Ptr = &Data[0];
+				Adv.ScanRsp_Data_Length = sizeof(Data);
+				Adv.Scan_Data_Ptr = &Data[0];
 
-			Enter_Advertising_Mode( &Adv );
+				Enter_Advertising_Mode( &Adv );
 			}
 			flag = 1;
 
-//			uint8_t Bytes[] = { 1,2,3,4,5 };
-//
-//			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
-//			ACLDataPacketHeader.Data_Total_Length = sizeof(Bytes);
-//			ACLDataPacketHeader.BC_Flag = 0;
-//			ACLDataPacketHeader.PB_Flag = 0;
-//			ACLDataPacketHeader.Handle = 0;
-//
-//			HCI_Host_ACL_Data( ACLDataPacketHeader, &Bytes[0] );
+			//			uint8_t Bytes[] = { 1,2,3,4,5 };
+			//
+			//			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
+			//			ACLDataPacketHeader.Data_Total_Length = sizeof(Bytes);
+			//			ACLDataPacketHeader.BC_Flag = 0;
+			//			ACLDataPacketHeader.PB_Flag = 0;
+			//			ACLDataPacketHeader.Handle = 0;
+			//
+			//			HCI_Host_ACL_Data( ACLDataPacketHeader, &Bytes[0] );
 
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}

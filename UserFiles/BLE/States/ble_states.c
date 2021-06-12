@@ -513,11 +513,7 @@ static uint8_t Advertising_Config( void )
 		AdvConfigTimeout = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Data )
 		{
-			uint8_t AdvData[ AdvertisingParameters->Adv_Data_Length + 2 ];
-
-			uint8_t AdvDataLen = Format_AD_Structure( &AdvData[0], sizeof(AdvData), AdvertisingParameters->Advertising_Type, AdvertisingParameters->Adv_Data_Ptr, AdvertisingParameters->Adv_Data_Length );
-
-			AdvConfig.Actual = HCI_LE_Set_Advertising_Data( AdvDataLen, &AdvData[0], &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_DATA;
+			AdvConfig.Actual = HCI_LE_Set_Advertising_Data( AdvertisingParameters->Adv_Data_Length, AdvertisingParameters->Adv_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_DATA;
 			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_SCAN_RSP_DATA : AdvConfig.Actual;
 			AdvConfig.Prev = SET_ADV_DATA;
 		}
@@ -527,11 +523,7 @@ static uint8_t Advertising_Config( void )
 		AdvConfigTimeout = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Scan_Response_Data )
 		{
-			uint8_t ScanRspData[ AdvertisingParameters->ScanRsp_Data_Length + 2 ];
-
-			uint8_t ScanRspDataLen = Format_AD_Structure( &ScanRspData[0], sizeof(ScanRspData), AdvertisingParameters->Advertising_Type, AdvertisingParameters->Scan_Data_Ptr, AdvertisingParameters->ScanRsp_Data_Length );
-
-			AdvConfig.Actual = HCI_LE_Set_Scan_Response_Data( ScanRspDataLen, &ScanRspData[0], &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_RSP_DATA;
+			AdvConfig.Actual = HCI_LE_Set_Scan_Response_Data( AdvertisingParameters->ScanRsp_Data_Length, AdvertisingParameters->Scan_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_RSP_DATA;
 			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? ENABLE_ADVERTISING : AdvConfig.Actual;
 			AdvConfig.Prev = SET_SCAN_RSP_DATA;
 		}
