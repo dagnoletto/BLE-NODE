@@ -115,15 +115,17 @@ int main(void)
 		if( TimeBase_DelayMs( &Timer, Period, TRUE )  )
 		{
 			ADVERTISING_PARAMETERS Adv;
-			static uint8_t Data[] = { 8, COMPLETE_LOCAL_NAME_TYPE, 'P', 'i', 't', 'o', 'c','a','!' };
+			static uint8_t Data[31];
+
+			Load_Local_Name( (Local_Name_Type*)( &Data ), sizeof(Data) );
 
 			if(!flag)
 			{
 				Adv.Advertising_Interval_Min = 160;
 				Adv.Advertising_Interval_Max = 320;
 				Adv.Advertising_Type = ADV_IND;
-				Adv.Own_Address_Type = PUBLIC_DEV_ADDR;
-				Adv.Peer_Address_Type = PUBLIC_DEV_ADDR;
+				Adv.Own_Address_Type = OWN_PUBLIC_DEV_ADDR;
+				Adv.Peer_Address_Type = PEER_PUBLIC_DEV_ADDR;
 				memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
 				Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
 				Adv.Advertising_Filter_Policy = 0;

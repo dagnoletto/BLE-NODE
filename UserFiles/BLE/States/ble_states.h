@@ -46,8 +46,8 @@ typedef struct
 	uint16_t Advertising_Interval_Min;
 	uint16_t Advertising_Interval_Max;
 	ADVERTISING_TYPE Advertising_Type;
-	ADDRESS_TYPE Own_Address_Type;
-	ADDRESS_TYPE Peer_Address_Type;
+	OWN_ADDR_TYPE Own_Address_Type;
+	PEER_ADDR_TYPE Peer_Address_Type;
 	BD_ADDR_TYPE Peer_Address;
 	ADV_CHANNEL_MAP Advertising_Channel_Map;
 	uint8_t Advertising_Filter_Policy;

@@ -276,19 +276,26 @@ uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar )
 		if( ( AdvPar->Adv_Data_Length <= Get_Max_Advertising_Data_Length() )
 				&& ( AdvPar->ScanRsp_Data_Length <= Get_Max_Scan_Response_Data_Length() ) )
 		{
-			if( AdvertisingParameters != NULL )
+			if( ( AdvPar->Own_Address_Type > OWN_RANDOM_DEV_ADDR ) && ( LocalInfo.HCI_Version < CORE_SPEC_4_2 ) )
 			{
-				free(AdvertisingParameters);
-				AdvertisingParameters = NULL;
-			}
-
-			AdvertisingParameters = malloc( sizeof(ADVERTISING_PARAMETERS) );
-
-			if( AdvertisingParameters != NULL )
+				/* This feature is not supported with this controller version */
+				return (FALSE);
+			}else
 			{
-				*AdvertisingParameters = *AdvPar;
-				Set_BLE_State( CONFIG_ADVERTISING );
-				return (TRUE);
+				if( AdvertisingParameters != NULL )
+				{
+					free(AdvertisingParameters);
+					AdvertisingParameters = NULL;
+				}
+
+				AdvertisingParameters = malloc( sizeof(ADVERTISING_PARAMETERS) );
+
+				if( AdvertisingParameters != NULL )
+				{
+					*AdvertisingParameters = *AdvPar;
+					Set_BLE_State( CONFIG_ADVERTISING );
+					return (TRUE);
+				}
 			}
 		}
 	}

@@ -7,16 +7,7 @@
 /****************************************************************/
 /* Includes                                                     */
 /****************************************************************/
-
-
-/****************************************************************/
-/* Type Defines 				               		            */
-/****************************************************************/
-
-
-/****************************************************************/
-/* External functions declaration (Interface functions)         */
-/****************************************************************/
+#include "Types.h"
 
 
 /****************************************************************/
@@ -75,6 +66,24 @@
 #define THREE_D_INFORMATION_DATA_TYPE 					0x3D /* 3D Information Data */
 
 #define MANUFACTURER_SPECIFIC_DATA_TYPE 				0xFF /* Manufacturer Specific Data */
+
+
+/****************************************************************/
+/* Type Defines 				               		            */
+/****************************************************************/
+/* Data Types according to Supplement to the Bluetooth Core Specification CSS_v9 2019-12-31 */
+typedef struct
+{
+	uint8_t length; /* size of type + size of local_Name[] */
+	uint8_t type; /* Can be SHORTENED_LOCAL_NAME_TYPE or COMPLETE_LOCAL_NAME_TYPE */
+	uint8_t local_Name[]; /* Maximum of 248 bytes coded according to the UTF-8 standard */
+}__attribute__((packed)) Local_Name_Type;
+
+
+/****************************************************************/
+/* External functions declaration (Interface functions)         */
+/****************************************************************/
+uint8_t Load_Local_Name( Local_Name_Type* Ptr, uint16_t ArraySize );
 
 
 /****************************************************************/

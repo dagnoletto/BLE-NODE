@@ -654,7 +654,7 @@ uint8_t HCI_LE_Set_Random_Address( BD_ADDR_TYPE Random_Address, DefCmdComplete C
 /* Description:													*/
 /****************************************************************/
 uint8_t HCI_LE_Set_Advertising_Parameters( uint16_t Advertising_Interval_Min, uint16_t Advertising_Interval_Max, ADVERTISING_TYPE Advertising_Type,
-		ADDRESS_TYPE Own_Address_Type, ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADV_CHANNEL_MAP Advertising_Channel_Map,
+		OWN_ADDR_TYPE Own_Address_Type, PEER_ADDR_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADV_CHANNEL_MAP Advertising_Channel_Map,
 		uint8_t Advertising_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
 	uint8_t Status;
@@ -902,7 +902,7 @@ uint8_t HCI_LE_Set_Advertising_Enable( uint8_t Advertising_Enable, DefCmdComplet
 /* Description:													*/
 /****************************************************************/
 uint8_t HCI_LE_Set_Scan_Parameters( LE_SCAN_TYPE LE_Scan_Type, uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window,
-		ADDRESS_TYPE Own_Address_Type, uint8_t Scanning_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
+		OWN_ADDR_TYPE Own_Address_Type, uint8_t Scanning_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
 	uint8_t Status;
 
@@ -1054,7 +1054,7 @@ uint8_t HCI_LE_Set_Scan_Enable( uint8_t LE_Scan_Enable, uint8_t Filter_Duplicate
 /* Description:													*/
 /****************************************************************/
 uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window, uint8_t Initiator_Filter_Policy,
-		ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADDRESS_TYPE Own_Address_Type,
+		ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, OWN_ADDR_TYPE Own_Address_Type,
 		uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
 		uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length, DefCmdStatus StatusCallBack )
 {
@@ -2075,7 +2075,7 @@ __attribute__((weak)) void HCI_Encryption_Key_Refresh_Complete( CONTROLLER_ERROR
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-__attribute__((weak)) void HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, ADDRESS_TYPE Peer_Address_Type,
+__attribute__((weak)) void HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, PEER_ADDR_TYPE Peer_Address_Type,
 		BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
 		uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy )
 {

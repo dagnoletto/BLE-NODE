@@ -334,8 +334,7 @@ IRK_TYPE* Get_Default_IRK( void )
 /****************************************************************/
 uint8_t Get_Max_Advertising_Data_Length( void )
 {
-	/* MAX_ADVERTISING_DATA_LENGTH - (Length byte) - (AD Type byte) */
-	return ( MAX_ADVERTISING_DATA_LENGTH - 2 );
+	return ( MAX_ADVERTISING_DATA_LENGTH );
 }
 
 
@@ -350,8 +349,7 @@ uint8_t Get_Max_Advertising_Data_Length( void )
 /****************************************************************/
 uint8_t Get_Max_Scan_Response_Data_Length( void )
 {
-	/* MAX_SCAN_RESPONSE_DATA_LENGTH - (Length byte) - (AD Type byte) */
-	return ( MAX_SCAN_RESPONSE_DATA_LENGTH - 2 );
+	return ( MAX_SCAN_RESPONSE_DATA_LENGTH );
 }
 
 

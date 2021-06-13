@@ -949,14 +949,30 @@ typedef enum
 
 typedef enum
 {
-	PUBLIC_DEV_ADDR    = 0x00, /* Own_Address_Type: Public Device Address (default) / Peer_Address_Type: Public Device Address (default) or Public Identity Address */
-	RANDOM_DEV_ADDR	   = 0x01, /* Own_Address_Type: Random Device Address / Peer_Address_Type: Random Device Address or Random (static) Identity Address */
-	IRK_OR_PUBLIC_ADDR = 0x02, /* Controller generates Resolvable Private Address based on the local
-												 IRK from the resolving list. If the resolving list contains no matching
-												 entry, use the public address. */
-	IRK_OR_RANDOM_ADDR = 0x03, /* Controller generates Resolvable Private Address based on the local
-												 IRK from the resolving list. If the resolving list contains no matching
-												 entry, use the random address from LE_Set_Random_Address. */
+	OWN_PUBLIC_DEV_ADDR    		  = 0x00, /* Public Device Address (default) */
+	OWN_RANDOM_DEV_ADDR	   		  = 0x01, /* Random Device Address */
+	OWN_RESOL_OR_PUBLIC_ADDR 	  = 0x02, /* Controller generates Resolvable Private Address based on the local
+											 IRK from the resolving list. If the resolving list contains no matching
+											 entry, use the public address. */
+	OWN_RESOL_OR_RANDOM_ADDR	  = 0x03,  /* Controller generates Resolvable Private Address based on the local
+											 IRK from the resolving list. If the resolving list contains no matching
+											 entry, use the random address from LE_Set_Random_Address. */
+}OWN_ADDR_TYPE;
+
+
+typedef enum
+{
+	PEER_PUBLIC_DEV_ADDR  = 0x00, /* Public Device Address (default) or Public Identity Address */
+	PEER_RANDOM_DEV_ADDR  = 0x01,  /* Random Device Address or Random (static) Identity Address */
+}PEER_ADDR_TYPE;
+
+
+typedef enum
+{
+	PUBLIC_DEV_ADDR    		  = 0x00, /* Public Device Address */
+	RANDOM_DEV_ADDR	   		  = 0x01, /* Random Device Address */
+	PUBLIC_IDENTITY_ADDR 	  = 0x02, /* Public Identity Address (Corresponds to Resolved/Resolvable Private Address) */
+	RANDOM_IDENTITY_ADDR 	  = 0x03,  /* Random (static) Identity Address (Corresponds to Resolved/Resolvable Private Address) */
 }ADDRESS_TYPE;
 
 
@@ -1155,7 +1171,7 @@ uint8_t HCI_LE_Read_Buffer_Size( LEReadBufferSizeComplete CompleteCallBack, DefC
 uint8_t HCI_LE_Read_Local_Supported_Features( LEReadLocalSuppFeaturesComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Set_Random_Address( BD_ADDR_TYPE Random_Address, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Set_Advertising_Parameters( uint16_t Advertising_Interval_Min, uint16_t Advertising_Interval_Max, ADVERTISING_TYPE Advertising_Type,
-		ADDRESS_TYPE Own_Address_Type, ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADV_CHANNEL_MAP Advertising_Channel_Map,
+		OWN_ADDR_TYPE Own_Address_Type, PEER_ADDR_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADV_CHANNEL_MAP Advertising_Channel_Map,
 		uint8_t Advertising_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Read_Advertising_Physical_Channel_Tx_Power( LEReadAdvPhyChannelTxPowerComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[],
@@ -1164,14 +1180,14 @@ uint8_t HCI_LE_Set_Scan_Response_Data( uint8_t Scan_Response_Data_Length, uint8_
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Set_Advertising_Enable( uint8_t Advertising_Enable, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Set_Scan_Parameters( LE_SCAN_TYPE LE_Scan_Type, uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window,
-		ADDRESS_TYPE Own_Address_Type, uint8_t Scanning_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
+		OWN_ADDR_TYPE Own_Address_Type, uint8_t Scanning_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Set_Scan_Enable( uint8_t LE_Scan_Enable, uint8_t Filter_Duplicates,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window, uint8_t Initiator_Filter_Policy,
-		ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADDRESS_TYPE Own_Address_Type,
+		ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, OWN_ADDR_TYPE Own_Address_Type,
 		uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
 		uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length, DefCmdStatus StatusCallBack );
-void 	HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, ADDRESS_TYPE Peer_Address_Type,
+void 	HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, PEER_ADDR_TYPE Peer_Address_Type,
 		BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
 		uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy );
 uint8_t HCI_LE_Create_Connection_Cancel( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
