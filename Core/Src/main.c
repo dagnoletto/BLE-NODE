@@ -115,9 +115,6 @@ int main(void)
 		if( TimeBase_DelayMs( &Timer, Period, TRUE )  )
 		{
 			ADVERTISING_PARAMETERS Adv;
-			static uint8_t Data[31];
-
-			Load_Local_Name( (Local_Name_Type*)( &Data ), sizeof(Data) );
 
 			if(!flag)
 			{
@@ -129,10 +126,9 @@ int main(void)
 				memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
 				Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
 				Adv.Advertising_Filter_Policy = 0;
-				Adv.Adv_Data_Length = sizeof(Data);
-				Adv.Adv_Data_Ptr = &Data[0];
-				Adv.ScanRsp_Data_Length = sizeof(Data);
-				Adv.Scan_Data_Ptr = &Data[0];
+				Adv.Adv_Data_Ptr = Get_Advertising_Data( &Adv.Adv_Data_Length );
+
+				Adv.Scan_Data_Ptr = Get_Advertising_Data( &Adv.ScanRsp_Data_Length ); // TODO: ajustar Get_Scanning_Response_Data
 
 				Enter_Advertising_Mode( &Adv );
 			}

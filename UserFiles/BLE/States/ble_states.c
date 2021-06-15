@@ -415,7 +415,7 @@ static uint8_t BLE_Init( void )
 		break;
 
 	case GENERATE_RANDOM_ADDRESS:
-		if( Generate_Device_Addresses( &HCI_Supported_Commands, Get_Default_IRK(), TRUE ) )
+		if( Generate_Device_Addresses( &HCI_Supported_Commands, Get_Default_IRK() ) )
 		{
 			BLEInitSteps = READ_LOCAL_VERSION;
 		}
@@ -759,7 +759,7 @@ static void Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* 
 {
 	if( Status == COMMAND_SUCCESS )
 	{
-		if( memcmp( Get_Public_Device_Address(), BD_ADDR, sizeof(BD_ADDR_TYPE) ) == 0 )
+		if( memcmp( Get_Public_Device_Address( ).Ptr, BD_ADDR, sizeof(BD_ADDR_TYPE) ) == 0 )
 		{
 			BLEInitSteps = GENERATE_RANDOM_ADDRESS;
 		}else
@@ -875,7 +875,7 @@ static uint8_t Vendor_Specific_Init( void )
 
 		if( ConfigDataPtr != NULL )
 		{
-			ConfigDataPtr->Public_address = *( Get_Public_Device_Address() );
+			ConfigDataPtr->Public_address = *( Get_Public_Device_Address( ).Ptr );
 			ConfigDataPtr->LLWithoutHost = LL_ONLY;
 			ConfigDataPtr->Role = SLAVE_AND_MASTER_12KB;
 
@@ -927,7 +927,7 @@ static uint8_t Vendor_Specific_Init( void )
 			Result = FALSE;
 			if( ConfigDataPtr != NULL )
 			{
-				if( memcmp( &ConfigDataPtr->Public_address, Get_Public_Device_Address(), sizeof(BD_ADDR_TYPE) ) == 0 )
+				if( memcmp( &ConfigDataPtr->Public_address, Get_Public_Device_Address( ).Ptr, sizeof(BD_ADDR_TYPE) ) == 0 )
 				{
 					/* TODO: If the public address was updated, we assume all other fields were updated as well */
 					Result = TRUE;

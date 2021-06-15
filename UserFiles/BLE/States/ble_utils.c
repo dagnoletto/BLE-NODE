@@ -35,6 +35,11 @@ typedef struct
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
+/* The DEFAULT_PUBLIC_ADDRESS is just a "default" address needed for the
+ controller configuration. However, this address shall be an IEEE unique address
+ as defined in the Page 2859 and Page 416 of Core_v5.2. PLEASE DO NOT USE PUBLIC
+ ADDRESS IN ADVERTISING, SCANNING OR ANY OTHER OPERATION UNLESS THE PUBLIC ADDRESS
+ IS REALLY AN IEEE ASSIGNED NUMBER. PREFER TO USE THE RANDOM TYPE INSTEAD. */
 #define DEFAULT_PUBLIC_ADDRESS { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 }
 #define DEFAULT_IRK { 0x02, 0x56, 0xFF, 0x90, 0x71, 0xAB, 0xC5, 0x4A, \
 		0x8E, 0x91, 0x00, 0x3C, 0xC3, 0x99, 0x69, 0x24 }
@@ -52,13 +57,14 @@ static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t 
 static void Confirm_Local_Private_Addr(uint8_t status);
 static void LE_Encrypt_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Encrypted_Data[16] );
 static void LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] );
+static GET_BD_ADDR Get_Static_Device_Address( void );
+static uint8_t Set_Static_Device_Address( BD_ADDR_TYPE* StaticAddress );
 
 
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static BD_ADDR_TYPE PUBLIC_ADDRESS = { DEFAULT_PUBLIC_ADDRESS };
-static BD_ADDR_TYPE RANDOM_STATIC_ADDRESS;
+static LE_BD_ADDR_TYPE LE_BLUETOOTH_DEVICE_ADDRESS; /* Address used by the link layer in advertising/scanning and connected mode */
 static BD_ADDR_TYPE PRIVATE_NON_RESOLVABLE_ADDRESS;
 static BD_ADDR_TYPE PRIVATE_RESOLVABLE_ADDRESS;
 static IRK_TYPE DEFAULT_IDENTITY_RESOLVING_KEY = { DEFAULT_IRK };
@@ -78,7 +84,7 @@ static RESOLVE_ADDR_STRUCT ResolveStruct = { .CallBack = NULL };
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Generate_Device_Addresses( SUPPORTED_COMMANDS* HCI_Sup_Cmd, IRK_TYPE* IRK, uint8_t Update_Static_ADDR )
+uint8_t Generate_Device_Addresses( SUPPORTED_COMMANDS* HCI_Sup_Cmd, IRK_TYPE* IRK )
 {
 	static uint32_t TimeoutCounter = 0;
 
@@ -126,11 +132,15 @@ uint8_t Generate_Device_Addresses( SUPPORTED_COMMANDS* HCI_Sup_Cmd, IRK_TYPE* IR
 
 		/* The static address is not subject to modification all the time, only after device power-up. */
 		/* So look to the parameters to see if it should update or not */
-		if( Update_Static_ADDR )
+		GET_BD_ADDR DummyAddr = Get_Static_Device_Address( );
+		if( !DummyAddr.Status )
 		{
 			if( Create_Static_Address( &Rand_Bytes[0] ) )
 			{
-				memcpy( &RANDOM_STATIC_ADDRESS.Bytes[0], &Rand_Bytes[0], sizeof(BD_ADDR_TYPE) );
+				if( !Set_Static_Device_Address( (BD_ADDR_TYPE*)( &Rand_Bytes ) ) )
+				{
+					status = FALSE;
+				}
 			}else
 			{
 				status = FALSE;
@@ -274,9 +284,26 @@ uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* 
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-BD_ADDR_TYPE* Get_Public_Device_Address( void )
+GET_BD_ADDR Get_Public_Device_Address( void )
 {
-	return ( &PUBLIC_ADDRESS );
+	GET_BD_ADDR ReturnVal = { .Status = FALSE };
+
+	uint8_t* Ptr = LE_Read_Address( PUBLIC_DEV_ADDR );
+
+	if( *Ptr != PUBLIC_DEV_ADDR ) /* Address is not initialized */
+	{
+		LE_BD_ADDR_TYPE PublicAddrRecord = { .Address = { DEFAULT_PUBLIC_ADDRESS } };
+		PublicAddrRecord.Type = PUBLIC_DEV_ADDR;
+		if( !LE_Write_Address( PUBLIC_DEV_ADDR, (uint8_t*)&PublicAddrRecord ) )
+		{
+			return (ReturnVal);
+		}
+	}
+
+	ReturnVal.Status = TRUE;
+	ReturnVal.Ptr = (BD_ADDR_TYPE*)( ( (uint32_t)Ptr ) + 2 );
+
+	return (ReturnVal);
 }
 
 
@@ -288,9 +315,44 @@ BD_ADDR_TYPE* Get_Public_Device_Address( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-BD_ADDR_TYPE* Get_Static_Device_Address( void )
+static GET_BD_ADDR Get_Static_Device_Address( void )
 {
-	return ( &RANDOM_STATIC_ADDRESS );
+	GET_BD_ADDR ReturnVal = { .Status = FALSE };
+
+	uint8_t* Ptr = LE_Read_Address( RANDOM_DEV_ADDR );
+
+	if( *Ptr == RANDOM_DEV_ADDR ) /* Address is initialized? */
+	{
+		ReturnVal.Status = TRUE;
+		ReturnVal.Ptr = (BD_ADDR_TYPE*)( ( (uint32_t)Ptr ) + 2 );
+	}
+
+	return (ReturnVal);
+}
+
+
+/****************************************************************/
+/* Set_Static_Device_Address()        							*/
+/* Location: 					 								*/
+/* Purpose: Save the static random address.						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Set_Static_Device_Address( BD_ADDR_TYPE* StaticAddress )
+{
+	LE_BD_ADDR_TYPE StaticAddrRecord;
+
+	StaticAddrRecord.Type = RANDOM_DEV_ADDR;
+	StaticAddrRecord.Address = *StaticAddress;
+
+	if( !LE_Write_Address( RANDOM_DEV_ADDR, (uint8_t*)&StaticAddrRecord ) )
+	{
+		return (FALSE);
+	}else
+	{
+		return (TRUE);
+	}
 }
 
 
@@ -306,6 +368,20 @@ BD_ADDR_TYPE* Get_Static_Device_Address( void )
 BD_ADDR_TYPE* Get_Private_Device_Address( uint8_t resolvable )
 {
 	return ( resolvable ? &PRIVATE_RESOLVABLE_ADDRESS : &PRIVATE_NON_RESOLVABLE_ADDRESS );
+}
+
+
+/****************************************************************/
+/* Get_LE_Bluetooth_Device_Address()        					*/
+/* Location: 					 								*/
+/* Purpose: Return the address being used by the LE device. 	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+LE_BD_ADDR_TYPE* Get_LE_Bluetooth_Device_Address( void )
+{
+	return (&LE_BLUETOOTH_DEVICE_ADDRESS);
 }
 
 
@@ -354,6 +430,40 @@ uint8_t Get_Max_Scan_Response_Data_Length( void )
 
 
 /****************************************************************/
+/* LE_Write_Address()		        							*/
+/* Location: 					 								*/
+/* Purpose: Save address to NVM memory. It should be 			*/
+/* implemented on application side.								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) uint8_t LE_Write_Address( ADDRESS_TYPE AddressType, uint8_t Data[7] )
+{
+	/* Considers address was not saved. This function should be
+	 * implemented at application side. */
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* LE_Read_Address()		        						*/
+/* Location: 					 								*/
+/* Purpose: Read address from NVM memory. It should be 			*/
+/* implemented on application side.								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) uint8_t* LE_Read_Address( ADDRESS_TYPE AddressType )
+{
+	/* Considers address was not saved. This function should be
+	 * implemented at application side. */
+	return (NULL);
+}
+
+
+/****************************************************************/
 /* Create_Static_Address()        								*/
 /* Location: 					 								*/
 /* Purpose: create static random address.						*/
@@ -387,7 +497,7 @@ static uint8_t Create_Private_Address( uint8_t Random_Bytes[6] )
 	{
 		Random_Bytes[sizeof(BD_ADDR_TYPE) - 1] &= 0x3F; /* Clears the non-resolvable private address. The sub-type must be 0b00 */
 		/* Public and private non-resolvable MUST NOT be equal. */
-		if( memcmp( &Random_Bytes[0], Get_Public_Device_Address(), sizeof(BD_ADDR_TYPE) ) != 0 )
+		if( memcmp( &Random_Bytes[0], Get_Public_Device_Address( ).Ptr, sizeof(BD_ADDR_TYPE) ) != 0 )
 		{
 			return (TRUE);
 		}

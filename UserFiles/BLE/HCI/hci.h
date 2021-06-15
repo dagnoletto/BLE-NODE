@@ -821,19 +821,30 @@ typedef SUPPORTED_FEATURES SUPPORTED_FEATURES_PAGE_0;
 typedef struct
 {
 	uint8_t Bytes[6];
-}BD_ADDR_TYPE;
+}__attribute__((packed)) BD_ADDR_TYPE;
+
+
+typedef struct
+{
+	struct
+	{
+		uint8_t Type     :1; /* 0: Public Device Address / 1: Random Device Address */
+		uint8_t Reserved :7;
+	};
+	BD_ADDR_TYPE Address;
+}__attribute__((packed)) LE_BD_ADDR_TYPE;
 
 
 typedef struct
 {
 	uint8_t Bytes[16]; /* The most significant octet of the key corresponds to Bytes[0] using the notation specified in FIPS 197. */
-}IRK_TYPE; /* Identity Resolving Key (IRK): 128-bit key used to generate and resolve random addresses. */
+}__attribute__((packed)) IRK_TYPE; /* Identity Resolving Key (IRK): 128-bit key used to generate and resolve random addresses. */
 
 
 typedef struct
 {
 	uint8_t Bytes[3];
-}HASH_TYPE; /* The hash part of private resolvable address */
+}__attribute__((packed)) HASH_TYPE; /* The hash part of private resolvable address */
 
 
 typedef union
@@ -963,7 +974,7 @@ typedef enum
 typedef enum
 {
 	PEER_PUBLIC_DEV_ADDR  = 0x00, /* Public Device Address (default) or Public Identity Address */
-	PEER_RANDOM_DEV_ADDR  = 0x01,  /* Random Device Address or Random (static) Identity Address */
+	PEER_RANDOM_DEV_ADDR  = 0x01, /* Random Device Address or Random (static) Identity Address */
 }PEER_ADDR_TYPE;
 
 
@@ -972,7 +983,7 @@ typedef enum
 	PUBLIC_DEV_ADDR    		  = 0x00, /* Public Device Address */
 	RANDOM_DEV_ADDR	   		  = 0x01, /* Random Device Address */
 	PUBLIC_IDENTITY_ADDR 	  = 0x02, /* Public Identity Address (Corresponds to Resolved/Resolvable Private Address) */
-	RANDOM_IDENTITY_ADDR 	  = 0x03,  /* Random (static) Identity Address (Corresponds to Resolved/Resolvable Private Address) */
+	RANDOM_IDENTITY_ADDR 	  = 0x03, /* Random (static) Identity Address (Corresponds to Resolved/Resolvable Private Address) */
 }ADDRESS_TYPE;
 
 

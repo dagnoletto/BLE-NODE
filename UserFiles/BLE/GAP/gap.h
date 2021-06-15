@@ -80,10 +80,34 @@ typedef struct
 }__attribute__((packed)) Local_Name_Type;
 
 
+typedef struct
+{
+	uint8_t length; /* size of type + size of Public_Target_Address[] */
+	uint8_t type;   /* PUBLIC_TARGET_ADDRESS_TYPE */
+	BD_ADDR_TYPE Public_Target_Address[]; /* One or more addresses can be loaded here */
+}__attribute__((packed)) Public_Target_Address_Type;
+
+
+typedef struct
+{
+	uint8_t length; /* size of type + size of Random_Target_Address[] */
+	uint8_t type;   /* RANDOM_TARGET_ADDRESS_TYPE */
+	BD_ADDR_TYPE Random_Target_Address[]; /* One or more addresses can be loaded here */
+}__attribute__((packed)) Random_Target_Address_Type;
+
+
+typedef struct
+{
+	uint8_t length; /* size of type + size of LE_BD_Address */
+	uint8_t type;   /* LE_BLUETOOTH_DEVICE_ADDRESS_TYPE */
+	LE_BD_ADDR_TYPE LE_BD_Address;
+}__attribute__((packed)) LE_BD_Address_Type;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-uint8_t Load_Local_Name( Local_Name_Type* Ptr, uint16_t ArraySize );
+uint8_t* Get_Advertising_Data( uint8_t* DataSizePtr );
 
 
 /****************************************************************/
