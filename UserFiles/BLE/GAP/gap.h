@@ -104,6 +104,28 @@ typedef struct
 }__attribute__((packed)) LE_BD_Address_Type;
 
 
+typedef struct
+{
+	uint8_t length; /* size of type + size of Flags */
+	uint8_t type;   /* FLAGS_TYPE */
+	union
+	{
+		struct Flags_Bits
+		{
+			uint8_t LE_Limited_Discoverable_Mode				:1;
+			uint8_t LE_General_Discoverable_Mode				:1;
+			uint8_t BR_EDR_Not_Supported						:1;	/* BR/EDR Not Supported. Bit 37 of LMP Feature Mask Definitions (Page 0). */
+			uint8_t Simul_LE_BR_EDR_Same_Dev_Capable_Controller :1; /* Simultaneous LE and BR/EDR to Same Device Capable (Controller).
+		 	 	 	 	 	 	 	 	 	 	 	 	 	 	   Bit 49 of LMP Feature Mask Definitions (Page 0). */
+			uint8_t Simul_LE_BR_EDR_Same_Dev_Capable_Host		:1; /* Simultaneous LE and BR/EDR to Same Device Capable (Host).
+															 	   Bit 66 of LMP Feature Mask Definitions (Page 1). */
+			uint8_t Reserved :3;
+		}__attribute__((packed)) Bits;
+		uint8_t Val;
+	}__attribute__((packed)) Flags;
+}__attribute__((packed)) Flags_Type;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/

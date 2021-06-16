@@ -6,6 +6,7 @@
 #include "hci.h"
 #include "gap.h"
 #include "ble_utils.h"
+#include "ble_states.h"
 
 
 /****************************************************************/
@@ -26,7 +27,7 @@
 /****************************************************************/
 /* Global variables definition                                  */
 /****************************************************************/
-static char LOCAL_NAME[] = "User";
+static char LOCAL_NAME[] = "Pitoca!";
 
 
 /****************************************************************/
@@ -38,6 +39,7 @@ static uint8_t Load_Public_Target_Address( Public_Target_Address_Type* Ptr, int1
 static uint8_t Load_Random_Target_Address( Random_Target_Address_Type* Ptr, int16_t ArraySize,
 		BD_ADDR_TYPE BDAddress[], uint8_t NumberOfAddresses );
 static uint8_t Load_LE_Bluetooth_Device_Address( LE_BD_Address_Type* Ptr, int16_t ArraySize );
+static uint8_t Load_Flags( Flags_Type* Ptr, int16_t ArraySize );
 
 
 /****************************************************************/
@@ -200,6 +202,65 @@ static uint8_t Load_LE_Bluetooth_Device_Address( LE_BD_Address_Type* Ptr, int16_
 
 
 /****************************************************************/
+/* Load_Flags()        											*/
+/* Location: Page 12 Supplement CSS_v9							*/
+/* Purpose: The Flags data type contains one bit Boolean flags. */
+/* The Flags data type shall be included when any of the Flag 	*/
+/* bits are non-zero and the advertising packet is connectable, */
+/* otherwise the Flags data type may be omitted. All 0x00 		*/
+/* octets after the last non-zero octet shall be omitted from 	*/
+/* the value transmitted. Note: If the Flags AD type is not 	*/
+/* present in a non-connectable advertisement, the Flags should */
+/* be considered as unknown and no assumptions should be made 	*/
+/* by the scanner. Flags used over the LE physical channel are: */
+/* - Limited Discoverable Mode									*/
+/* - General Discoverable Mode									*/
+/* - BR/EDR Not Supported										*/
+/* - Simultaneous LE and BR/EDR to Same Device Capable			*/
+/* (Controller)													*/
+/* - Simultaneous LE and BR/EDR to Same Device Capable (Host)	*/
+/* The LE Limited Discoverable Mode and LE General Discoverable */
+/* Mode flags shall be ignored when received over the BR/EDR 	*/
+/* physical channel. The ‘BR/EDR Not Supported’ flag shall be 	*/
+/* set to 0 when sent over the BR/EDR physical channel.			*/
+/* Parameters: none				         						*/
+/* Return: offset from the loading pointer						*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Load_Flags( Flags_Type* Ptr, int16_t ArraySize )
+{
+	/* The Flags AD type shall not be included in the scan response data. The advertising
+	data shall not contain more than one instance of the Flags AD type. The
+	Flags AD type shall be included in the advertising data if any of the bits are
+	non-zero. The Flags AD type may be omitted from the advertising data if all of
+	the bits are zero. */
+
+	if( ArraySize >= sizeof(Flags_Type) )
+	{
+		Ptr->type = FLAGS_TYPE;
+		Ptr->length = sizeof(Flags_Type) - sizeof( Ptr->length );
+
+		SUPPORTED_FEATURES* FeaturesPtr = Get_Supported_Features( );
+
+		Ptr->Flags.Bits.LE_General_Discoverable_Mode = 1; //TODO: buscar do tipo de role
+		Ptr->Flags.Bits.LE_Limited_Discoverable_Mode = 1; //TODO: buscar do tipo de role
+
+		Ptr->Flags.Bits.BR_EDR_Not_Supported = FeaturesPtr->Bits.BR_EDR_Not_Supported;
+		Ptr->Flags.Bits.Simul_LE_BR_EDR_Same_Dev_Capable_Controller = FeaturesPtr->Bits.Simultaneous_LE_and_BR_EDR_to_Same_Device_Capable;
+		Ptr->Flags.Bits.Simul_LE_BR_EDR_Same_Dev_Capable_Host = 0; /* TODO: this values should be loaded from HCI_Read_Local_Extended_Features() function when implemented. */
+
+		/* Only include flags if at least one bit is set */
+		if( Ptr->Flags.Val )
+		{
+			return ( sizeof(Flags_Type) );
+		}
+	}
+
+	return (0);
+}
+
+
+/****************************************************************/
 /* Get_Advertising_Data()        								*/
 /* Location: 													*/
 /* Purpose: Load advertising data and return the data pointer 	*/
@@ -213,6 +274,10 @@ uint8_t* Get_Advertising_Data( uint8_t* DataSizePtr )
 	static uint8_t Data[MAX_ADVERTISING_DATA_LENGTH];
 	uint8_t offset = 0;
 	uint8_t Length = 0;
+
+	offset = Load_Flags( (Flags_Type*)&Data[Length], sizeof(Data) - Length );
+
+	Length += offset;
 
 	offset = Load_Local_Name( (Local_Name_Type*)&Data[Length], sizeof(Data) - Length );
 
