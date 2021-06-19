@@ -464,6 +464,42 @@ __attribute__((weak)) uint8_t* LE_Read_Address( ADDRESS_TYPE AddressType )
 
 
 /****************************************************************/
+/* Set_Advertising_HostData()      								*/
+/* Location: 													*/
+/* Purpose: Load advertising/scanning host data.			 	*/
+/* Parameters: none				         						*/
+/* Return:														*/
+/* Description:													*/
+/****************************************************************/
+void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar )
+{
+	static uint8_t AdvData[MAX_ADVERTISING_DATA_LENGTH];
+	static uint8_t ScanRspData[MAX_SCAN_RESPONSE_DATA_LENGTH];
+
+	uint8_t offset = 0;
+	uint8_t Length = 0;
+
+	offset = Load_Flags( (Flags_Type*)&AdvData[Length], sizeof(AdvData) - Length, AdvPar->Role, AdvPar->DiscoveryMode );
+
+	Length += offset;
+
+	offset = Load_Local_Name( (Local_Name_Type*)&AdvData[Length], sizeof(AdvData) - Length );
+
+	Length += offset;
+
+	AdvPar->HostData.Adv_Data_Length = Length;
+	AdvPar->HostData.Adv_Data_Ptr = &AdvData[0];
+
+	/* TODO: ajustar!! */
+	AdvPar->HostData.ScanRsp_Data_Length = Length;
+	AdvPar->HostData.Scan_Data_Ptr = &AdvData[0];
+
+	offset = 0;
+	Length = 0;
+}
+
+
+/****************************************************************/
 /* Create_Static_Address()        								*/
 /* Location: 					 								*/
 /* Purpose: create static random address.						*/

@@ -30,6 +30,7 @@
 #include "TimeFunctions.h"
 #include "Bluenrg.h"
 #include "ble_states.h"
+#include "ble_utils.h"
 #include "gap.h"
 /* USER CODE END Includes */
 
@@ -126,9 +127,9 @@ int main(void)
 				memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
 				Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
 				Adv.Advertising_Filter_Policy = 0;
-				Adv.Adv_Data_Ptr = Get_Advertising_Data( &Adv.Adv_Data_Length );
-
-				Adv.Scan_Data_Ptr = Get_Advertising_Data( &Adv.ScanRsp_Data_Length ); // TODO: ajustar Get_Scanning_Response_Data
+				Adv.Role = PERIPHERAL;
+				Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
+				Set_Advertising_HostData( &Adv );
 
 				Enter_Advertising_Mode( &Adv );
 			}

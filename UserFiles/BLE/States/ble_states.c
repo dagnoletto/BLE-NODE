@@ -273,8 +273,8 @@ uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar )
 	BLE_STATES State = Get_BLE_State( );
 	if( ( State == STANDBY_STATE ) || ( State == ADVERTISING_STATE ) )
 	{
-		if( ( AdvPar->Adv_Data_Length <= Get_Max_Advertising_Data_Length() )
-				&& ( AdvPar->ScanRsp_Data_Length <= Get_Max_Scan_Response_Data_Length() ) )
+		if( ( AdvPar->HostData.Adv_Data_Length <= Get_Max_Advertising_Data_Length() )
+				&& ( AdvPar->HostData.ScanRsp_Data_Length <= Get_Max_Scan_Response_Data_Length() ) )
 		{
 			if( ( AdvPar->Own_Address_Type > OWN_RANDOM_DEV_ADDR ) && ( LocalInfo.HCI_Version < CORE_SPEC_4_2 ) )
 			{
@@ -520,7 +520,7 @@ static uint8_t Advertising_Config( void )
 		AdvConfigTimeout = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Data )
 		{
-			AdvConfig.Actual = HCI_LE_Set_Advertising_Data( AdvertisingParameters->Adv_Data_Length, AdvertisingParameters->Adv_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_DATA;
+			AdvConfig.Actual = HCI_LE_Set_Advertising_Data( AdvertisingParameters->HostData.Adv_Data_Length, AdvertisingParameters->HostData.Adv_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_DATA;
 			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_SCAN_RSP_DATA : AdvConfig.Actual;
 			AdvConfig.Prev = SET_ADV_DATA;
 		}
@@ -530,7 +530,7 @@ static uint8_t Advertising_Config( void )
 		AdvConfigTimeout = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Scan_Response_Data )
 		{
-			AdvConfig.Actual = HCI_LE_Set_Scan_Response_Data( AdvertisingParameters->ScanRsp_Data_Length, AdvertisingParameters->Scan_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_RSP_DATA;
+			AdvConfig.Actual = HCI_LE_Set_Scan_Response_Data( AdvertisingParameters->HostData.ScanRsp_Data_Length, AdvertisingParameters->HostData.Scan_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_RSP_DATA;
 			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? ENABLE_ADVERTISING : AdvConfig.Actual;
 			AdvConfig.Prev = SET_SCAN_RSP_DATA;
 		}

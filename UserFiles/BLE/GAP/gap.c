@@ -5,8 +5,8 @@
 /****************************************************************/
 #include "hci.h"
 #include "gap.h"
-#include "ble_utils.h"
 #include "ble_states.h"
+#include "ble_utils.h"
 
 
 /****************************************************************/
@@ -33,13 +33,6 @@ static char LOCAL_NAME[] = "Pitoca!";
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static uint8_t Load_Local_Name( Local_Name_Type* Ptr, int16_t ArraySize );
-static uint8_t Load_Public_Target_Address( Public_Target_Address_Type* Ptr, int16_t ArraySize,
-		BD_ADDR_TYPE BDAddress[], uint8_t NumberOfAddresses );
-static uint8_t Load_Random_Target_Address( Random_Target_Address_Type* Ptr, int16_t ArraySize,
-		BD_ADDR_TYPE BDAddress[], uint8_t NumberOfAddresses );
-static uint8_t Load_LE_Bluetooth_Device_Address( LE_BD_Address_Type* Ptr, int16_t ArraySize );
-static uint8_t Load_Flags( Flags_Type* Ptr, int16_t ArraySize );
 
 
 /****************************************************************/
@@ -60,7 +53,7 @@ static uint8_t Load_Flags( Flags_Type* Ptr, int16_t ArraySize );
 /* Return: offset from the loading pointer						*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Load_Local_Name( Local_Name_Type* Ptr, int16_t ArraySize )
+uint8_t Load_Local_Name( Local_Name_Type* Ptr, int16_t ArraySize )
 {
 	uint8_t ArraySizeOK = ( ArraySize >= ( sizeof(Local_Name_Type) + strlen(LOCAL_NAME) ) ) ? TRUE : FALSE;
 	uint8_t CopySize;
@@ -114,7 +107,7 @@ static uint8_t Load_Local_Name( Local_Name_Type* Ptr, int16_t ArraySize )
 /* Return: offset from the loading pointer						*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Load_Public_Target_Address( Public_Target_Address_Type* Ptr, int16_t ArraySize,
+uint8_t Load_Public_Target_Address( Public_Target_Address_Type* Ptr, int16_t ArraySize,
 		BD_ADDR_TYPE BDAddress[], uint8_t NumberOfAddresses )
 {
 	uint8_t length_total = sizeof(Public_Target_Address_Type) + sizeof(BD_ADDR_TYPE) * NumberOfAddresses;
@@ -151,7 +144,7 @@ static uint8_t Load_Public_Target_Address( Public_Target_Address_Type* Ptr, int1
 /* Return: offset from the loading pointer						*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Load_Random_Target_Address( Random_Target_Address_Type* Ptr, int16_t ArraySize,
+uint8_t Load_Random_Target_Address( Random_Target_Address_Type* Ptr, int16_t ArraySize,
 		BD_ADDR_TYPE BDAddress[], uint8_t NumberOfAddresses )
 {
 	uint8_t length_total = sizeof(Random_Target_Address_Type) + sizeof(BD_ADDR_TYPE) * NumberOfAddresses;
@@ -184,7 +177,7 @@ static uint8_t Load_Random_Target_Address( Random_Target_Address_Type* Ptr, int1
 /* Return: offset from the loading pointer						*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Load_LE_Bluetooth_Device_Address( LE_BD_Address_Type* Ptr, int16_t ArraySize )
+uint8_t Load_LE_Bluetooth_Device_Address( LE_BD_Address_Type* Ptr, int16_t ArraySize )
 {
 	if( ArraySize >= sizeof(LE_BD_Address_Type) )
 	{
@@ -227,7 +220,8 @@ static uint8_t Load_LE_Bluetooth_Device_Address( LE_BD_Address_Type* Ptr, int16_
 /* Return: offset from the loading pointer						*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Load_Flags( Flags_Type* Ptr, int16_t ArraySize )
+uint8_t Load_Flags( Flags_Type* Ptr, int16_t ArraySize,
+		GAP_LE_ROLE Role, GAP_DISCOVERY_MODE DiscoveryMode )
 {
 	/* The Flags AD type shall not be included in the scan response data. The advertising
 	data shall not contain more than one instance of the Flags AD type. The
@@ -242,8 +236,31 @@ static uint8_t Load_Flags( Flags_Type* Ptr, int16_t ArraySize )
 
 		SUPPORTED_FEATURES* FeaturesPtr = Get_Supported_Features( );
 
-		Ptr->Flags.Bits.LE_General_Discoverable_Mode = 1; //TODO: buscar do tipo de role
-		Ptr->Flags.Bits.LE_Limited_Discoverable_Mode = 1; //TODO: buscar do tipo de role
+		if( Role == PERIPHERAL)
+		{
+			switch ( DiscoveryMode )
+			{
+			case LIMITED_DISCOVERABLE_MODE:
+				Ptr->Flags.Bits.LE_General_Discoverable_Mode = 0;
+				Ptr->Flags.Bits.LE_Limited_Discoverable_Mode = 1;
+				break;
+
+			case GENERAL_DISCOVERABLE_MODE:
+				Ptr->Flags.Bits.LE_General_Discoverable_Mode = 1;
+				Ptr->Flags.Bits.LE_Limited_Discoverable_Mode = 0;
+				break;
+
+			case NON_DISCOVERABLE_MODE:
+			default:
+				Ptr->Flags.Bits.LE_General_Discoverable_Mode = 0;
+				Ptr->Flags.Bits.LE_Limited_Discoverable_Mode = 0;
+				break;
+			}
+		}else
+		{
+			Ptr->Flags.Bits.LE_General_Discoverable_Mode = 0;
+			Ptr->Flags.Bits.LE_Limited_Discoverable_Mode = 0;
+		}
 
 		Ptr->Flags.Bits.BR_EDR_Not_Supported = FeaturesPtr->Bits.BR_EDR_Not_Supported;
 		Ptr->Flags.Bits.Simul_LE_BR_EDR_Same_Dev_Capable_Controller = FeaturesPtr->Bits.Simultaneous_LE_and_BR_EDR_to_Same_Device_Capable;
@@ -257,39 +274,6 @@ static uint8_t Load_Flags( Flags_Type* Ptr, int16_t ArraySize )
 	}
 
 	return (0);
-}
-
-
-/****************************************************************/
-/* Get_Advertising_Data()        								*/
-/* Location: 													*/
-/* Purpose: Load advertising data and return the data pointer 	*/
-/* and size to the caller.										*/
-/* Parameters: none				         						*/
-/* Return:														*/
-/* Description:													*/
-/****************************************************************/
-uint8_t* Get_Advertising_Data( uint8_t* DataSizePtr )
-{
-	static uint8_t Data[MAX_ADVERTISING_DATA_LENGTH];
-	uint8_t offset = 0;
-	uint8_t Length = 0;
-
-	offset = Load_Flags( (Flags_Type*)&Data[Length], sizeof(Data) - Length );
-
-	Length += offset;
-
-	offset = Load_Local_Name( (Local_Name_Type*)&Data[Length], sizeof(Data) - Length );
-
-	Length += offset;
-
-	offset = Load_LE_Bluetooth_Device_Address( (LE_BD_Address_Type*)&Data[Length], sizeof(Data) - Length );
-
-	Length += offset;
-
-	*DataSizePtr = Length;
-
-	return ( Data );
 }
 
 

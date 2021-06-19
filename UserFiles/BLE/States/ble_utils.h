@@ -9,6 +9,8 @@
 /****************************************************************/
 #include "hci.h"
 #include "Types.h"
+#include "ble_states.h"
+#include "gap.h"
 #include "main.h"
 
 
@@ -43,6 +45,7 @@ uint8_t Get_Max_Advertising_Data_Length( void );
 uint8_t Get_Max_Scan_Response_Data_Length( void );
 uint8_t LE_Write_Address( ADDRESS_TYPE AddressType, uint8_t Data[7] );
 uint8_t* LE_Read_Address( ADDRESS_TYPE AddressType );
+void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar );
 
 
 /****************************************************************/
