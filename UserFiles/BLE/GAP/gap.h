@@ -121,6 +121,23 @@ typedef struct
 
 typedef struct
 {
+	uint8_t length; /* size of type + size of Tx_Power_Level */
+	uint8_t type; /* TX_POWER_LEVEL_TYPE */
+	int8_t Tx_Power_Level;
+}__attribute__((packed)) Tx_Power_Level_Type;
+
+
+typedef struct
+{
+	uint8_t length; /* size of type + size of connIntervalmin + size of connIntervalmax */
+	uint8_t type; /* SLAVE_CONNECTION_INTERVAL_RANGE_TYPE */
+	uint16_t connIntervalmin; /* Conn_Interval_Min * 1.25 ms */
+	uint16_t connIntervalmax; /* Conn_Interval_Max * 1.25 ms */
+}__attribute__((packed)) Slave_Conn_Interval_Range_Type;
+
+
+typedef struct
+{
 	uint8_t length; /* size of type + size of Public_Target_Address[] */
 	uint8_t type;   /* PUBLIC_TARGET_ADDRESS_TYPE */
 	BD_ADDR_TYPE Public_Target_Address[]; /* One or more addresses can be loaded here */
@@ -146,14 +163,18 @@ typedef struct
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+uint8_t Load_Flags( Flags_Type* Ptr, int16_t ArraySize,
+		GAP_LE_ROLE Role, GAP_DISCOVERY_MODE DiscoveryMode );
 uint8_t Load_Local_Name( Local_Name_Type* Ptr, int16_t ArraySize );
+uint8_t Load_Tx_Power_Level( Tx_Power_Level_Type* Ptr, int16_t ArraySize, int8_t Tx_Power_Level );
+uint8_t Load_Slave_Conn_Interval_Range( Slave_Conn_Interval_Range_Type* Ptr, int16_t ArraySize,
+		uint16_t connIntervalmin, uint16_t connIntervalmax );
 uint8_t Load_Public_Target_Address( Public_Target_Address_Type* Ptr, int16_t ArraySize,
 		BD_ADDR_TYPE BDAddress[], uint8_t NumberOfAddresses );
 uint8_t Load_Random_Target_Address( Random_Target_Address_Type* Ptr, int16_t ArraySize,
 		BD_ADDR_TYPE BDAddress[], uint8_t NumberOfAddresses );
 uint8_t Load_LE_Bluetooth_Device_Address( LE_BD_Address_Type* Ptr, int16_t ArraySize );
-uint8_t Load_Flags( Flags_Type* Ptr, int16_t ArraySize,
-		GAP_LE_ROLE Role, GAP_DISCOVERY_MODE DiscoveryMode );
+void* Get_AD_Type_Ptr( uint8_t AD_Type, uint8_t Ad_or_Scan_Ptr[], int16_t SizeOfData );
 
 
 /****************************************************************/

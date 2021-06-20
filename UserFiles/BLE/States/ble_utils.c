@@ -476,10 +476,16 @@ void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar )
 	static uint8_t AdvData[MAX_ADVERTISING_DATA_LENGTH];
 	static uint8_t ScanRspData[MAX_SCAN_RESPONSE_DATA_LENGTH];
 
-	uint8_t offset = 0;
+	uint8_t offset;
 	uint8_t Length = 0;
 
+	/*------------------------------------ LOAD ADVERTISING DATA -----------------------------------------*/
 	offset = Load_Flags( (Flags_Type*)&AdvData[Length], sizeof(AdvData) - Length, AdvPar->Role, AdvPar->DiscoveryMode );
+
+	Length += offset;
+
+	/* The power level is set as 0, but will be loaded with the right value before advertising */
+	offset = Load_Tx_Power_Level( (Tx_Power_Level_Type*)&AdvData[Length], sizeof(AdvData) - Length, 0 );
 
 	Length += offset;
 
@@ -487,15 +493,23 @@ void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar )
 
 	Length += offset;
 
+	/* TODO: corrigir */
+	offset = Load_Slave_Conn_Interval_Range( (Slave_Conn_Interval_Range_Type*)&AdvData[Length], sizeof(AdvData) - Length, 0x0006, 0x0006 );
+
+	Length += offset;
+
 	AdvPar->HostData.Adv_Data_Length = Length;
 	AdvPar->HostData.Adv_Data_Ptr = &AdvData[0];
 
-	/* TODO: ajustar!! */
-	AdvPar->HostData.ScanRsp_Data_Length = Length;
-	AdvPar->HostData.Scan_Data_Ptr = &AdvData[0];
-
-	offset = 0;
+	/*------------------------------------ LOAD SCAN RESPONSE DATA ---------------------------------------*/
 	Length = 0;
+
+	offset = Load_Local_Name( (Local_Name_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length );
+
+	Length += offset;
+
+	AdvPar->HostData.ScanRsp_Data_Length = Length;
+	AdvPar->HostData.Scan_Data_Ptr = &ScanRspData[0];
 }
 
 

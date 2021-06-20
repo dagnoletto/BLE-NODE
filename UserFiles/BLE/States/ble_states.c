@@ -110,7 +110,6 @@ static uint16_t LE_ACL_Data_Packet_Length_Supported;
 static uint8_t Total_Num_LE_ACL_Data_Packets_Supported;
 static BLE_VERSION_INFO LocalInfo;
 static ADVERTISING_PARAMETERS* AdvertisingParameters = NULL;
-static int8_t Adv_TX_Power_Level;
 static ADV_CONFIG AdvConfig = { DISABLE_ADVERTISING, DISABLE_ADVERTISING };
 
 
@@ -606,9 +605,48 @@ static void LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Statu
 static void LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level )
 {
 	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? AdvConfig.Next : READ_ADV_POWER;
+
 	if( Status == COMMAND_SUCCESS )
 	{
-		Adv_TX_Power_Level = TX_Power_Level;
+		Tx_Power_Level_Type* Ptr;
+		uint8_t* DataPtr = AdvertisingParameters->HostData.Adv_Data_Ptr;
+		int16_t DataSize = AdvertisingParameters->HostData.Adv_Data_Length;
+
+
+		do
+		{
+			Ptr = Get_AD_Type_Ptr( TX_POWER_LEVEL_TYPE, DataPtr, DataSize );
+			if( Ptr != NULL )
+			{
+				Ptr->Tx_Power_Level = TX_Power_Level;
+				DataPtr = (uint8_t*)( (uint32_t)( Ptr ) + (Ptr->length) + 1 ); /* Points to the next structure */
+				DataSize = AdvertisingParameters->HostData.Adv_Data_Length - ( (uint32_t)( DataPtr ) - (uint32_t)( AdvertisingParameters->HostData.Adv_Data_Ptr ) );
+				if( DataSize < sizeof( Tx_Power_Level_Type ) )
+				{
+					Ptr = NULL;
+				}
+			}
+		}while( Ptr != NULL );
+
+
+		DataPtr = AdvertisingParameters->HostData.Scan_Data_Ptr;
+		DataSize = AdvertisingParameters->HostData.ScanRsp_Data_Length;
+
+
+		do
+		{
+			Ptr = Get_AD_Type_Ptr( TX_POWER_LEVEL_TYPE, DataPtr, DataSize );
+			if( Ptr != NULL )
+			{
+				Ptr->Tx_Power_Level = TX_Power_Level;
+				DataPtr = (uint8_t*)( (uint32_t)( Ptr ) + (Ptr->length) + 1 ); /* Points to the next structure */
+				DataSize = AdvertisingParameters->HostData.ScanRsp_Data_Length - ( (uint32_t)( DataPtr ) - (uint32_t)( AdvertisingParameters->HostData.Scan_Data_Ptr ) );
+				if( DataSize < sizeof( Tx_Power_Level_Type ) )
+				{
+					Ptr = NULL;
+				}
+			}
+		}while( Ptr != NULL );
 	}
 }
 
