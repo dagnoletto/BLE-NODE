@@ -8,6 +8,7 @@
 /* Includes                                                     */
 /****************************************************************/
 #include "Types.h"
+#include "appearance_values.h"
 
 
 /****************************************************************/
@@ -88,6 +89,10 @@ typedef enum
 }GAP_DISCOVERY_MODE;
 
 
+#define NO_SPECIFIC_MINIMUM 0xFFFF /* Used in Slave_Conn_Interval_Range_Type, connIntervalmin */
+#define NO_SPECIFIC_MAXIMUM 0xFFFF /* Used in Slave_Conn_Interval_Range_Type, connIntervalmax */
+
+
 /* Data Types according to Supplement to the Bluetooth Core Specification CSS_v9 2019-12-31 */
 typedef struct
 {
@@ -131,8 +136,8 @@ typedef struct
 {
 	uint8_t length; /* size of type + size of connIntervalmin + size of connIntervalmax */
 	uint8_t type; /* SLAVE_CONNECTION_INTERVAL_RANGE_TYPE */
-	uint16_t connIntervalmin; /* Conn_Interval_Min * 1.25 ms */
-	uint16_t connIntervalmax; /* Conn_Interval_Max * 1.25 ms */
+	uint16_t connIntervalmin; /* Conn_Interval_Min * 1.25 ms. Value of 0xFFFF (NO_SPECIFIC_MINIMUM) indicates no specific minimum. */
+	uint16_t connIntervalmax; /* Conn_Interval_Max * 1.25 ms. Value of 0xFFFF (NO_SPECIFIC_MAXIMUM) indicates no specific maximum. */
 }__attribute__((packed)) Slave_Conn_Interval_Range_Type;
 
 
@@ -150,6 +155,14 @@ typedef struct
 	uint8_t type;   /* RANDOM_TARGET_ADDRESS_TYPE */
 	BD_ADDR_TYPE Random_Target_Address[]; /* One or more addresses can be loaded here */
 }__attribute__((packed)) Random_Target_Address_Type;
+
+
+typedef struct
+{
+	uint8_t length; /* size of type + size of Appearance */
+	uint8_t type;   /* APPEARANCE_TYPE */
+	Appearance_Value Appearance;
+}__attribute__((packed)) Appearance_Type;
 
 
 typedef struct
@@ -173,6 +186,7 @@ uint8_t Load_Public_Target_Address( Public_Target_Address_Type* Ptr, int16_t Arr
 		BD_ADDR_TYPE BDAddress[], uint8_t NumberOfAddresses );
 uint8_t Load_Random_Target_Address( Random_Target_Address_Type* Ptr, int16_t ArraySize,
 		BD_ADDR_TYPE BDAddress[], uint8_t NumberOfAddresses );
+uint8_t Load_Appearance( Appearance_Type* Ptr, int16_t ArraySize, GAP_APPEARANCE Appearance );
 uint8_t Load_LE_Bluetooth_Device_Address( LE_BD_Address_Type* Ptr, int16_t ArraySize );
 void* Get_AD_Type_Ptr( uint8_t AD_Type, uint8_t Ad_or_Scan_Ptr[], int16_t SizeOfData );
 

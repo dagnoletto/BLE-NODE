@@ -61,6 +61,8 @@ typedef struct
 	BD_ADDR_TYPE Peer_Address;
 	ADV_CHANNEL_MAP Advertising_Channel_Map;
 	uint8_t Advertising_Filter_Policy;
+	uint16_t connIntervalmin; /* Only useful in connectable advertising: Conn_Interval_Min * 1.25 ms. Value of 0xFFFF indicates no specific minimum. */
+	uint16_t connIntervalmax; /* Only useful in connectable advertising: Conn_Interval_Max * 1.25 ms. Value of 0xFFFF indicates no specific maximum. */
 	GAP_LE_ROLE Role;
 	GAP_DISCOVERY_MODE DiscoveryMode;
 	ADV_SCAN_DATA HostData;

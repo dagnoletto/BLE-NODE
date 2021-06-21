@@ -489,12 +489,26 @@ void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar )
 
 	Length += offset;
 
-	offset = Load_Local_Name( (Local_Name_Type*)&AdvData[Length], sizeof(AdvData) - Length );
+	/* Only add Slave_Conn_Interval_Range_Type to those advertising events that are connectable */
+	switch( AdvPar->Advertising_Type )
+	{
+	case ADV_IND:
+	case ADV_DIRECT_IND_HIGH_DUTY:
+	case ADV_DIRECT_IND_LOW_DUTY:
+		offset = Load_Slave_Conn_Interval_Range( (Slave_Conn_Interval_Range_Type*)&AdvData[Length], sizeof(AdvData) - Length,
+				AdvPar->connIntervalmin, AdvPar->connIntervalmax );
+
+		Length += offset;
+		break;
+
+	default: break;
+	}
+
+	offset = Load_Appearance( (Appearance_Type*)&AdvData[Length], sizeof(AdvData) - Length, TEMPERATURE_SENSOR );
 
 	Length += offset;
 
-	/* TODO: corrigir */
-	offset = Load_Slave_Conn_Interval_Range( (Slave_Conn_Interval_Range_Type*)&AdvData[Length], sizeof(AdvData) - Length, 0x0006, 0x0006 );
+	offset = Load_Local_Name( (Local_Name_Type*)&AdvData[Length], sizeof(AdvData) - Length );
 
 	Length += offset;
 
@@ -505,6 +519,10 @@ void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar )
 	Length = 0;
 
 	offset = Load_Local_Name( (Local_Name_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length );
+
+	Length += offset;
+
+	offset = Load_Appearance( (Appearance_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length, TEMPERATURE_SENSOR );
 
 	Length += offset;
 

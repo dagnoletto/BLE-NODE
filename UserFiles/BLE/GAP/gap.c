@@ -317,6 +317,34 @@ uint8_t Load_Random_Target_Address( Random_Target_Address_Type* Ptr, int16_t Arr
 
 
 /****************************************************************/
+/* Load_Appearance()        									*/
+/* Location: Page 18 Supplement CSS_v9							*/
+/* Purpose: The Appearance data type defines the external 		*/
+/* appearance of the device. This value shall be the same as 	*/
+/* the Appearance characteristic, as defined in [Vol 3] Part C, */
+/* Section 12.2.												*/
+/* Parameters: none				         						*/
+/* Return: offset from the loading pointer						*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Load_Appearance( Appearance_Type* Ptr, int16_t ArraySize, GAP_APPEARANCE Appearance )
+{
+	if( ArraySize >= sizeof(Appearance_Type) )
+	{
+
+		Ptr->type = APPEARANCE_TYPE;
+		Ptr->length = sizeof(Appearance_Type) - sizeof( Ptr->length );
+
+		Ptr->Appearance.Value = Appearance;
+
+		return ( sizeof(Appearance_Type) );
+	}
+
+	return (0);
+}
+
+
+/****************************************************************/
 /* Load_LE_Bluetooth_Device_Address()        					*/
 /* Location: Page 20 Supplement CSS_v9							*/
 /* Purpose: The LE Bluetooth Device Address data type defines 	*/

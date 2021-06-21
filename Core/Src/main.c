@@ -127,6 +127,8 @@ int main(void)
 				memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
 				Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
 				Adv.Advertising_Filter_Policy = 0;
+				Adv.connIntervalmin = NO_SPECIFIC_MINIMUM;
+				Adv.connIntervalmax = NO_SPECIFIC_MAXIMUM;
 				Adv.Role = PERIPHERAL;
 				Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
 				Set_Advertising_HostData( &Adv );
