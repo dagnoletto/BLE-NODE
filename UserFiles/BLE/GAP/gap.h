@@ -173,6 +173,15 @@ typedef struct
 }__attribute__((packed)) LE_BD_Address_Type;
 
 
+typedef struct
+{
+	uint8_t length; /* size of type + size of CompanyID + size of Manufacturer_Data[] */
+	uint8_t type;   /* MANUFACTURER_SPECIFIC_DATA_TYPE */
+	uint16_t CompanyID;
+	uint8_t Manufacturer_Data[];
+}__attribute__((packed)) Manufacturer_Specific_Data_Type;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
@@ -188,6 +197,8 @@ uint8_t Load_Random_Target_Address( Random_Target_Address_Type* Ptr, int16_t Arr
 		BD_ADDR_TYPE BDAddress[], uint8_t NumberOfAddresses );
 uint8_t Load_Appearance( Appearance_Type* Ptr, int16_t ArraySize, GAP_APPEARANCE Appearance );
 uint8_t Load_LE_Bluetooth_Device_Address( LE_BD_Address_Type* Ptr, int16_t ArraySize );
+uint8_t Load_Manufacturer_Specific_Data( Manufacturer_Specific_Data_Type* Ptr, int16_t ArraySize,
+		uint8_t DataPtr[], uint8_t DataSize );
 void* Get_AD_Type_Ptr( uint8_t AD_Type, uint8_t Ad_or_Scan_Ptr[], int16_t SizeOfData );
 
 

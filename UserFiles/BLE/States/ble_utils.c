@@ -447,7 +447,7 @@ __attribute__((weak)) uint8_t LE_Write_Address( ADDRESS_TYPE AddressType, uint8_
 
 
 /****************************************************************/
-/* LE_Read_Address()		        						*/
+/* LE_Read_Address()		        							*/
 /* Location: 					 								*/
 /* Purpose: Read address from NVM memory. It should be 			*/
 /* implemented on application side.								*/
@@ -523,6 +523,10 @@ void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar )
 	Length += offset;
 
 	offset = Load_Appearance( (Appearance_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length, TEMPERATURE_SENSOR );
+
+	Length += offset;
+
+	offset = Load_Manufacturer_Specific_Data( (Manufacturer_Specific_Data_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length, NULL, 0 );
 
 	Length += offset;
 

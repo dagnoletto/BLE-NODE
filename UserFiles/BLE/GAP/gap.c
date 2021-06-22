@@ -372,6 +372,40 @@ uint8_t Load_LE_Bluetooth_Device_Address( LE_BD_Address_Type* Ptr, int16_t Array
 
 
 /****************************************************************/
+/* Load_Manufacturer_Specific_Data()        					*/
+/* Location: Page 13 Supplement CSS_v9							*/
+/* Purpose: The Manufacturer Specific data type is used for 	*/
+/* manufacturer specific data. The first two data octets shall 	*/
+/* contain a company identifier from Assigned Numbers. The		*/
+/* interpretation of any other octets within the data shall be 	*/
+/* defined by the manufacturer specified by the company 		*/
+/* identifier.													*/
+/* Parameters: none				         						*/
+/* Return: offset from the loading pointer						*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Load_Manufacturer_Specific_Data( Manufacturer_Specific_Data_Type* Ptr, int16_t ArraySize, uint8_t DataPtr[], uint8_t DataSize )
+{
+	if( ArraySize >= ( sizeof(Manufacturer_Specific_Data_Type) + DataSize ) )
+	{
+
+		Ptr->type = MANUFACTURER_SPECIFIC_DATA_TYPE;
+		Ptr->length = sizeof(Manufacturer_Specific_Data_Type) - sizeof( Ptr->length ) + DataSize;
+
+		/* TODO: As long we don't have assigned manufacturer number, we are going to
+		 * use controller's manufacturer company ID. */
+		Ptr->CompanyID = Get_Local_Version_Information()->Manufacturer_Name;
+
+		memcpy( &Ptr->Manufacturer_Data[0], &DataPtr[0], DataSize );
+
+		return ( sizeof(Manufacturer_Specific_Data_Type) + DataSize );
+	}
+
+	return (0);
+}
+
+
+/****************************************************************/
 /* Get_AD_Type_Ptr()        									*/
 /* Location: 													*/
 /* Purpose: Get the pointer of the AD_Type passed.				*/
