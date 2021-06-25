@@ -45,6 +45,7 @@ uint8_t Get_Max_Advertising_Data_Length( void );
 uint8_t Get_Max_Scan_Response_Data_Length( void );
 uint8_t LE_Write_Address( ADDRESS_TYPE AddressType, uint8_t Data[7] );
 uint8_t* LE_Read_Address( ADDRESS_TYPE AddressType );
+uint8_t Check_Advertising_Parameters( ADVERTISING_PARAMETERS* AdvPar );
 void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar );
 
 

@@ -464,6 +464,52 @@ __attribute__((weak)) uint8_t* LE_Read_Address( ADDRESS_TYPE AddressType )
 
 
 /****************************************************************/
+/* Check_Advertising_Parameters()      							*/
+/* Location: 													*/
+/* Purpose: Verify advertising parameters.					 	*/
+/* Parameters: none				         						*/
+/* Return:														*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Check_Advertising_Parameters( ADVERTISING_PARAMETERS* AdvPar )
+{
+	if( ( AdvPar->HostData.Adv_Data_Length <= Get_Max_Advertising_Data_Length() )
+			&& ( AdvPar->HostData.ScanRsp_Data_Length <= Get_Max_Scan_Response_Data_Length() ) )
+	{
+		if( ( AdvPar->Own_Address_Type > OWN_RANDOM_DEV_ADDR ) && ( Get_Local_Version_Information()->HCI_Version < CORE_SPEC_4_2 ) )
+		{
+			/* This feature is not supported with this controller version */
+			return (FALSE);
+		}else
+		{
+			switch( AdvPar->Role )
+			{
+			case BROADCASTER:
+				/* A broadcaster cannot send connectable advertisements */
+				switch( AdvPar->Advertising_Type )
+				{
+				case ADV_SCAN_IND:
+				case ADV_NONCONN_IND:
+					return (TRUE);
+
+				default: break;
+				}
+				break;
+
+				case PERIPHERAL:
+					return (TRUE);
+
+					/* Other roles are not allowed in advertising */
+				default: break;
+			}
+		}
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
 /* Set_Advertising_HostData()      								*/
 /* Location: 													*/
 /* Purpose: Load advertising/scanning host data.			 	*/
