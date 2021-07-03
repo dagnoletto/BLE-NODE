@@ -989,6 +989,13 @@ typedef enum
 
 typedef enum
 {
+	NON_RESOLVABLE_PRIVATE = 0x00, /* Random non-resolvable private address */
+	STATIC_DEVICE_ADDRESS  = 0x01  /* Random static device address */
+}RANDOM_ADDRESS_TYPE;
+
+
+typedef enum
+{
 	PASSIVE_SCANNING = 0x00, /* Passive Scanning. No scanning PDUs shall be sent (default) */
 	ACTIVE_SCANNING  = 0x01, /* Active scanning. Scanning PDUs may be sent. */
 }LE_SCAN_TYPE;

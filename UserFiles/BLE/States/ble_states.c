@@ -34,12 +34,14 @@ typedef enum
 {
 	DISABLE_ADVERTISING,
 	SET_ADV_PARAMETERS,
+	LOAD_ADV_DATA,
 	READ_ADV_POWER,
 	SET_ADV_POWER,
 	SET_ADV_DATA,
 	SET_SCAN_RSP_DATA,
 	ENABLE_ADVERTISING,
 	END_ADV_CONFIG,
+	FAILED_ADV_CONFIG,
 	WAIT_OPERATION,
 }ADV_CONFIG_STEPS;
 
@@ -60,7 +62,7 @@ static uint8_t Reset_Controller( void );
 static void Reset_Complete( CONTROLLER_ERROR_CODES Status );
 static uint8_t Vendor_Specific_Init( void );
 static uint8_t BLE_Init( void );
-static uint8_t Advertising_Config( void );
+static int8_t Advertising_Config( void );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level );
@@ -123,6 +125,8 @@ static ADV_CONFIG AdvConfig = { DISABLE_ADVERTISING, DISABLE_ADVERTISING };
 /****************************************************************/
 void Run_BLE( void )
 {
+	int8_t AdvConfigStatus;
+
 	switch( Get_BLE_State() )
 	{
 	case RESET_CONTROLLER:
@@ -158,9 +162,14 @@ void Run_BLE( void )
 		break;
 
 	case CONFIG_ADVERTISING:
-		if( Advertising_Config(  ) )
+		AdvConfigStatus = Advertising_Config(  );
+		if( AdvConfigStatus == TRUE )
 		{
 			Set_BLE_State( ADVERTISING_STATE );
+		}else if( AdvConfigStatus < 0 )
+		{
+			Standby_Flag = BLE_FALSE;
+			Set_BLE_State( STANDBY_STATE );
 		}
 		break;
 
@@ -269,8 +278,7 @@ BLE_VERSION_INFO* Get_Local_Version_Information( void )
 /****************************************************************/
 uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar )
 {
-	BLE_STATES State = Get_BLE_State( );
-	if( ( State == STANDBY_STATE ) || ( State == ADVERTISING_STATE ) )
+	if( Get_BLE_State( ) == STANDBY_STATE )
 	{
 		if( Check_Advertising_Parameters( AdvPar )  )
 		{
@@ -462,7 +470,7 @@ static uint8_t BLE_Init( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Advertising_Config( void )
+static int8_t Advertising_Config( void )
 {
 	static uint32_t AdvConfigTimeout = 0;
 
@@ -485,7 +493,19 @@ static uint8_t Advertising_Config( void )
 			AdvConfig.Actual = HCI_LE_Set_Advertising_Parameters( AdvertisingParameters->Advertising_Interval_Min, AdvertisingParameters->Advertising_Interval_Max, AdvertisingParameters->Advertising_Type,
 					AdvertisingParameters->Own_Address_Type, AdvertisingParameters->Peer_Address_Type, AdvertisingParameters->Peer_Address,
 					AdvertisingParameters->Advertising_Channel_Map, AdvertisingParameters->Advertising_Filter_Policy, &LE_Set_Advertising_Parameters_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_PARAMETERS;
-			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? READ_ADV_POWER : AdvConfig.Actual;
+			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? LOAD_ADV_DATA : AdvConfig.Actual;
+		}
+		break;
+
+	case LOAD_ADV_DATA:
+		Set_Advertising_HostData( AdvertisingParameters );
+		if( ( AdvertisingParameters->HostData.Adv_Data_Length <= Get_Max_Advertising_Data_Length() )
+				&& ( AdvertisingParameters->HostData.ScanRsp_Data_Length <= Get_Max_Scan_Response_Data_Length() ) )
+		{
+			AdvConfig.Actual = READ_ADV_POWER;
+		}else
+		{
+			AdvConfig.Actual = FAILED_ADV_CONFIG;
 		}
 		break;
 
@@ -540,6 +560,13 @@ static uint8_t Advertising_Config( void )
 	case END_ADV_CONFIG:
 		AdvConfig.Actual = DISABLE_ADVERTISING;
 		return (TRUE);
+		break;
+
+	case FAILED_ADV_CONFIG:
+		AdvConfig.Actual = DISABLE_ADVERTISING;
+		free(AdvertisingParameters);
+		AdvertisingParameters = NULL;
+		return (-1); /* Failed condition */
 		break;
 
 	case WAIT_OPERATION:

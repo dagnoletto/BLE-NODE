@@ -57,12 +57,14 @@ typedef struct
 	uint16_t Advertising_Interval_Max;
 	ADVERTISING_TYPE Advertising_Type;
 	OWN_ADDR_TYPE Own_Address_Type;
+	RANDOM_ADDRESS_TYPE Own_Random_Address_Type; /* Type of random address when Own_Address_Type == OWN_RANDOM_DEV_ADDR */
 	PEER_ADDR_TYPE Peer_Address_Type;
 	BD_ADDR_TYPE Peer_Address;
 	ADV_CHANNEL_MAP Advertising_Channel_Map;
 	uint8_t Advertising_Filter_Policy;
 	uint16_t connIntervalmin; /* Only useful in connectable advertising: Conn_Interval_Min * 1.25 ms. Value of 0xFFFF indicates no specific minimum. */
 	uint16_t connIntervalmax; /* Only useful in connectable advertising: Conn_Interval_Max * 1.25 ms. Value of 0xFFFF indicates no specific maximum. */
+	uint8_t Privacy; /* TRUE / FALSE for peripheral privacy */
 	GAP_LE_ROLE Role;
 	GAP_DISCOVERY_MODE DiscoveryMode;
 	ADV_SCAN_DATA HostData;

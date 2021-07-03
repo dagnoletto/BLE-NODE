@@ -112,30 +112,28 @@ int main(void)
 		Run_Bluenrg();
 		Run_BLE();
 
-		static uint8_t flag= 0;
 		if( TimeBase_DelayMs( &Timer, Period, TRUE )  )
 		{
 			ADVERTISING_PARAMETERS Adv;
 
-			if(!flag)
-			{
-				Adv.Advertising_Interval_Min = 160;
-				Adv.Advertising_Interval_Max = 320;
-				Adv.Advertising_Type = ADV_IND;
-				Adv.Own_Address_Type = OWN_PUBLIC_DEV_ADDR;
-				Adv.Peer_Address_Type = PEER_PUBLIC_DEV_ADDR;
-				memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
-				Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
-				Adv.Advertising_Filter_Policy = 0;
-				Adv.connIntervalmin = NO_SPECIFIC_MINIMUM;
-				Adv.connIntervalmax = NO_SPECIFIC_MAXIMUM;
-				Adv.Role = PERIPHERAL;
-				Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
-				Set_Advertising_HostData( &Adv );
 
-				Enter_Advertising_Mode( &Adv );
-			}
-			flag = 1;
+			Adv.Advertising_Interval_Min = 160;
+			Adv.Advertising_Interval_Max = 320;
+			Adv.Advertising_Type = ADV_IND;
+			Adv.Own_Address_Type = OWN_PUBLIC_DEV_ADDR;
+			Adv.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
+			Adv.Peer_Address_Type = PEER_PUBLIC_DEV_ADDR;
+			memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
+			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
+			Adv.Advertising_Filter_Policy = 0;
+			Adv.connIntervalmin = NO_SPECIFIC_MINIMUM;
+			Adv.connIntervalmax = NO_SPECIFIC_MAXIMUM;
+			Adv.Privacy = FALSE;
+			Adv.Role = PERIPHERAL;
+			Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
+
+			Enter_Advertising_Mode( &Adv );
+
 
 			//			uint8_t Bytes[] = { 1,2,3,4,5 };
 			//

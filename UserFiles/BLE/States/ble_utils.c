@@ -59,6 +59,8 @@ static void LE_Encrypt_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Encrypte
 static void LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] );
 static GET_BD_ADDR Get_Static_Device_Address( void );
 static uint8_t Set_Static_Device_Address( BD_ADDR_TYPE* StaticAddress );
+static uint8_t Check_Broadcaster_Parameters( ADVERTISING_PARAMETERS* AdvPar );
+static uint8_t Check_Peripheral_Parameters( ADVERTISING_PARAMETERS* AdvPar );
 
 
 /****************************************************************/
@@ -473,36 +475,93 @@ __attribute__((weak)) uint8_t* LE_Read_Address( ADDRESS_TYPE AddressType )
 /****************************************************************/
 uint8_t Check_Advertising_Parameters( ADVERTISING_PARAMETERS* AdvPar )
 {
-	if( ( AdvPar->HostData.Adv_Data_Length <= Get_Max_Advertising_Data_Length() )
-			&& ( AdvPar->HostData.ScanRsp_Data_Length <= Get_Max_Scan_Response_Data_Length() ) )
+	switch( AdvPar->Role )
 	{
-		if( ( AdvPar->Own_Address_Type > OWN_RANDOM_DEV_ADDR ) && ( Get_Local_Version_Information()->HCI_Version < CORE_SPEC_4_2 ) )
+
+	case BROADCASTER:
+		return( Check_Broadcaster_Parameters( AdvPar ) );
+		break;
+
+	case PERIPHERAL:
+		return( Check_Peripheral_Parameters( AdvPar ) );
+		break;
+
+		/* Other roles are not allowed in advertising */
+	default: break;
+
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Check_Broadcaster_Parameters()      							*/
+/* Location: 													*/
+/* Purpose: Verify advertising parameters for broadcaster role.	*/
+/* Parameters: none				         						*/
+/* Return:														*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Check_Broadcaster_Parameters( ADVERTISING_PARAMETERS* AdvPar )
+{
+	/* A broadcaster cannot send connectable advertisements */
+	switch( AdvPar->Advertising_Type )
+	{
+	case ADV_SCAN_IND: /* Scannable */
+	case ADV_NONCONN_IND: /* Non connectable */
+		if( AdvPar->Privacy )
 		{
-			/* This feature is not supported with this controller version */
-			return (FALSE);
+			/* A Peripheral shall use non-resolvable or resolvable private addresses when in
+			   non-connectable mode as defined in Section 9.3.2. (Page 1387 Core_v5.2). */
+			if( ( AdvPar->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR ) || ( AdvPar->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) ||
+					( ( AdvPar->Own_Address_Type == OWN_RANDOM_DEV_ADDR ) && ( AdvPar->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE) ) )
+			{
+				return (TRUE);
+			}
 		}else
 		{
-			switch( AdvPar->Role )
-			{
-			case BROADCASTER:
-				/* A broadcaster cannot send connectable advertisements */
-				switch( AdvPar->Advertising_Type )
-				{
-				case ADV_SCAN_IND:
-				case ADV_NONCONN_IND:
-					return (TRUE);
-
-				default: break;
-				}
-				break;
-
-				case PERIPHERAL:
-					return (TRUE);
-
-					/* Other roles are not allowed in advertising */
-				default: break;
-			}
+			return (TRUE);
 		}
+		break;
+
+	default: break;
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Check_Peripheral_Parameters()      							*/
+/* Location: 													*/
+/* Purpose: Verify advertising parameters for Peripheral role.	*/
+/* Parameters: none				         						*/
+/* Return:														*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Check_Peripheral_Parameters( ADVERTISING_PARAMETERS* AdvPar )
+{
+	switch( AdvPar->Advertising_Type )
+	{
+	case ADV_IND: /* Connectable and scannable */
+	case ADV_DIRECT_IND_HIGH_DUTY: /* Connectable */
+	case ADV_DIRECT_IND_LOW_DUTY: /* Connectable */
+		if( AdvPar->Privacy )
+		{
+			/* The privacy-enabled Peripheral shall use a resolvable private address as the
+			advertiser's device address when in connectable mode (Page 1387 Core_v5.2). */
+			if( ( AdvPar->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR ) || ( AdvPar->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) )
+			{
+				return (TRUE);
+			}
+		}else
+		{
+			return (TRUE);
+		}
+		break;
+
+	default: break;
 	}
 
 	return (FALSE);
@@ -530,33 +589,38 @@ void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar )
 
 	Length += offset;
 
-	/* The power level is set as 0, but will be loaded with the right value before advertising */
-	offset = Load_Tx_Power_Level( (Tx_Power_Level_Type*)&AdvData[Length], sizeof(AdvData) - Length, 0 );
-
-	Length += offset;
-
-	/* Only add Slave_Conn_Interval_Range_Type to those advertising events that are connectable */
-	switch( AdvPar->Advertising_Type )
+	/* In privacy-enabled Peripheral, the device should not send the device name or unique data in the advertising
+	data that can be used to recognize the device (Page 1387 Core_v5.2). */
+	if( !AdvPar->Privacy ) /* Privacy disabled */
 	{
-	case ADV_IND:
-	case ADV_DIRECT_IND_HIGH_DUTY:
-	case ADV_DIRECT_IND_LOW_DUTY:
-		offset = Load_Slave_Conn_Interval_Range( (Slave_Conn_Interval_Range_Type*)&AdvData[Length], sizeof(AdvData) - Length,
-				AdvPar->connIntervalmin, AdvPar->connIntervalmax );
+		/* The power level is set as 0, but will be loaded with the right value before advertising */
+		offset = Load_Tx_Power_Level( (Tx_Power_Level_Type*)&AdvData[Length], sizeof(AdvData) - Length, 0 );
 
 		Length += offset;
-		break;
 
-	default: break;
+		/* Only add Slave_Conn_Interval_Range_Type to those advertising events that are connectable */
+		switch( AdvPar->Advertising_Type )
+		{
+		case ADV_IND:
+		case ADV_DIRECT_IND_HIGH_DUTY:
+		case ADV_DIRECT_IND_LOW_DUTY:
+			offset = Load_Slave_Conn_Interval_Range( (Slave_Conn_Interval_Range_Type*)&AdvData[Length], sizeof(AdvData) - Length,
+					AdvPar->connIntervalmin, AdvPar->connIntervalmax );
+
+			Length += offset;
+			break;
+
+		default: break;
+		}
+
+		offset = Load_Appearance( (Appearance_Type*)&AdvData[Length], sizeof(AdvData) - Length, TEMPERATURE_SENSOR );
+
+		Length += offset;
+
+		offset = Load_Local_Name( (Local_Name_Type*)&AdvData[Length], sizeof(AdvData) - Length );
+
+		Length += offset;
 	}
-
-	offset = Load_Appearance( (Appearance_Type*)&AdvData[Length], sizeof(AdvData) - Length, TEMPERATURE_SENSOR );
-
-	Length += offset;
-
-	offset = Load_Local_Name( (Local_Name_Type*)&AdvData[Length], sizeof(AdvData) - Length );
-
-	Length += offset;
 
 	AdvPar->HostData.Adv_Data_Length = Length;
 	AdvPar->HostData.Adv_Data_Ptr = &AdvData[0];
@@ -564,17 +628,25 @@ void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar )
 	/*------------------------------------ LOAD SCAN RESPONSE DATA ---------------------------------------*/
 	Length = 0;
 
-	offset = Load_Local_Name( (Local_Name_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length );
+	/* In privacy-enabled Peripheral, the device should not send the device name or unique data in the advertising
+	data that can be used to recognize the device (Page 1387 Core_v5.2). */
+	/* If the advertising data or the scan response data change regularly then those changes should be synchronized with any changes in
+	 * private addresses (both local and remote). For this purpose, the Host should not offload the private address generation to the Controller but,
+	 * instead, generate private addresses as described in Section 10.7.1.2. (Page 1388 Core_v5.2). */
+	if( !AdvPar->Privacy ) /* Privacy disabled */
+	{
+		offset = Load_Local_Name( (Local_Name_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length );
 
-	Length += offset;
+		Length += offset;
 
-	offset = Load_Appearance( (Appearance_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length, TEMPERATURE_SENSOR );
+		offset = Load_Appearance( (Appearance_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length, TEMPERATURE_SENSOR );
 
-	Length += offset;
+		Length += offset;
 
-	offset = Load_Manufacturer_Specific_Data( (Manufacturer_Specific_Data_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length, NULL, 0 );
+		offset = Load_Manufacturer_Specific_Data( (Manufacturer_Specific_Data_Type*)&ScanRspData[Length], sizeof(ScanRspData) - Length, NULL, 0 );
 
-	Length += offset;
+		Length += offset;
+	}
 
 	AdvPar->HostData.ScanRsp_Data_Length = Length;
 	AdvPar->HostData.Scan_Data_Ptr = &ScanRspData[0];
