@@ -63,6 +63,7 @@ static void Reset_Complete( CONTROLLER_ERROR_CODES Status );
 static uint8_t Vendor_Specific_Init( void );
 static uint8_t BLE_Init( void );
 static int8_t Advertising_Config( void );
+static void Advertising( void );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level );
@@ -174,7 +175,7 @@ void Run_BLE( void )
 		break;
 
 	case ADVERTISING_STATE:
-		Set_BLE_State( ADVERTISING_STATE ); //TODO: teste
+		Advertising(  );
 		break;
 
 	case SCANNING_STATE:
@@ -478,6 +479,7 @@ static int8_t Advertising_Config( void )
 	{
 	case DISABLE_ADVERTISING:
 		AdvConfigTimeout = 0;
+		AdvertisingParameters->Counter = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Enable )
 		{
 			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
@@ -582,6 +584,30 @@ static int8_t Advertising_Config( void )
 	}
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Advertising()        	   									*/
+/* Location: 					 								*/
+/* Purpose: Advertising											*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Advertising( void )
+{
+	/* In privacy-enabled Peripheral, the Host shall set a timer equal to
+	 * TGAP(private_addr_int). The Host shall generate a new resolvable
+	 * private address or non-resolvable private address when the timer
+	 * TGAP(private_addr_int) expires. */
+	if( AdvertisingParameters->Privacy )
+	{
+		if( TimeBase_DelayMs( &AdvertisingParameters->Counter, TGAP_PRIVATE_ADDR_INT, TRUE ) )
+		{
+			Set_BLE_State( CONFIG_ADVERTISING );
+		}
+	}
 }
 
 

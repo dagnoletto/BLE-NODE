@@ -69,6 +69,10 @@
 #define MANUFACTURER_SPECIFIC_DATA_TYPE 				0xFF /* Manufacturer Specific Data */
 
 
+/* GAP TIMERS AND CONSTANTS (Page 1410 Core_v5.2) */
+#define TGAP_PRIVATE_ADDR_INT ( 60000 /* 60 seg. */ * 15 ) /* 15 min */
+
+
 /****************************************************************/
 /* Type Defines 				               		            */
 /****************************************************************/
