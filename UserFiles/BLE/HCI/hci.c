@@ -1862,6 +1862,55 @@ uint8_t HCI_LE_Test_End( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCal
 
 
 /****************************************************************/
+/* HCI_LE_Add_Device_To_Resolving_List()               			*/
+/* Location: Page 2554 Core_v5.2								*/
+/* Purpose: This command is used to add one device to the 		*/
+/* resolving list used to generate and resolve Resolvable 		*/
+/* Private Addresses in the Controller. This command shall not 	*/
+/* be used when address resolution is enabled in the Controller */
+/* and:															*/
+/* • Advertising (other than periodic advertising) is enabled,	*/
+/* • Scanning is enabled, or									*/
+/* • an HCI_LE_Create_Connection, 								*/
+/* HCI_LE_Extended_Create_Connection, or						*/
+/* HCI_LE_Periodic_Advertising_Create_Sync command is 			*/
+/* outstanding. This command may be used at any time when 		*/
+/* address resolution is disabled in the Controller. The added 	*/
+/* device shall be set to Network Privacy mode. When a 			*/
+/* Controller cannot add a device to the list because there is 	*/
+/* no space available, it shall return the error code Memory 	*/
+/* Capacity Exceeded (0x07).									*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_LE_Add_Device_To_Resolving_List( PEER_ADDR_TYPE Peer_Identity_Address_Type, BD_ADDR_TYPE Peer_Identity_Address,
+		IRK_TYPE* Peer_IRK, IRK_TYPE* Local_IRK, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
+{
+	uint8_t Status;
+
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 39;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 39;
+
+	PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
+	memcpy( &(PcktPtr->CmdPacket.Parameter[sizeof(BD_ADDR_TYPE) + 1]), &(Peer_IRK->Bytes[0]), sizeof(IRK_TYPE) );
+	memcpy( &(PcktPtr->CmdPacket.Parameter[sizeof(IRK_TYPE) + sizeof(BD_ADDR_TYPE) + 1]), &(Local_IRK->Bytes[0]), sizeof(IRK_TYPE) );
+
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
+}
+
+
+/****************************************************************/
 /* HCI_Disconnection_Complete()        							*/
 /* Location: Page 2296 Core_v5.2								*/
 /* Purpose: The HCI_Disconnection_Complete event occurs when a 	*/

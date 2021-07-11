@@ -143,6 +143,7 @@ typedef enum
 	HCI_LE_RECEIVER_TEST_V1					= (PARSE_OPCODE( 0x001D, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_TRANSMITTER_TEST_V1				= (PARSE_OPCODE( 0x001E, LE_CONTROLLER_CMD 		 )),
 	HCI_LE_TEST_END							= (PARSE_OPCODE( 0x001F, LE_CONTROLLER_CMD 		 )),
+	HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST		= (PARSE_OPCODE( 0x0027, LE_CONTROLLER_CMD 		 )),
 }COMMAND_OPCODE;
 
 
@@ -1238,6 +1239,8 @@ uint8_t HCI_LE_Receiver_Test_v1( uint8_t RX_Channel, DefCmdComplete CompleteCall
 uint8_t HCI_LE_Transmitter_Test_v1( uint8_t TX_Channel, uint8_t Test_Data_Length, uint8_t Packet_Payload,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Test_End( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
+uint8_t HCI_LE_Add_Device_To_Resolving_List( PEER_ADDR_TYPE Peer_Identity_Address_Type, BD_ADDR_TYPE Peer_Identity_Address,
+											 IRK_TYPE* Peer_IRK, IRK_TYPE* Local_IRK, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 
 
 /*------------- EVENTS NOT EXPLICITLY RELATED WITH COMMANDS ----------------------*/

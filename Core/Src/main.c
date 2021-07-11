@@ -134,7 +134,10 @@ int main(void)
 
 			Enter_Advertising_Mode( &Adv );
 
-
+//			BD_ADDR_TYPE Peer_Identity_Address = { { 0,1,2,3,4,5 } };
+//			IRK_TYPE Peer_IRK;
+//			IRK_TYPE Local_IRK;
+//			HCI_LE_Add_Device_To_Resolving_List( PEER_PUBLIC_DEV_ADDR, Peer_Identity_Address, &Peer_IRK, &Local_IRK, NULL, NULL );
 			//			uint8_t Bytes[] = { 1,2,3,4,5 };
 			//
 			//			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
