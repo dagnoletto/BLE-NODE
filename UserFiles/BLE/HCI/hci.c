@@ -1911,6 +1911,241 @@ uint8_t HCI_LE_Add_Device_To_Resolving_List( PEER_ADDR_TYPE Peer_Identity_Addres
 
 
 /****************************************************************/
+/* HCI_LE_Remove_Device_From_Resolving_List()          			*/
+/* Location: Page 2556 Core_v5.2								*/
+/* Purpose: This command is used to remove one device from the  */
+/* resolving list used to resolve Resolvable Private Addresses 	*/
+/* in the Controller. This command shall not be used when 		*/
+/* address resolution is enabled in the Controller and:			*/
+/* • Advertising (other than periodic advertising) is enabled,	*/
+/* • Scanning is enabled, or									*/
+/* • an HCI_LE_Create_Connection, 								*/
+/* HCI_LE_Extended_Create_Connection, or						*/
+/* HCI_LE_Periodic_Advertising_Create_Sync command is 			*/
+/* outstanding. This command may be used at any time when 		*/
+/* address resolution is disabled in the Controller. When a 	*/
+/* Controller cannot remove a device from the resolving list 	*/
+/* because it is not found, it shall return the error code 		*/
+/* Unknown Connection Identifier (0x02). 						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_LE_Remove_Device_From_Resolving_List( PEER_ADDR_TYPE Peer_Identity_Address_Type, BD_ADDR_TYPE Peer_Identity_Address,
+		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
+{
+	uint8_t Status;
+
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_REMOVE_DEVICE_FROM_RESOLVING_LIST;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 7;
+
+	PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
+
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
+}
+
+
+/****************************************************************/
+/* HCI_LE_Clear_Resolving_List()        						*/
+/* Location: Page 2558 Core_v5.2								*/
+/* Purpose: This command is used to remove all devices from the */
+/* resolving list used to resolve Resolvable Private Addresses 	*/
+/* in the Controller. This command shall not be used when 		*/
+/* address resolution is enabled in the Controller and:			*/
+/* • Advertising (other than periodic advertising) is enabled,	*/
+/* • Scanning is enabled, or									*/
+/* • an HCI_LE_Create_Connection, 								*/
+/* HCI_LE_Extended_Create_Connection, or						*/
+/* HCI_LE_Periodic_Advertising_Create_Sync command is 			*/
+/* outstanding. This command may be used at any time when 		*/
+/* address resolution is disabled in the Controller.			*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_LE_Clear_Resolving_List( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
+{
+	uint8_t Status;
+
+	HCI_SERIAL_COMMAND_PCKT Pckt;
+
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_CLEAR_RESOLVING_LIST;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
+
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	return (Status);
+}
+
+
+/****************************************************************/
+/* HCI_LE_Read_Resolving_List_Size()        					*/
+/* Location: Page 2559 Core_v5.2								*/
+/* Purpose: This command is used to read the total number of 	*/
+/* entries in the resolving list that can be stored in the 		*/
+/* Controller. Note: The number of entries that can be stored 	*/
+/* is not fixed and the Controller can change it at any time 	*/
+/* (e.g. because the memory used to store the list can also be 	*/
+/* used for other purposes).									*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_LE_Read_Resolving_List_Size( LEReadResolvingListSizeComplete CompleteCallBack, DefCmdStatus StatusCallBack )
+{
+	uint8_t Status;
+
+	HCI_SERIAL_COMMAND_PCKT Pckt;
+
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_READ_RESOLVING_LIST_SIZE;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
+
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	return (Status);
+}
+
+
+/****************************************************************/
+/* HCI_LE_Read_Peer_Resolvable_Address()        				*/
+/* Location: Page 2560 Core_v5.2								*/
+/* Purpose: This command is used to get the current peer 		*/
+/* Resolvable Private Address being used for the corresponding	*/
+/* peer Public and Random (static) Identity Address. The peer’s */
+/* resolvable address being used may change after the command 	*/
+/* is called. This command may be used at any time. When a 		*/
+/* Controller cannot find a Resolvable Private Address 			*/
+/* associated with the Peer Identity Address, or if the Peer 	*/
+/* Identity Address cannot be found in the resolving list, it 	*/
+/* shall return the error code Unknown Connection Identifier	*/
+/* (0x02).														*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_LE_Read_Peer_Resolvable_Address( PEER_ADDR_TYPE Peer_Identity_Address_Type, BD_ADDR_TYPE Peer_Identity_Address,
+		LEReadPeerResolvableAddressComplete CompleteCallBack, DefCmdStatus StatusCallBack )
+{
+	uint8_t Status;
+
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_PEER_RESOLVABLE_ADDRESS;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 7;
+
+	PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
+
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
+}
+
+
+/****************************************************************/
+/* HCI_LE_Read_Local_Resolvable_Address()        				*/
+/* Location: Page 2562 Core_v5.2								*/
+/* Purpose: This command is used to get the current local 		*/
+/* Resolvable Private Address being used for the corresponding	*/
+/* peer Identity Address. The local resolvable address being 	*/
+/* used may change after the command is called. This command 	*/
+/* may be used at any time. When a Controller cannot find a 	*/
+/* Resolvable Private Address associated with the Peer Identity */
+/* Address, or if the Peer Identity Address cannot be found in  */
+/* the resolving list, it shall return the error code Unknown 	*/
+/* Connection Identifier (0x02).								*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_LE_Read_Local_Resolvable_Address( PEER_ADDR_TYPE Peer_Identity_Address_Type, BD_ADDR_TYPE Peer_Identity_Address,
+		LEReadLocalResolvableAddressComplete CompleteCallBack, DefCmdStatus StatusCallBack )
+{
+	uint8_t Status;
+
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_LOCAL_RESOLVABLE_ADDRESS;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 7;
+
+	PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
+
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
+}
+
+
+/****************************************************************/
+/* HCI_LE_Set_Address_Resolution_Enable()        				*/
+/* Location: Page 2564 Core_v5.2								*/
+/* Purpose: This command is used to enable resolution of 		*/
+/* Resolvable Private Addresses in the Controller. This causes 	*/
+/* the Controller to use the resolving list whenever the 		*/
+/* Controller receives a local or peer Resolvable Private 		*/
+/* Address. This command shall not be used when:				*/
+/* • Advertising (other than periodic advertising) is enabled,	*/
+/* • Scanning is enabled, or									*/
+/* • an HCI_LE_Create_Connection, 								*/
+/* HCI_LE_Extended_Create_Connection, or						*/
+/* HCI_LE_Periodic_Advertising_Create_Sync command is 			*/
+/* outstanding.  Enabling address resolution when it is already */
+/* enabled, or disabling it when it is already disabled, has no */
+/* effect. Note: This command does not affect the generation of */
+/* Resolvable Private Addresses.								*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_LE_Set_Address_Resolution_Enable( uint8_t Address_Resolution_Enable, DefCmdComplete CompleteCallBack,
+		DefCmdStatus StatusCallBack )
+{
+	uint8_t Status;
+
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 1;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_ADDRESS_RESOLUTION_ENABLE;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 1;
+
+	PcktPtr->CmdPacket.Parameter[0] = Address_Resolution_Enable;
+
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
+}
+
+
+/****************************************************************/
 /* HCI_Disconnection_Complete()        							*/
 /* Location: Page 2296 Core_v5.2								*/
 /* Purpose: The HCI_Disconnection_Complete event occurs when a 	*/

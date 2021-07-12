@@ -138,6 +138,19 @@ int main(void)
 //			IRK_TYPE Peer_IRK;
 //			IRK_TYPE Local_IRK;
 //			HCI_LE_Add_Device_To_Resolving_List( PEER_PUBLIC_DEV_ADDR, Peer_Identity_Address, &Peer_IRK, &Local_IRK, NULL, NULL );
+
+//			HCI_LE_Remove_Device_From_Resolving_List( PEER_PUBLIC_DEV_ADDR, Peer_Identity_Address, NULL, NULL );
+
+//			HCI_LE_Clear_Resolving_List( NULL, NULL );
+
+//			HCI_LE_Read_Resolving_List_Size( NULL, NULL );
+
+//			HCI_LE_Read_Peer_Resolvable_Address( PEER_PUBLIC_DEV_ADDR, Peer_Identity_Address, NULL, NULL );
+
+//			HCI_LE_Read_Local_Resolvable_Address( PEER_PUBLIC_DEV_ADDR, Peer_Identity_Address, NULL, NULL );
+
+//			HCI_LE_Set_Address_Resolution_Enable( TRUE, NULL, NULL );
+
 			//			uint8_t Bytes[] = { 1,2,3,4,5 };
 			//
 			//			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
