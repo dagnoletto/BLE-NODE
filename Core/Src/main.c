@@ -151,6 +151,8 @@ int main(void)
 
 //			HCI_LE_Set_Address_Resolution_Enable( TRUE, NULL, NULL );
 
+//			HCI_LE_Set_Resolvable_Private_Address_Timeout( 10, NULL, NULL );
+
 			//			uint8_t Bytes[] = { 1,2,3,4,5 };
 			//
 			//			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
