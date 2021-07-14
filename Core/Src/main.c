@@ -32,6 +32,7 @@
 #include "ble_states.h"
 #include "ble_utils.h"
 #include "gap.h"
+#include "security_manager.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

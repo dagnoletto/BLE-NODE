@@ -1,14 +1,13 @@
 
 
-#ifndef FLASH_H_
-#define FLASH_H_
+#ifndef SECURITY_MANAGER_H_
+#define SECURITY_MANAGER_H_
 
 
 /****************************************************************/
 /* Includes                                                     */
 /****************************************************************/
 #include "Types.h"
-#include "main.h"
 
 
 /****************************************************************/
@@ -19,14 +18,25 @@
 /****************************************************************/
 /* Type Defines 				               		            */
 /****************************************************************/
+typedef struct
+{
+	PEER_ADDR_TYPE Type;
+	BD_ADDR_TYPE Address;
+}__attribute__((packed)) IDENTITY_ADDRESS;
+
+
+typedef struct
+{
+	IDENTITY_ADDRESS Peer_Identity_Address;
+	IRK_TYPE Local_IRK;
+	IRK_TYPE Peer_IRK;
+}__attribute__((packed)) DEVICE_IDENTITY;
 
 
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-uint8_t FLASH_Program( uint32_t Address, uint8_t DataPtr[], uint16_t DataSize );
-uint32_t GET_BT_BASIC_INFO_BASE_ADDRESS( void );
-uint32_t GET_LE_RESOLVING_LIST_BASE_ADDRESS( void );
+uint16_t Get_Size_Of_Resolving_List( void );
 
 
 /****************************************************************/
@@ -34,7 +44,7 @@ uint32_t GET_LE_RESOLVING_LIST_BASE_ADDRESS( void );
 /****************************************************************/
 
 
-#endif /* FLASH_H_ */
+#endif /* SECURITY_MANAGER_H_ */
 
 
 /****************************************************************/
