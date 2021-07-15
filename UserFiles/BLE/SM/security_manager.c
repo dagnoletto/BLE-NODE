@@ -87,5 +87,64 @@ uint16_t Get_Size_Of_Resolving_List( void )
 
 
 /****************************************************************/
+/* Add_Device_Identity_To_Resolving_List()		  				*/
+/* Location: 					 								*/
+/* Purpose: Add device identity to resolving list.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint16_t Add_Device_Identity_To_Resolving_List( DEVICE_IDENTITY* Device )
+{
+	uint32_t ListAddress = GET_LE_RESOLVING_LIST_BASE_ADDRESS();
+
+	RESOLVING_LIST* ListPtr = (RESOLVING_LIST*)( ListAddress );
+	uint16_t NumberOfEntries = Get_Size_Of_Resolving_List();
+
+	//TODO: testar se esta parte funciona!
+	//ListAddress += ( sizeof( RESOLVING_LIST_FLAGS ) + ( ListPtr->Flags.NumberOfEntries * sizeof( DEVICE_IDENTITY ) ) );
+
+	if( NumberOfEntries < MAX_NUMBER_OF_RESOLVING_LIST_ENTRIES )
+	{
+		/* Program device identity */
+		FLASH_Program( ListAddress + offsetof(RESOLVING_LIST,Entry[NumberOfEntries]), (uint8_t*)( Device ), sizeof(DEVICE_IDENTITY) );
+
+		/* Update number of entries */
+		NumberOfEntries++;
+		FLASH_Program( ListAddress + offsetof(RESOLVING_LIST,Flags.NumberOfEntries), (uint8_t*)( &NumberOfEntries ), sizeof(ListPtr->Flags.NumberOfEntries) );
+
+		if( ListPtr->Flags.NumberOfEntries == NumberOfEntries )
+		{
+			return (TRUE);
+		}
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Get_Device_Identity_From_Resolving_List()	  				*/
+/* Location: 					 								*/
+/* Purpose: Get device identity from resolving list.			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+DEVICE_IDENTITY* Get_Device_Identity_From_Resolving_List( uint16_t Index )
+{
+	RESOLVING_LIST* ListPtr = (RESOLVING_LIST*)( GET_LE_RESOLVING_LIST_BASE_ADDRESS() );
+	uint16_t NumberOfEntries = Get_Size_Of_Resolving_List();
+
+	if( Index < NumberOfEntries )
+	{
+		return ( &ListPtr->Entry[Index] );
+	}
+
+	return (NULL);
+}
+
+
+/****************************************************************/
 /* End of file	                                                */
 /****************************************************************/

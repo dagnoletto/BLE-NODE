@@ -135,6 +135,12 @@ int main(void)
 
 			Enter_Advertising_Mode( &Adv );
 
+
+			DEVICE_IDENTITY Id;
+			Add_Device_Identity_To_Resolving_List( &Id );
+
+			Id = *Get_Device_Identity_From_Resolving_List( 0 );
+
 //			BD_ADDR_TYPE Peer_Identity_Address = { { 0,1,2,3,4,5 } };
 //			IRK_TYPE Peer_IRK;
 //			IRK_TYPE Local_IRK;
