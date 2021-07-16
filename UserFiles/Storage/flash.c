@@ -130,34 +130,53 @@ uint8_t* LE_Read_Address( ADDRESS_TYPE AddressType )
 /****************************************************************/
 uint8_t FLASH_Program( uint32_t Address, uint8_t DataPtr[], uint16_t DataSize )
 {
-	uint16_t DataToFlash;
+	/* TODO: This is not the best approach for saving information in flash memory
+	 * since we erase and reprogram all the pages at every write operation.
+	 * This is being let for future improvement. */
+	uint16_t CompleteCycles = DataSize / sizeof(uint16_t);
+	uint32_t MirrorPointer = (uint32_t)NULL;
 
-	uint16_t CompleteCycles = DataSize / sizeof(DataToFlash);
-	uint16_t UncompleteCycles = DataSize % sizeof(DataToFlash);
-
-	if( CompleteCycles || UncompleteCycles )
+	/* TODO: add here limits regarding the data size and address */
+	if( ( CompleteCycles ) && ( Address >= (uint32_t)( &FLASH_DATA_VECTOR[0] ) ) )
 	{
+		EnterCritical();
+
+		MirrorPointer = (uint32_t)malloc( sizeof(FLASH_DATA_VECTOR) );
+		if ( (uint8_t*)MirrorPointer == NULL )
+		{
+			ExitCritical();
+			return (FALSE);
+		}
+
+		memcpy( (uint8_t*)MirrorPointer, &FLASH_DATA_VECTOR[0], sizeof(FLASH_DATA_VECTOR) );
+		uint32_t MirrorOffset = Address - (uint32_t)( &FLASH_DATA_VECTOR[0] );
+		memcpy( (uint8_t*)( MirrorPointer + MirrorOffset ), &DataPtr[0], DataSize );
+
+		FLASH_EraseInitTypeDef Erase;
+		uint32_t PageError;
+		Erase.NbPages = sizeof(FLASH_DATA_VECTOR) / FLASH_PAGE_SIZE;
+		Erase.PageAddress = (uint32_t)( &FLASH_DATA_VECTOR[0] );
+		Erase.TypeErase = FLASH_TYPEERASE_PAGES;
+
 		HAL_FLASH_Unlock();
-	}
 
-	for ( uint16_t i = 0; i < CompleteCycles; i++ )
-	{
-		DataToFlash = ( DataPtr[(i * sizeof(DataToFlash) ) + 1] << 8 ) | DataPtr[i * sizeof(DataToFlash)];
-		HAL_FLASH_Program( FLASH_TYPEPROGRAM_HALFWORD, Address, DataToFlash );
-		Address += sizeof(DataToFlash);
-	}
+		HAL_FLASHEx_Erase( &Erase, &PageError );
 
-	if ( UncompleteCycles )
-	{
-		DataToFlash = *( (uint16_t*)(Address) );
-		DataToFlash &= 0xFF00;
-		DataToFlash |= DataPtr[DataSize - 1];
-		HAL_FLASH_Program( FLASH_TYPEPROGRAM_HALFWORD, Address, DataToFlash );
-	}
+		uint16_t* Mirror = (uint16_t*)MirrorPointer;
+		uint16_t* Flash = (uint16_t*)( &FLASH_DATA_VECTOR[0] );
 
-	if( CompleteCycles || UncompleteCycles )
-	{
+		for ( uint32_t i = 0; i < ( sizeof(FLASH_DATA_VECTOR) / sizeof( uint16_t ) ); i++ )
+		{
+			if( Mirror[i] != Flash[i] )
+			{
+				HAL_FLASH_Program( FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)( &Flash[i] ), Mirror[i] );
+			}
+		}
+
 		HAL_FLASH_Lock();
+		free( (uint8_t*)MirrorPointer );
+		ExitCritical();
+
 	}
 
 	return (TRUE);

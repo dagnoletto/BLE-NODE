@@ -101,9 +101,6 @@ uint16_t Add_Device_Identity_To_Resolving_List( DEVICE_IDENTITY* Device )
 	RESOLVING_LIST* ListPtr = (RESOLVING_LIST*)( ListAddress );
 	uint16_t NumberOfEntries = Get_Size_Of_Resolving_List();
 
-	//TODO: testar se esta parte funciona!
-	//ListAddress += ( sizeof( RESOLVING_LIST_FLAGS ) + ( ListPtr->Flags.NumberOfEntries * sizeof( DEVICE_IDENTITY ) ) );
-
 	if( NumberOfEntries < MAX_NUMBER_OF_RESOLVING_LIST_ENTRIES )
 	{
 		/* Program device identity */

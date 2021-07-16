@@ -137,9 +137,18 @@ int main(void)
 
 
 			DEVICE_IDENTITY Id;
+			Id.Peer_Identity_Address.Type = PEER_RANDOM_DEV_ADDR;
+			Id.Peer_Identity_Address.Address.Bytes[0] = 50;
+			Id.Peer_Identity_Address.Address.Bytes[5] = 70;
+			Id.Local_IRK.Bytes[0] = 0;
+			Id.Local_IRK.Bytes[15] = 15;
+			Id.Peer_IRK.Bytes[0] = 5;
+			Id.Peer_IRK.Bytes[15] = 51;
+
 			Add_Device_Identity_To_Resolving_List( &Id );
 
-			Id = *Get_Device_Identity_From_Resolving_List( 0 );
+			static uint16_t index = 0;
+			Id = *Get_Device_Identity_From_Resolving_List( index++ );
 
 //			BD_ADDR_TYPE Peer_Identity_Address = { { 0,1,2,3,4,5 } };
 //			IRK_TYPE Peer_IRK;
