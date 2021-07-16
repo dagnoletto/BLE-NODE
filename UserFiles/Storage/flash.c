@@ -133,15 +133,12 @@ uint8_t FLASH_Program( uint32_t Address, uint8_t DataPtr[], uint16_t DataSize )
 	/* TODO: This is not the best approach for saving information in flash memory
 	 * since we erase and reprogram all the pages at every write operation.
 	 * This is being let for future improvement. */
-	uint16_t CompleteCycles = DataSize / sizeof(uint16_t);
-	uint32_t MirrorPointer = (uint32_t)NULL;
-
-	/* TODO: add here limits regarding the data size and address */
-	if( ( CompleteCycles ) && ( Address >= (uint32_t)( &FLASH_DATA_VECTOR[0] ) ) )
+	if( ( DataSize ) && ( Address >= (uint32_t)( &FLASH_DATA_VECTOR[0] ) ) &&
+			( ( Address + DataSize ) <= (uint32_t)( &FLASH_DATA_VECTOR[ sizeof(FLASH_DATA_VECTOR) ] ) ) )
 	{
 		EnterCritical();
 
-		MirrorPointer = (uint32_t)malloc( sizeof(FLASH_DATA_VECTOR) );
+		uint32_t MirrorPointer = (uint32_t)malloc( sizeof(FLASH_DATA_VECTOR) );
 		if ( (uint8_t*)MirrorPointer == NULL )
 		{
 			ExitCritical();
@@ -177,9 +174,10 @@ uint8_t FLASH_Program( uint32_t Address, uint8_t DataPtr[], uint16_t DataSize )
 		free( (uint8_t*)MirrorPointer );
 		ExitCritical();
 
+		return (TRUE);
 	}
 
-	return (TRUE);
+	return (FALSE);
 }
 
 
