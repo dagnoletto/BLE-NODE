@@ -21,7 +21,7 @@ typedef enum
 	LE_READ_BUFFER_SIZE,
 	LE_LOCAL_SUPPORTED_FEATURES,
 	READ_BD_ADDRESS,
-	GENERATE_RANDOM_ADDRESS,
+	GENERATE_STATIC_RANDOM_ADDRESS,
 	READ_LOCAL_VERSION,
 	CLEAR_WHITE_LIST,
 	CLEAR_TIMER,
@@ -407,6 +407,7 @@ static uint8_t BLE_Init( void )
 	case READ_BD_ADDRESS:
 		if( HCI_Supported_Commands.Bits.HCI_Read_BD_ADDR )
 		{
+			/* Read Public Device Address */
 			BLEInitSteps = HCI_Read_BD_ADDR( &Read_BD_ADDR_Complete, NULL ) ? CLEAR_TIMER : READ_BD_ADDRESS;
 		}else
 		{
@@ -414,8 +415,14 @@ static uint8_t BLE_Init( void )
 		}
 		break;
 
-	case GENERATE_RANDOM_ADDRESS:
-		if( Generate_Device_Addresses( &HCI_Supported_Commands, Get_Default_IRK() ) )
+	case GENERATE_STATIC_RANDOM_ADDRESS:
+		if( Get_Static_Random_Device_Address().Status != TRUE ) /* Verify if an static address is available */
+		{
+			if( Generate_Device_Address( &HCI_Supported_Commands, STATIC_DEVICE_ADDRESS, NULL ) != NULL )
+			{
+				BLEInitSteps = READ_LOCAL_VERSION;
+			}
+		}else
 		{
 			BLEInitSteps = READ_LOCAL_VERSION;
 		}
@@ -844,7 +851,7 @@ static void Read_BD_ADDR_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* 
 	{
 		if( memcmp( Get_Public_Device_Address( ).Ptr, BD_ADDR, sizeof(BD_ADDR_TYPE) ) == 0 )
 		{
-			BLEInitSteps = GENERATE_RANDOM_ADDRESS;
+			BLEInitSteps = GENERATE_STATIC_RANDOM_ADDRESS;
 		}else
 		{
 			BLEInitSteps = CLEAR_TIMER;

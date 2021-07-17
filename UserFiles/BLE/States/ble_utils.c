@@ -41,8 +41,6 @@ typedef struct
  ADDRESS IN ADVERTISING, SCANNING OR ANY OTHER OPERATION UNLESS THE PUBLIC ADDRESS
  IS REALLY AN IEEE ASSIGNED NUMBER. PREFER TO USE THE RANDOM TYPE INSTEAD. */
 #define DEFAULT_PUBLIC_ADDRESS { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 }
-#define DEFAULT_IRK { 0x02, 0x56, 0xFF, 0x90, 0x71, 0xAB, 0xC5, 0x4A, \
-		0x8E, 0x91, 0x00, 0x3C, 0xC3, 0x99, 0x69, 0x24 }
 
 
 /****************************************************************/
@@ -54,22 +52,20 @@ static uint8_t Create_Private_Resolvable_Address( uint8_t prand[3] );
 static uint8_t Check_Bit_Presence( uint8_t Random_Part[], uint8_t Size_In_Bytes );
 static void Hash_CallBack_Function(uint8_t EncryptedData[16], uint8_t status);
 static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t status);
-static void Confirm_Local_Private_Addr(uint8_t status);
+static void Confirm_Private_Addr(uint8_t status);
 static void LE_Encrypt_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Encrypted_Data[16] );
 static void LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] );
-static GET_BD_ADDR Get_Static_Device_Address( void );
-static uint8_t Set_Static_Device_Address( BD_ADDR_TYPE* StaticAddress );
+static uint8_t Set_Static_Random_Device_Address( BD_ADDR_TYPE* StaticAddress );
 static uint8_t Check_Broadcaster_Parameters( ADVERTISING_PARAMETERS* AdvPar );
 static uint8_t Check_Peripheral_Parameters( ADVERTISING_PARAMETERS* AdvPar );
+extern uint8_t LE_Write_Address( LE_BD_ADDR_TYPE* Address );
+extern LE_BD_ADDR_TYPE* LE_Read_Address( PEER_ADDR_TYPE AddressType );
 
 
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
 static LE_BD_ADDR_TYPE LE_BLUETOOTH_DEVICE_ADDRESS; /* Address used by the link layer in advertising/scanning and connected mode */
-static BD_ADDR_TYPE PRIVATE_NON_RESOLVABLE_ADDRESS;
-static BD_ADDR_TYPE PRIVATE_RESOLVABLE_ADDRESS;
-static IRK_TYPE DEFAULT_IDENTITY_RESOLVING_KEY = { DEFAULT_IRK };
 static uint8_t Rand_Bytes[16];
 static uint8_t plaintextData[16];
 static uint8_t hash[3];
@@ -79,16 +75,19 @@ static RESOLVE_ADDR_STRUCT ResolveStruct = { .CallBack = NULL };
 
 
 /****************************************************************/
-/* Generate_Device_Addresses()        							*/
+/* Generate_Device_Address()        							*/
 /* Location: 					 								*/
 /* Purpose: Generate the static and private addresses used.		*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Generate_Device_Addresses( SUPPORTED_COMMANDS* HCI_Sup_Cmd, IRK_TYPE* IRK )
+BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_ADDRESS_TYPE AddrType, IRK_TYPE* IRK )
 {
 	static uint32_t TimeoutCounter = 0;
+	static BD_ADDR_TYPE RANDOM_ADDRESS;
+	uint8_t status = TRUE;
+	GET_BD_ADDR StaticAddr;
 
 	switch ( BD_Config )
 	{
@@ -129,85 +128,99 @@ uint8_t Generate_Device_Addresses( SUPPORTED_COMMANDS* HCI_Sup_Cmd, IRK_TYPE* IR
 		break;
 
 	case CHECK_RANDOM_NUMBERS:
-	{
-		uint8_t status = TRUE;
-
-		/* The static address is not subject to modification all the time, only after device power-up. */
-		/* So look to the parameters to see if it should update or not */
-		GET_BD_ADDR DummyAddr = Get_Static_Device_Address( );
-		if( !DummyAddr.Status )
+		switch ( AddrType )
 		{
-			if( Create_Static_Address( &Rand_Bytes[0] ) )
+		case STATIC_DEVICE_ADDRESS:
+			/* The static address is not subject to modification all the time, only after device power-up. */
+			/* So look to the parameters to see if it should update or not */
+			StaticAddr = Get_Static_Random_Device_Address( );
+			if( !StaticAddr.Status )
 			{
-				if( !Set_Static_Device_Address( (BD_ADDR_TYPE*)( &Rand_Bytes ) ) )
+				if( Create_Static_Address( &Rand_Bytes[0] ) )
+				{
+					if( !Set_Static_Random_Device_Address( (BD_ADDR_TYPE*)( &Rand_Bytes ) ) )
+					{
+						status = FALSE;
+					}else
+					{
+						RANDOM_ADDRESS = *StaticAddr.Ptr;
+					}
+				}else
 				{
 					status = FALSE;
 				}
 			}else
 			{
+				RANDOM_ADDRESS = *StaticAddr.Ptr;
+			}
+			BD_Config = GENERATE_RANDOM_NUMBER_PART_A;
+			return ( ( status == TRUE ) ? &RANDOM_ADDRESS : NULL );
+			break;
+
+		case RESOLVABLE_PRIVATE:
+			/* The last part of the byte arrya will be the prand part of private address. */
+			/* Check if prand part cpmplies with requeriment and the jump to hash generation. */
+			if( !Create_Private_Resolvable_Address( &Rand_Bytes[2 * sizeof(BD_ADDR_TYPE)] ) )
+			{
 				status = FALSE;
 			}
+			BD_Config = ( status == TRUE ) ? REQUEST_HASH_CALC : GENERATE_RANDOM_NUMBER_PART_A;
+			break;
+
+		case NON_RESOLVABLE_PRIVATE:
+		default:
+			/* Check non-resolvable private address */
+			if( Create_Private_Address( &Rand_Bytes[sizeof(BD_ADDR_TYPE)] ) )
+			{
+				memcpy( &RANDOM_ADDRESS.Bytes[0], &Rand_Bytes[sizeof(BD_ADDR_TYPE)], sizeof(BD_ADDR_TYPE) );
+			}else
+			{
+				status = FALSE;
+			}
+			BD_Config = ( status == TRUE ) ? END_ADDRESSES_CONFIG : GENERATE_RANDOM_NUMBER_PART_A;
+			break;
 		}
-
-		/* Check non-resolvable private address */
-		if( Create_Private_Address( &Rand_Bytes[sizeof(BD_ADDR_TYPE)] ) )
-		{
-			memcpy( &PRIVATE_NON_RESOLVABLE_ADDRESS.Bytes[0], &Rand_Bytes[sizeof(BD_ADDR_TYPE)], sizeof(BD_ADDR_TYPE) );
-		}else
-		{
-			status = FALSE;
-		}
-
-		/* The last part of the byte arrya will be the prand part of private address. */
-		/* Check if prand part cpmplies with requeriment and the jump to hash generation. */
-		if( !Create_Private_Resolvable_Address( &Rand_Bytes[2 * sizeof(BD_ADDR_TYPE)] ) )
-		{
-			status = FALSE;
-		}
-
-		BD_Config = ( status == TRUE ) ? REQUEST_HASH_CALC : GENERATE_RANDOM_NUMBER_PART_A;
-	}
-	break;
-
-	case REQUEST_HASH_CALC:
-		TimeoutCounter = 0;
-		memset( plaintextData, 0, sizeof(plaintextData) ); /* Clear the structure */
-
-		/* Concatenate the values of prand and r do form r': */
-		/* The most significant octet of the PlainText_Data corresponds to plaintextData[0] using the notation specified in FIPS 197. */
-		plaintextData[ sizeof(plaintextData) - 1 ] = Rand_Bytes[ 2 * sizeof(BD_ADDR_TYPE) ];
-		plaintextData[ sizeof(plaintextData) - 2 ] = Rand_Bytes[ 2 * sizeof(BD_ADDR_TYPE) + 1 ];
-		plaintextData[ sizeof(plaintextData) - 3 ] = Rand_Bytes[ 2 * sizeof(BD_ADDR_TYPE) + 2 ];
-
-		BD_Config = AES_128_Encrypt( HCI_Sup_Cmd, &IRK->Bytes[0], &plaintextData[0], &Hash_CallBack_Function ) ? WAIT_OPERATION_A : REQUEST_HASH_CALC;
 		break;
 
-	case LOAD_RESOLVABLE_ADDRESS:
-		memcpy( &PRIVATE_RESOLVABLE_ADDRESS.Bytes[0], &hash[0], sizeof(BD_ADDR_TYPE)/2 );
-		memcpy( &PRIVATE_RESOLVABLE_ADDRESS.Bytes[sizeof(BD_ADDR_TYPE)/2], &Rand_Bytes[ 2 * sizeof(BD_ADDR_TYPE) ], sizeof(BD_ADDR_TYPE)/2 );
-		BD_Config = VERIFY_RESOLVABLE_ADDRESS;
-		break;
+		case REQUEST_HASH_CALC:
+			TimeoutCounter = 0;
+			memset( plaintextData, 0, sizeof(plaintextData) ); /* Clear the structure */
 
-	case VERIFY_RESOLVABLE_ADDRESS:
-		TimeoutCounter = 0;
-		BD_Config = Resolve_Private_Address( HCI_Sup_Cmd, &PRIVATE_RESOLVABLE_ADDRESS, IRK, &Confirm_Local_Private_Addr ) ? WAIT_OPERATION_A : VERIFY_RESOLVABLE_ADDRESS;
-		break;
+			/* Concatenate the values of prand and r do form r': */
+			/* The most significant octet of the PlainText_Data corresponds to plaintextData[0] using the notation specified in FIPS 197. */
+			plaintextData[ sizeof(plaintextData) - 1 ] = Rand_Bytes[ 2 * sizeof(BD_ADDR_TYPE) ];
+			plaintextData[ sizeof(plaintextData) - 2 ] = Rand_Bytes[ 2 * sizeof(BD_ADDR_TYPE) + 1 ];
+			plaintextData[ sizeof(plaintextData) - 3 ] = Rand_Bytes[ 2 * sizeof(BD_ADDR_TYPE) + 2 ];
 
-	case END_ADDRESSES_CONFIG:
-		BD_Config = GENERATE_RANDOM_NUMBER_PART_A;
-		return (TRUE);
-		break;
+			BD_Config = AES_128_Encrypt( HCI_Sup_Cmd, &IRK->Bytes[0], &plaintextData[0], &Hash_CallBack_Function ) ? WAIT_OPERATION_A : REQUEST_HASH_CALC;
+			break;
 
-	case WAIT_OPERATION_A:
-	case WAIT_OPERATION_B:
-		if( TimeBase_DelayMs( &TimeoutCounter, 500, TRUE ) )
-		{
+		case LOAD_RESOLVABLE_ADDRESS:
+			memcpy( &RANDOM_ADDRESS.Bytes[0], &hash[0], sizeof(BD_ADDR_TYPE)/2 );
+			memcpy( &RANDOM_ADDRESS.Bytes[sizeof(BD_ADDR_TYPE)/2], &Rand_Bytes[ 2 * sizeof(BD_ADDR_TYPE) ], sizeof(BD_ADDR_TYPE)/2 );
+			BD_Config = VERIFY_RESOLVABLE_ADDRESS;
+			break;
+
+		case VERIFY_RESOLVABLE_ADDRESS:
+			TimeoutCounter = 0;
+			BD_Config = Resolve_Private_Address( HCI_Sup_Cmd, &RANDOM_ADDRESS, IRK, &Confirm_Private_Addr ) ? WAIT_OPERATION_A : VERIFY_RESOLVABLE_ADDRESS;
+			break;
+
+		case END_ADDRESSES_CONFIG:
 			BD_Config = GENERATE_RANDOM_NUMBER_PART_A;
-		}
-		break;
+			return (&RANDOM_ADDRESS);
+			break;
+
+		case WAIT_OPERATION_A:
+		case WAIT_OPERATION_B:
+			if( TimeBase_DelayMs( &TimeoutCounter, 500, TRUE ) )
+			{
+				BD_Config = GENERATE_RANDOM_NUMBER_PART_A;
+			}
+			break;
 	}
 
-	return (FALSE);
+	return (NULL);
 
 }
 
@@ -312,14 +325,14 @@ GET_BD_ADDR Get_Public_Device_Address( void )
 
 
 /****************************************************************/
-/* Get_Static_Device_Address()        							*/
+/* Get_Static_Random_Device_Address()        					*/
 /* Location: 					 								*/
 /* Purpose: Return the static random address.					*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static GET_BD_ADDR Get_Static_Device_Address( void )
+GET_BD_ADDR Get_Static_Random_Device_Address( void )
 {
 	GET_BD_ADDR ReturnVal = { .Status = FALSE };
 
@@ -337,14 +350,14 @@ static GET_BD_ADDR Get_Static_Device_Address( void )
 
 
 /****************************************************************/
-/* Set_Static_Device_Address()        							*/
+/* Set_Static_Random_Device_Address()        					*/
 /* Location: 					 								*/
 /* Purpose: Save the static random address.						*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Set_Static_Device_Address( BD_ADDR_TYPE* StaticAddress )
+static uint8_t Set_Static_Random_Device_Address( BD_ADDR_TYPE* StaticAddress )
 {
 	LE_BD_ADDR_TYPE StaticAddrRecord;
 
@@ -363,21 +376,6 @@ static uint8_t Set_Static_Device_Address( BD_ADDR_TYPE* StaticAddress )
 
 
 /****************************************************************/
-/* Get_Private_Device_Address()        							*/
-/* Location: 					 								*/
-/* Purpose: Return the private random address. Either 			*/
-/* resolvable or not.											*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-BD_ADDR_TYPE* Get_Private_Device_Address( uint8_t resolvable )
-{
-	return ( resolvable ? &PRIVATE_RESOLVABLE_ADDRESS : &PRIVATE_NON_RESOLVABLE_ADDRESS );
-}
-
-
-/****************************************************************/
 /* Get_LE_Bluetooth_Device_Address()        					*/
 /* Location: 					 								*/
 /* Purpose: Return the address being used by the LE device. 	*/
@@ -388,20 +386,6 @@ BD_ADDR_TYPE* Get_Private_Device_Address( uint8_t resolvable )
 LE_BD_ADDR_TYPE* Get_LE_Bluetooth_Device_Address( void )
 {
 	return (&LE_BLUETOOTH_DEVICE_ADDRESS);
-}
-
-
-/****************************************************************/
-/* Get_Default_IRK()        									*/
-/* Location: 					 								*/
-/* Purpose: Return the default Identity Resolving Key.			*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-IRK_TYPE* Get_Default_IRK( void )
-{
-	return ( &DEFAULT_IDENTITY_RESOLVING_KEY );
 }
 
 
@@ -836,14 +820,14 @@ static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t 
 
 
 /****************************************************************/
-/* Confirm_Local_Private_Addr()      							*/
+/* Confirm_Private_Addr()      									*/
 /* Location: 					 								*/
 /* Purpose: 													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Confirm_Local_Private_Addr(uint8_t status)
+static void Confirm_Private_Addr(uint8_t status)
 {
 	BD_Config = status ? END_ADDRESSES_CONFIG : VERIFY_RESOLVABLE_ADDRESS;
 }

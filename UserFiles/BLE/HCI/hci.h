@@ -997,8 +997,9 @@ typedef enum
 
 typedef enum
 {
-	NON_RESOLVABLE_PRIVATE = 0x00, /* Random non-resolvable private address */
-	STATIC_DEVICE_ADDRESS  = 0x01  /* Random static device address */
+	NON_RESOLVABLE_PRIVATE = 0x00,  /* Random non-resolvable private address */
+	STATIC_DEVICE_ADDRESS  = 0x01,  /* Random static device address */
+	RESOLVABLE_PRIVATE 	   = 0x02   /* Random resolvable private address */
 }RANDOM_ADDRESS_TYPE;
 
 
