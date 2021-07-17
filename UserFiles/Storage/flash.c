@@ -73,27 +73,23 @@ uint32_t GET_LE_RESOLVING_LIST_BASE_ADDRESS( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t LE_Write_Address( ADDRESS_TYPE AddressType, uint8_t Data[7] )
+uint8_t LE_Write_Address( LE_BD_ADDR_TYPE* Address )
 {
-	union MemDataStruct
-	{
-		uint8_t DataBytes[8];
-		uint64_t Data;
-	};
+	uint8_t DataBytes[ sizeof(LE_BD_ADDR_TYPE) + 1 ];
 
-	union MemDataStruct MemData;
 	uint8_t Status;
 
-	MemData.DataBytes[0] = AddressType & 0x3;
+	/* The first byte acts as the index for the LE address type */
+	DataBytes[0] = Address->Type;
 
-	memcpy( &MemData.DataBytes[1], &Data[0], 7 );
+	memcpy( &DataBytes[1], (uint8_t*)Address, sizeof(LE_BD_ADDR_TYPE) );
 
-	uint32_t MemAddress = ( MemData.DataBytes[0] * sizeof(MemData.DataBytes) ) + GET_BT_BASIC_INFO_BASE_ADDRESS();
+	uint32_t MemAddress = ( DataBytes[0] * sizeof(DataBytes) ) + GET_BT_BASIC_INFO_BASE_ADDRESS();
 
-	Status = FLASH_Program( MemAddress, &MemData.DataBytes[0], sizeof(MemData.DataBytes) );
+	Status = FLASH_Program( MemAddress, &DataBytes[0], sizeof(DataBytes) );
 
 	if( ( Status ) &&
-			( memcmp( &MemData.DataBytes[0], (uint8_t*)MemAddress, sizeof(MemData.DataBytes) ) == 0 ) )
+			( memcmp( &DataBytes[0], (uint8_t*)MemAddress, sizeof(DataBytes) ) == 0 ) )
 	{
 		return (TRUE);
 	}else
@@ -112,11 +108,11 @@ uint8_t LE_Write_Address( ADDRESS_TYPE AddressType, uint8_t Data[7] )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t* LE_Read_Address( ADDRESS_TYPE AddressType )
+LE_BD_ADDR_TYPE* LE_Read_Address( PEER_ADDR_TYPE AddressType )
 {
-	uint8_t* MemAddress = ( ( AddressType & 0x3 ) * 8 ) +  (uint8_t*)( GET_BT_BASIC_INFO_BASE_ADDRESS() );
+	uint8_t* MemAddress = ( ( AddressType & 0x1 ) * ( sizeof(LE_BD_ADDR_TYPE) + 1 ) ) +  (uint8_t*)( GET_BT_BASIC_INFO_BASE_ADDRESS() );
 
-	return ( MemAddress );
+	return ( (LE_BD_ADDR_TYPE*)( &MemAddress[1] ) );
 }
 
 

@@ -290,20 +290,22 @@ GET_BD_ADDR Get_Public_Device_Address( void )
 {
 	GET_BD_ADDR ReturnVal = { .Status = FALSE };
 
-	uint8_t* Ptr = LE_Read_Address( PUBLIC_DEV_ADDR );
+	LE_BD_ADDR_TYPE* Ptr = LE_Read_Address( PEER_PUBLIC_DEV_ADDR );
+	uint8_t Type = ( Ptr->Reserved << 1 ) | ( Ptr->Type );
 
-	if( *Ptr != PUBLIC_DEV_ADDR ) /* Address is not initialized */
+	if( Type != PEER_PUBLIC_DEV_ADDR ) /* Address is not initialized */
 	{
 		LE_BD_ADDR_TYPE PublicAddrRecord = { .Address = { DEFAULT_PUBLIC_ADDRESS } };
-		PublicAddrRecord.Type = PUBLIC_DEV_ADDR;
-		if( !LE_Write_Address( PUBLIC_DEV_ADDR, (uint8_t*)&PublicAddrRecord ) )
+		PublicAddrRecord.Type = PEER_PUBLIC_DEV_ADDR;
+		PublicAddrRecord.Reserved = 0;
+		if( !LE_Write_Address( &PublicAddrRecord ) )
 		{
 			return (ReturnVal);
 		}
 	}
 
 	ReturnVal.Status = TRUE;
-	ReturnVal.Ptr = (BD_ADDR_TYPE*)( ( (uint32_t)Ptr ) + 2 );
+	ReturnVal.Ptr = (BD_ADDR_TYPE*)( &Ptr->Address );
 
 	return (ReturnVal);
 }
@@ -321,12 +323,13 @@ static GET_BD_ADDR Get_Static_Device_Address( void )
 {
 	GET_BD_ADDR ReturnVal = { .Status = FALSE };
 
-	uint8_t* Ptr = LE_Read_Address( RANDOM_DEV_ADDR );
+	LE_BD_ADDR_TYPE* Ptr = LE_Read_Address( PEER_RANDOM_DEV_ADDR );
+	uint8_t Type = ( Ptr->Reserved << 1 ) | ( Ptr->Type );
 
-	if( *Ptr == RANDOM_DEV_ADDR ) /* Address is initialized? */
+	if( Type == PEER_RANDOM_DEV_ADDR ) /* Address is initialized? */
 	{
 		ReturnVal.Status = TRUE;
-		ReturnVal.Ptr = (BD_ADDR_TYPE*)( ( (uint32_t)Ptr ) + 2 );
+		ReturnVal.Ptr = (BD_ADDR_TYPE*)( &Ptr->Address );
 	}
 
 	return (ReturnVal);
@@ -345,10 +348,11 @@ static uint8_t Set_Static_Device_Address( BD_ADDR_TYPE* StaticAddress )
 {
 	LE_BD_ADDR_TYPE StaticAddrRecord;
 
-	StaticAddrRecord.Type = RANDOM_DEV_ADDR;
+	StaticAddrRecord.Type = PEER_RANDOM_DEV_ADDR;
+	StaticAddrRecord.Reserved = 0;
 	StaticAddrRecord.Address = *StaticAddress;
 
-	if( !LE_Write_Address( RANDOM_DEV_ADDR, (uint8_t*)&StaticAddrRecord ) )
+	if( !LE_Write_Address( &StaticAddrRecord ) )
 	{
 		return (FALSE);
 	}else
@@ -440,7 +444,7 @@ uint8_t Get_Max_Scan_Response_Data_Length( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-__attribute__((weak)) uint8_t LE_Write_Address( ADDRESS_TYPE AddressType, uint8_t Data[7] )
+__attribute__((weak)) uint8_t LE_Write_Address( LE_BD_ADDR_TYPE* Address )
 {
 	/* Considers address was not saved. This function should be
 	 * implemented at application side. */
@@ -457,7 +461,7 @@ __attribute__((weak)) uint8_t LE_Write_Address( ADDRESS_TYPE AddressType, uint8_
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-__attribute__((weak)) uint8_t* LE_Read_Address( ADDRESS_TYPE AddressType )
+__attribute__((weak)) LE_BD_ADDR_TYPE* LE_Read_Address( PEER_ADDR_TYPE AddressType )
 {
 	/* Considers address was not saved. This function should be
 	 * implemented at application side. */
