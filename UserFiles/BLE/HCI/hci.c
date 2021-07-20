@@ -5,6 +5,7 @@
 /****************************************************************/
 #include "hci.h"
 #include "hci_transport_layer.h"
+#include "hosted_functions.h"
 #include "Types.h"
 
 
@@ -1984,7 +1985,7 @@ uint8_t HCI_LE_Clear_Resolving_List( DefCmdComplete CompleteCallBack, DefCmdStat
 
 	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Clear_Resolving_List, &CmdCallBack );
 
 	return (Status);
 }
@@ -2137,7 +2138,7 @@ uint8_t HCI_LE_Set_Address_Resolution_Enable( uint8_t Address_Resolution_Enable,
 
 	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Set_Address_Resolution_Enable, &CmdCallBack );
 
 	free( PcktPtr );
 

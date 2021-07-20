@@ -24,6 +24,8 @@ typedef enum
 	GENERATE_STATIC_RANDOM_ADDRESS,
 	READ_LOCAL_VERSION,
 	CLEAR_WHITE_LIST,
+	ADDRESS_RESOLUTION,
+	CLEAR_RESOLVING_LIST,
 	CLEAR_TIMER,
 	WAIT_STATUS,
 	BLE_INIT_DONE
@@ -71,6 +73,7 @@ static void LE_Set_Data_Complete( CONTROLLER_ERROR_CODES Status );
 static void Vendor_Specific_Init_CallBack( void* ConfigData );
 static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
 static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Status,
 		HCI_VERSION HCI_Version, uint16_t HCI_Revision,
 		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name,
@@ -441,11 +444,24 @@ static uint8_t BLE_Init( void )
 	case CLEAR_WHITE_LIST:
 		if( HCI_Supported_Commands.Bits.HCI_LE_Clear_White_List )
 		{
-			BLEInitSteps = HCI_LE_Clear_White_List( &Clear_White_List_Complete, NULL ) ? CLEAR_TIMER: CLEAR_WHITE_LIST;
+			BLEInitSteps = HCI_LE_Clear_White_List( &Clear_White_List_Complete, NULL ) ? CLEAR_TIMER : CLEAR_WHITE_LIST;
 		}else
 		{
 			BLEInitSteps = CLEAR_TIMER;
 		}
+		break;
+
+	case ADDRESS_RESOLUTION:
+		/* Some controller may not have this command. For such ones, this stack implement the resolving list
+		 * in the host, that is why this command is not tested for existence here. */
+		/* Disable address resolution */
+		BLEInitSteps = HCI_LE_Set_Address_Resolution_Enable( FALSE, NULL, NULL ) ? CLEAR_RESOLVING_LIST : CLEAR_TIMER;
+		break;
+
+	case CLEAR_RESOLVING_LIST:
+		/* Some controller may not have this command. For such ones, this stack implement the resolving list
+		 * in the host, that is why this command is not tested for existence here. */
+		BLEInitSteps = HCI_LE_Clear_Resolving_List( &LE_Clear_Resolving_List_Complete, NULL ) ? CLEAR_TIMER : CLEAR_RESOLVING_LIST;
 		break;
 
 	case CLEAR_TIMER:
@@ -765,7 +781,21 @@ static void Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Statu
 /****************************************************************/
 static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status )
 {
-	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? BLE_INIT_DONE : CLEAR_WHITE_LIST;
+	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? ADDRESS_RESOLUTION : CLEAR_WHITE_LIST;
+}
+
+
+/****************************************************************/
+/* LE_Clear_Resolving_List_Complete()        					*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? BLE_INIT_DONE : CLEAR_RESOLVING_LIST;
 }
 
 

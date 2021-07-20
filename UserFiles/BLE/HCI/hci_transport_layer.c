@@ -27,7 +27,7 @@ static void Set_Number_Of_HCI_Command_Packets( uint8_t Num_HCI_Cmd_Packets );
 static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
 
-static void Command_Status_Handler( HCI_EVENT_PCKT* EventPacketPtr );
+static void Command_Status_Handler( TRANSFER_STATUS Status, HCI_EVENT_PCKT* EventPacketPtr );
 static void Command_Complete_Handler( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr );
 
 static void Command_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr );
@@ -82,7 +82,7 @@ static uint8_t Num_HCI_Command_Packets = 1;
 
 /* Command callback (not all commands have callback). At least one
  * callback per command is available. That means only one command
- * type can be sent at any given time. That is generally ok, but
+ * type can be sent at any given time. That is generally OK, but
  * if more than one command of the same type wants to be enqueued,
  * the command callback must be modified to become and array */
 #define CMD_CALLBACK_NAME(OpcodeVal) OpcodeVal ## _CMD_CALLBACK
@@ -367,7 +367,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			/*---------- COMMAND_STATUS_EVT --------------*//* Page 2310 Core_v5.2 */
 		case COMMAND_STATUS:
 			RETURN_ON_FAULT(Status);
-			Command_Status_Handler( EventPacketPtr );
+			Command_Status_Handler( Status, EventPacketPtr );
 			break;
 
 			/*---------- HARDWARE_ERROR_EVT ------------*//* Page 2312 Core_v5.2 */
@@ -939,28 +939,36 @@ static void Hal_Get_Anchor_Period_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Command_Status_Handler( HCI_EVENT_PCKT* EventPacketPtr )
+static void Command_Status_Handler( TRANSFER_STATUS Status, HCI_EVENT_PCKT* EventPacketPtr )
 {
 	HCI_COMMAND_OPCODE OpCode;
 
 	Set_Number_Of_HCI_Command_Packets( EventPacketPtr->Event_Parameter[1] );
 
 	OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
-	CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
 
-	void* CmdCallBackFun = ( CmdCallBack != NULL ) ? CmdCallBack->CmdStatusCallBack : NULL; /* Function pointer */
+	if ( EventPacketPtr->Event_Parameter[0] != UNKNOWN_HCI_COMMAND )
+	{
+		CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
 
-	if( CmdCallBackFun != NULL ) /* Do we have application handler? */
-	{
-		CmdCallBack->Status = FALSE;
-		( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
-	}else if( CmdCallBack == NULL )
-	{
-		/* Call unknown OpMode */
-		HCI_Command_Status( EventPacketPtr->Event_Parameter[0], EventPacketPtr->Event_Parameter[1], OpCode );
+		void* CmdCallBackFun = ( CmdCallBack != NULL ) ? CmdCallBack->CmdStatusCallBack : NULL; /* Function pointer */
+
+		if( CmdCallBackFun != NULL ) /* Do we have application handler? */
+		{
+			CmdCallBack->Status = FALSE;
+			( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
+		}else if( CmdCallBack == NULL )
+		{
+			/* Call unknown OpMode */
+			HCI_Command_Status( EventPacketPtr->Event_Parameter[0], EventPacketPtr->Event_Parameter[1], OpCode );
+		}else
+		{
+			CmdCallBack->Status = FALSE;
+		}
 	}else
 	{
-		CmdCallBack->Status = FALSE;
+		//TODO: finalizar implementação virtual de comando
+		Command_Complete_Handler( Status, OpCode, EventPacketPtr );
 	}
 }
 

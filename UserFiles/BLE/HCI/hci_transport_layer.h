@@ -73,9 +73,10 @@ typedef enum
 
 typedef enum
 {
-	TRANSFER_DONE 		= 0, /* Transfer was successful */
-	TRANSFER_DEV_ERROR  = 1, /* Some error occurred with the hardware */
-	TRANSFER_TIMEOUT 	= 2  /* Could not respond within timeout */
+	TRANSFER_DONE 			= 0, /* Transfer was successful */
+	TRANSFER_DEV_ERROR  	= 1, /* Some error occurred with the hardware */
+	TRANSFER_TIMEOUT 		= 2, /* Could not respond within timeout */
+	TRANSFER_UNRECOGNIZED 	= 3  /* Transfer/command was not recognized by the device */
 }TRANSFER_STATUS;
 
 
