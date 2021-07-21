@@ -4,6 +4,7 @@
 /* Includes                                                     */
 /****************************************************************/
 #include "hci_transport_layer.h"
+#include "hosted_functions.h"
 #include "Bluenrg.h"
 
 
@@ -27,8 +28,8 @@ static void Set_Number_Of_HCI_Command_Packets( uint8_t Num_HCI_Cmd_Packets );
 static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
 
-static void Command_Status_Handler( TRANSFER_STATUS Status, HCI_EVENT_PCKT* EventPacketPtr );
-static void Command_Complete_Handler( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr );
+static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr );
+static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr );
 
 static void Command_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr );
 static void Read_Remote_Version_Information_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr );
@@ -355,19 +356,19 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			/*---------- READ_REMOTE_VERSION_INFORMATION_COMPLETE_EVT ------------*//* Page 2304 Core_v5.2 */
 		case READ_REMOTE_VERSION_INFORMATION_COMPLETE:
 			OpCode.Val = HCI_READ_REMOTE_VERSION_INFORMATION;
-			Command_Complete_Handler( Status, OpCode, EventPacketPtr );
+			Finish_Command( Status, OpCode, EventPacketPtr );
 			break;
 
 			/*---------- COMMAND_COMPLETE_EVT ------------*//* Page 2308 Core_v5.2 */
 		case COMMAND_COMPLETE:
 			OpCode.Val = ( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1];
-			Command_Complete_Handler( Status, OpCode, EventPacketPtr );
+			Finish_Command( Status, OpCode, EventPacketPtr );
 			break;
 
 			/*---------- COMMAND_STATUS_EVT --------------*//* Page 2310 Core_v5.2 */
 		case COMMAND_STATUS:
-			RETURN_ON_FAULT(Status);
-			Command_Status_Handler( Status, EventPacketPtr );
+			OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
+			Finish_Status( Status, OpCode, EventPacketPtr );
 			break;
 
 			/*---------- HARDWARE_ERROR_EVT ------------*//* Page 2312 Core_v5.2 */
@@ -426,7 +427,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 			case LE_READ_REMOTE_FEATURES_COMPLETE:
 				OpCode.Val = HCI_LE_READ_REMOTE_FEATURES;
-				Command_Complete_Handler( Status, OpCode, EventPacketPtr );
+				Finish_Command( Status, OpCode, EventPacketPtr );
 				break;
 
 			case LE_LONG_TERM_KEY_REQUEST:
@@ -476,13 +477,13 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 
 /****************************************************************/
-/* Command_Complete_Handler()              		  		        */
+/* Finish_Command()              				  		        */
 /* Purpose: 													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Command_Complete_Handler( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr )
+static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr )
 {
 	CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
 
@@ -502,6 +503,19 @@ static void Command_Complete_Handler( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE
 		return;
 	}
 
+	Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
+}
+
+
+/****************************************************************/
+/* Command_Complete_Handler()          			  		        */
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Command_Complete_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack, HCI_EVENT_PCKT* EventPacketPtr )
+{
 	void* CmdCallBackFun = NULL; /* Function pointer */
 
 	if( CmdCallBack != NULL )
@@ -933,42 +947,57 @@ static void Hal_Get_Anchor_Period_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT
 
 
 /****************************************************************/
+/* Finish_Status()       	           			  		        */
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr )
+{
+	if( Status == TRANSFER_DONE )
+	{
+		Set_Number_Of_HCI_Command_Packets( EventPacketPtr->Event_Parameter[1] );
+	}else
+	{
+		/* Message reception failed: just returns. */
+		return;
+	}
+
+	CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
+
+	if ( EventPacketPtr->Event_Parameter[0] != UNKNOWN_HCI_COMMAND )
+	{
+		Command_Status_Handler( OpCode, CmdCallBack, EventPacketPtr );
+	}else
+	{
+		Delegate_Function_To_Host( OpCode, CmdCallBack, EventPacketPtr );
+	}
+}
+
+
+/****************************************************************/
 /* Command_Status_Handler()       	             		        */
 /* Purpose: 													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Command_Status_Handler( TRANSFER_STATUS Status, HCI_EVENT_PCKT* EventPacketPtr )
+void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack, HCI_EVENT_PCKT* EventPacketPtr )
 {
-	HCI_COMMAND_OPCODE OpCode;
+	void* CmdCallBackFun = ( CmdCallBack != NULL ) ? CmdCallBack->CmdStatusCallBack : NULL; /* Function pointer */
 
-	Set_Number_Of_HCI_Command_Packets( EventPacketPtr->Event_Parameter[1] );
-
-	OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
-
-	if ( EventPacketPtr->Event_Parameter[0] != UNKNOWN_HCI_COMMAND )
+	if( CmdCallBackFun != NULL ) /* Do we have application handler? */
 	{
-		CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
-
-		void* CmdCallBackFun = ( CmdCallBack != NULL ) ? CmdCallBack->CmdStatusCallBack : NULL; /* Function pointer */
-
-		if( CmdCallBackFun != NULL ) /* Do we have application handler? */
-		{
-			CmdCallBack->Status = FALSE;
-			( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
-		}else if( CmdCallBack == NULL )
-		{
-			/* Call unknown OpMode */
-			HCI_Command_Status( EventPacketPtr->Event_Parameter[0], EventPacketPtr->Event_Parameter[1], OpCode );
-		}else
-		{
-			CmdCallBack->Status = FALSE;
-		}
+		CmdCallBack->Status = FALSE;
+		( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
+	}else if( CmdCallBack == NULL )
+	{
+		/* Call unknown OpMode */
+		HCI_Command_Status( EventPacketPtr->Event_Parameter[0], EventPacketPtr->Event_Parameter[1], OpCode );
 	}else
 	{
-		//TODO: finalizar implementação virtual de comando
-		Command_Complete_Handler( Status, OpCode, EventPacketPtr );
+		CmdCallBack->Status = FALSE;
 	}
 }
 

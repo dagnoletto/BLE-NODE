@@ -6,6 +6,7 @@
 #include "ble_states.h"
 #include "TimeFunctions.h"
 #include "ble_utils.h"
+#include "hosted_functions.h"
 
 
 /****************************************************************/
@@ -198,6 +199,7 @@ void Run_BLE( void )
 	}
 
 	Vendor_Specific_Process();
+	Hosted_Functions_Process();
 }
 
 

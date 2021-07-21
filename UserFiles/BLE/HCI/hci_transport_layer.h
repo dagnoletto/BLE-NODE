@@ -75,8 +75,7 @@ typedef enum
 {
 	TRANSFER_DONE 			= 0, /* Transfer was successful */
 	TRANSFER_DEV_ERROR  	= 1, /* Some error occurred with the hardware */
-	TRANSFER_TIMEOUT 		= 2, /* Could not respond within timeout */
-	TRANSFER_UNRECOGNIZED 	= 3  /* Transfer/command was not recognized by the device */
+	TRANSFER_TIMEOUT 		= 2  /* Could not respond within timeout */
 }TRANSFER_STATUS;
 
 
@@ -115,6 +114,10 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		TRANSFER_CALL_BACK_MODE CallBackMode,
 		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack);
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
+void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
+		HCI_EVENT_PCKT* EventPacketPtr );
+void Command_Complete_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
+		HCI_EVENT_PCKT* EventPacketPtr );
 
 
 /****************************************************************/
