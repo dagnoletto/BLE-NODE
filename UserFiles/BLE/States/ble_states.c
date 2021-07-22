@@ -27,6 +27,7 @@ typedef enum
 	CLEAR_WHITE_LIST,
 	ADDRESS_RESOLUTION,
 	CLEAR_RESOLVING_LIST,
+	READ_RESOLVING_LIST_SIZE,
 	CLEAR_TIMER,
 	WAIT_STATUS,
 	BLE_INIT_DONE
@@ -75,6 +76,7 @@ static void Vendor_Specific_Init_CallBack( void* ConfigData );
 static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
 static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Read_Resolving_List_Size_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Resolving_List_Size );
 static void Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Status,
 		HCI_VERSION HCI_Version, uint16_t HCI_Revision,
 		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name,
@@ -118,6 +120,7 @@ static uint8_t Total_Num_LE_ACL_Data_Packets_Supported;
 static BLE_VERSION_INFO LocalInfo;
 static ADVERTISING_PARAMETERS* AdvertisingParameters = NULL;
 static ADV_CONFIG AdvConfig = { DISABLE_ADVERTISING, DISABLE_ADVERTISING };
+static uint8_t ResolvingListSize;
 
 
 /****************************************************************/
@@ -466,6 +469,12 @@ static uint8_t BLE_Init( void )
 		BLEInitSteps = HCI_LE_Clear_Resolving_List( &LE_Clear_Resolving_List_Complete, NULL ) ? CLEAR_TIMER : CLEAR_RESOLVING_LIST;
 		break;
 
+	case READ_RESOLVING_LIST_SIZE:
+		/* Some controller may not have this command. For such ones, this stack implement the resolving list
+		 * in the host, that is why this command is not tested for existence here. */
+		BLEInitSteps = HCI_LE_Read_Resolving_List_Size( &LE_Read_Resolving_List_Size_Complete, NULL ) ? CLEAR_TIMER : READ_RESOLVING_LIST_SIZE;
+		break;
+
 	case CLEAR_TIMER:
 		BLEInitSteps = WAIT_STATUS;
 		WaitCmdTimer = 0;
@@ -797,7 +806,22 @@ static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status )
 /****************************************************************/
 static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status )
 {
-	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? BLE_INIT_DONE : CLEAR_RESOLVING_LIST;
+	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? READ_RESOLVING_LIST_SIZE : CLEAR_RESOLVING_LIST;
+}
+
+
+/****************************************************************/
+/* LE_Read_Resolving_List_Size_Complete()      					*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Read_Resolving_List_Size_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Resolving_List_Size )
+{
+	ResolvingListSize = Resolving_List_Size;
+	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? BLE_INIT_DONE : READ_RESOLVING_LIST_SIZE;
 }
 
 

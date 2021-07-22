@@ -1985,7 +1985,7 @@ uint8_t HCI_LE_Clear_Resolving_List( DefCmdComplete CompleteCallBack, DefCmdStat
 
 	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Clear_Resolving_List, &CmdCallBack );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
 	return (Status);
 }
