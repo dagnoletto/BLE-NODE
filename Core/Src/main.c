@@ -136,26 +136,30 @@ int main(void)
 			Enter_Advertising_Mode( &Adv );
 
 
-			DEVICE_IDENTITY Id;
-			Id.Peer_Identity_Address.Type = PEER_RANDOM_DEV_ADDR;
-			Id.Peer_Identity_Address.Address.Bytes[0] = 50;
-			Id.Peer_Identity_Address.Address.Bytes[5] = 70;
-			Id.Local_IRK.Bytes[0] = 0;
-			Id.Local_IRK.Bytes[15] = 15;
-			Id.Peer_IRK.Bytes[0] = 5;
-			Id.Peer_IRK.Bytes[15] = 51;
+//			DEVICE_IDENTITY Id;
+//			Id.Peer_Identity_Address.Type = PEER_RANDOM_DEV_ADDR;
+//			Id.Peer_Identity_Address.Address.Bytes[0] = 50;
+//			Id.Peer_Identity_Address.Address.Bytes[5] = 70;
+//			Id.Local_IRK.Bytes[0] = 0;
+//			Id.Local_IRK.Bytes[15] = 15;
+//			Id.Peer_IRK.Bytes[0] = 5;
+//			Id.Peer_IRK.Bytes[15] = 51;
 
-			Add_Device_Identity_To_Resolving_List( &Id );
+//			Add_Device_Identity_To_Resolving_List( &Id );
+//
+//			static uint16_t index = 0;
+//			Id = *Get_Device_Identity_From_Resolving_List( index++ );
 
-			static uint16_t index = 0;
-			Id = *Get_Device_Identity_From_Resolving_List( index++ );
-
+//			static uint8_t altr = 0;
 //			BD_ADDR_TYPE Peer_Identity_Address = { { 0,1,2,3,4,5 } };
-//			IRK_TYPE Peer_IRK;
-//			IRK_TYPE Local_IRK;
-//			HCI_LE_Add_Device_To_Resolving_List( PEER_PUBLIC_DEV_ADDR, Peer_Identity_Address, &Peer_IRK, &Local_IRK, NULL, NULL );
-
-//			HCI_LE_Remove_Device_From_Resolving_List( PEER_PUBLIC_DEV_ADDR, Peer_Identity_Address, NULL, NULL );
+//
+//			if(altr){HCI_LE_Add_Device_To_Resolving_List( PEER_RANDOM_DEV_ADDR, Peer_Identity_Address, &Id.Peer_IRK, &Id.Local_IRK, NULL, NULL );
+//			}else{
+//
+//			HCI_LE_Remove_Device_From_Resolving_List( PEER_RANDOM_DEV_ADDR, Peer_Identity_Address, NULL, NULL );
+//			}
+//
+//			altr = !altr;
 
 //			HCI_LE_Clear_Resolving_List( NULL, NULL );
 
