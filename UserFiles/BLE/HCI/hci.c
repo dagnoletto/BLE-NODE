@@ -2054,7 +2054,7 @@ uint8_t HCI_LE_Read_Peer_Resolvable_Address( PEER_ADDR_TYPE Peer_Identity_Addres
 
 	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Read_Peer_Resolvable_Address, &CmdCallBack );
 
 	free( PcktPtr );
 

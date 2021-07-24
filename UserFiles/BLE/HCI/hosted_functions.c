@@ -11,7 +11,27 @@
 /****************************************************************/
 /* Defines		                                                */
 /****************************************************************/
-#define HOSTED_RESOLVING_LIST_SIZE ( sizeof( Hosted_Resolving_List.Entry ) / sizeof( DEVICE_IDENTITY ) )
+#define HOSTED_RESOLVING_LIST_SIZE ( sizeof( Hosted_Resolving_List.Entry ) / sizeof( RESOLVABLE_DESCRIPTOR ) )
+
+
+/****************************************************************/
+/* Type Defines                                                 */
+/****************************************************************/
+typedef struct
+{
+	DEVICE_IDENTITY Id;
+	BD_ADDR_TYPE PeerAddr;
+	BD_ADDR_TYPE LocalAddr;
+	uint8_t PeerAddrValid  :1;
+	uint8_t LocalAddrValid :1;
+}RESOLVABLE_DESCRIPTOR;
+
+
+typedef struct
+{
+	uint8_t NumberOfEntries;
+	RESOLVABLE_DESCRIPTOR Entry[4];
+}HOSTED_RESOLVING_LIST;
 
 
 /****************************************************************/
@@ -20,21 +40,7 @@
 static void Transform_Status_To_Command_Event( HCI_EVENT_PCKT* EventPacketPtr );
 static CONTROLLER_ERROR_CODES Add_To_Resolving_List( void );
 static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void );
-
-
-/****************************************************************/
-/* Type Defines                                                 */
-/****************************************************************/
-typedef struct
-{
-	uint8_t NumberOfEntries;
-	DEVICE_IDENTITY Entry[MAX_NUMBER_OF_RESOLVING_LIST_ENTRIES];
-}HOSTED_RESOLVING_LIST;
-
-
-/****************************************************************/
-/* Global variables definition                                  */
-/****************************************************************/
+static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( void );
 
 
 /****************************************************************/
@@ -45,6 +51,7 @@ static uint8_t Address_Resol_Controller = FALSE;
 static HOSTED_RESOLVING_LIST Hosted_Resolving_List;
 static DEVICE_IDENTITY Add_Device;
 static IDENTITY_ADDRESS Remove_Device;
+static IDENTITY_ADDRESS Read_Peer_Resolvable_Device;
 
 
 /****************************************************************/
@@ -90,6 +97,30 @@ uint8_t Hosted_LE_Remove_Device_From_Resolving_List(void* DataPtr, uint16_t Data
 
 		Remove_Device.Type = Packet->CmdPacket.Parameter[0];
 		memcpy( &Remove_Device.Address.Bytes[0], &Packet->CmdPacket.Parameter[1], sizeof(BD_ADDR_TYPE) );
+
+		return (TRUE);
+	}
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Hosted_LE_Read_Peer_Resolvable_Address()         	  	    */
+/* Purpose: Intercepter for this command when it is not 		*/
+/* supported by the controller.									*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Hosted_LE_Read_Peer_Resolvable_Address(void* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
+{
+	if( Status == TRANSFER_DONE )
+	{
+		/* The command parameters are catch in the very request. */
+		HCI_SERIAL_COMMAND_PCKT* Packet = (HCI_SERIAL_COMMAND_PCKT*)( DataPtr );
+
+		Read_Peer_Resolvable_Device.Type = Packet->CmdPacket.Parameter[0];
+		memcpy( &Read_Peer_Resolvable_Device.Address.Bytes[0], &Packet->CmdPacket.Parameter[1], sizeof(BD_ADDR_TYPE) );
 
 		return (TRUE);
 	}
@@ -238,6 +269,39 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 
 		break;
 
+	case HCI_LE_READ_PEER_RESOLVABLE_ADDRESS:
+
+		EventPacketPtr->Parameter_Total_Length = 4 + sizeof( BD_ADDR_TYPE );
+		Transform_Status_To_Command_Event( EventPacketPtr );
+
+		/* This command is used to get the current peer Resolvable Private Address being
+		used for the corresponding peer Public and Random (static) Identity Address.
+		The peer’s resolvable address being used may change after the command is called.
+		This command may be used at any time. When a Controller cannot find a Resolvable
+		Private Address associated with the Peer Identity Address, or if the Peer Identity
+		Address cannot be found in the resolving list, it shall return the error code Unknown
+		Connection Identifier (0x02). */
+
+		if ( Read_Peer_Resolvable_Device.Type & 0xFE ) /* Check if parameter values are OK */
+		{
+			EventPacketPtr->Event_Parameter[3] = INVALID_HCI_COMMAND_PARAMETERS;
+		}else
+		{
+			BD_ADDR_TYPE* AddrPtr = Get_Peer_Resolvable_Address();
+
+			if ( AddrPtr != NULL )
+			{
+				EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
+				memcpy( &( EventPacketPtr->Event_Parameter[4] ), &( AddrPtr->Bytes[0] ), sizeof(BD_ADDR_TYPE) );
+			}else
+			{
+				EventPacketPtr->Event_Parameter[3] = UNKNOWN_CONNECTION_ID;
+			}
+		}
+		Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
+
+		break;
+
 	case HCI_LE_SET_ADDRESS_RESOLUTION_ENABLE:
 
 		EventPacketPtr->Parameter_Total_Length = 4;
@@ -301,13 +365,15 @@ static CONTROLLER_ERROR_CODES Add_To_Resolving_List( void )
 	for ( uint8_t i = 0; i < Hosted_Resolving_List.NumberOfEntries; i++ )
 	{
 		/* Check if this entry is already in the list */
-		if ( memcmp( &Hosted_Resolving_List.Entry[i].Peer_Identity_Address, &Add_Device.Peer_Identity_Address, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		if ( memcmp( &Hosted_Resolving_List.Entry[i].Id.Peer_Identity_Address, &Add_Device.Peer_Identity_Address, sizeof(IDENTITY_ADDRESS) ) == 0 )
 		{
 			return ( INVALID_HCI_COMMAND_PARAMETERS );
 		}
 	}
 
-	Hosted_Resolving_List.Entry[ Hosted_Resolving_List.NumberOfEntries ] = Add_Device;
+	Hosted_Resolving_List.Entry[ Hosted_Resolving_List.NumberOfEntries ].Id = Add_Device;
+	Hosted_Resolving_List.Entry[ Hosted_Resolving_List.NumberOfEntries ].LocalAddrValid = FALSE;
+	Hosted_Resolving_List.Entry[ Hosted_Resolving_List.NumberOfEntries ].PeerAddrValid = FALSE;
 	Hosted_Resolving_List.NumberOfEntries++;
 
 	return ( COMMAND_SUCCESS );
@@ -328,7 +394,7 @@ static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void )
 	for ( uint8_t i = 0; i < Hosted_Resolving_List.NumberOfEntries; i++ )
 	{
 		/* Check if this entry is in the list */
-		if ( memcmp( &Hosted_Resolving_List.Entry[i].Peer_Identity_Address, &Remove_Device, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		if ( memcmp( &Hosted_Resolving_List.Entry[i].Id.Peer_Identity_Address, &Remove_Device, sizeof(IDENTITY_ADDRESS) ) == 0 )
 		{
 			for ( uint8_t a = i; a < (Hosted_Resolving_List.NumberOfEntries - 1); a++ )
 			{
@@ -341,6 +407,34 @@ static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void )
 	}
 
 	return ( UNKNOWN_CONNECTION_ID );
+}
+
+
+/****************************************************************/
+/* Get_Peer_Resolvable_Address()             	   		        */
+/* Purpose: Return peer device from resolving list.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( void )
+{
+	for ( uint8_t i = 0; i < Hosted_Resolving_List.NumberOfEntries; i++ )
+	{
+		/* Check if this entry is in the list */
+		if ( memcmp( &Hosted_Resolving_List.Entry[i].Id.Peer_Identity_Address, &Read_Peer_Resolvable_Device, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		{
+			if( Hosted_Resolving_List.Entry[i].PeerAddrValid )
+			{
+				return ( &Hosted_Resolving_List.Entry[i].PeerAddr );
+			}else
+			{
+				break;
+			}
+		}
+	}
+
+	return (NULL);
 }
 
 
