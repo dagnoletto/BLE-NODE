@@ -6,6 +6,7 @@
 #include "hosted_functions.h"
 #include "ble_states.h"
 #include "security_manager.h"
+#include "TimeFunctions.h"
 
 
 /****************************************************************/
@@ -40,7 +41,8 @@ typedef struct
 static void Transform_Status_To_Command_Event( HCI_EVENT_PCKT* EventPacketPtr );
 static CONTROLLER_ERROR_CODES Add_To_Resolving_List( void );
 static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void );
-static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( void );
+static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
+static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
 
 
 /****************************************************************/
@@ -52,6 +54,9 @@ static HOSTED_RESOLVING_LIST Hosted_Resolving_List;
 static DEVICE_IDENTITY Add_Device;
 static IDENTITY_ADDRESS Remove_Device;
 static IDENTITY_ADDRESS Read_Peer_Resolvable_Device;
+static IDENTITY_ADDRESS Read_Local_Resolvable_Device;
+static uint16_t RPA_Timeout_Cmd;
+static uint16_t RPA_Timeout = 900; /* Default value is 900 seconds (15 minutes) */
 
 
 /****************************************************************/
@@ -129,6 +134,30 @@ uint8_t Hosted_LE_Read_Peer_Resolvable_Address(void* DataPtr, uint16_t DataSize,
 
 
 /****************************************************************/
+/* Hosted_LE_Read_Local_Resolvable_Address()         	  	    */
+/* Purpose: Intercepter for this command when it is not 		*/
+/* supported by the controller.									*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Hosted_LE_Read_Local_Resolvable_Address(void* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
+{
+	if( Status == TRANSFER_DONE )
+	{
+		/* The command parameters are catch in the very request. */
+		HCI_SERIAL_COMMAND_PCKT* Packet = (HCI_SERIAL_COMMAND_PCKT*)( DataPtr );
+
+		Read_Local_Resolvable_Device.Type = Packet->CmdPacket.Parameter[0];
+		memcpy( &Read_Local_Resolvable_Device.Address.Bytes[0], &Packet->CmdPacket.Parameter[1], sizeof(BD_ADDR_TYPE) );
+
+		return (TRUE);
+	}
+	return (FALSE);
+}
+
+
+/****************************************************************/
 /* Hosted_LE_Set_Address_Resolution_Enable()               	    */
 /* Purpose: Intercepter for this command when it is not 		*/
 /* supported by the controller.									*/
@@ -143,6 +172,28 @@ uint8_t Hosted_LE_Set_Address_Resolution_Enable(void* DataPtr, uint16_t DataSize
 	{
 		/* The command parameters are catch in the very request. */
 		Address_Resol_Controller_Cmd = ( (HCI_SERIAL_COMMAND_PCKT*)DataPtr )->CmdPacket.Parameter[0];
+		return (TRUE);
+	}
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Hosted_LE_Set_Resolvable_Private_Address_Timeout()      	    */
+/* Purpose: Intercepter for this command when it is not 		*/
+/* supported by the controller.									*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Hosted_LE_Set_Resolvable_Private_Address_Timeout(void* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
+{
+	if( Status == TRANSFER_DONE )
+	{
+		HCI_SERIAL_COMMAND_PCKT* Packet = (HCI_SERIAL_COMMAND_PCKT*)( DataPtr );
+
+		/* The command parameters are catch in the very request. */
+		RPA_Timeout_Cmd = ( Packet->CmdPacket.Parameter[1] << 8 ) | ( Packet->CmdPacket.Parameter[0] );
 		return (TRUE);
 	}
 	return (FALSE);
@@ -287,7 +338,40 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 			EventPacketPtr->Event_Parameter[3] = INVALID_HCI_COMMAND_PARAMETERS;
 		}else
 		{
-			BD_ADDR_TYPE* AddrPtr = Get_Peer_Resolvable_Address();
+			BD_ADDR_TYPE* AddrPtr = Get_Peer_Resolvable_Address( &Read_Peer_Resolvable_Device );
+
+			if ( AddrPtr != NULL )
+			{
+				EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
+				memcpy( &( EventPacketPtr->Event_Parameter[4] ), &( AddrPtr->Bytes[0] ), sizeof(BD_ADDR_TYPE) );
+			}else
+			{
+				EventPacketPtr->Event_Parameter[3] = UNKNOWN_CONNECTION_ID;
+			}
+		}
+		Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
+
+		break;
+
+	case HCI_LE_READ_LOCAL_RESOLVABLE_ADDRESS:
+
+		EventPacketPtr->Parameter_Total_Length = 4 + sizeof( BD_ADDR_TYPE );
+		Transform_Status_To_Command_Event( EventPacketPtr );
+
+		/* This command is used to get the current local Resolvable Private Address being used
+		for the corresponding peer Identity Address. The local resolvable address being used
+		may change after the command is called. This command may be used at any time.
+		When a Controller cannot find a Resolvable Private Address associated with
+		the Peer Identity Address, or if the Peer Identity Address cannot be found in the
+		resolving list, it shall return the error code Unknown Connection Identifier
+		(0x02). */
+
+		if ( Read_Local_Resolvable_Device.Type & 0xFE ) /* Check if parameter values are OK */
+		{
+			EventPacketPtr->Event_Parameter[3] = INVALID_HCI_COMMAND_PARAMETERS;
+		}else
+		{
+			BD_ADDR_TYPE* AddrPtr = Get_Local_Resolvable_Address( &Read_Local_Resolvable_Device );
 
 			if ( AddrPtr != NULL )
 			{
@@ -324,6 +408,28 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		{
 			Address_Resol_Controller = Address_Resol_Controller_Cmd;
 			EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
+		}
+		Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
+
+		break;
+
+	case HCI_LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT:
+
+		EventPacketPtr->Parameter_Total_Length = 4;
+		Transform_Status_To_Command_Event( EventPacketPtr );
+
+		/* This command set the length of time the Controller uses a Resolvable Private Address
+		before a new resolvable private address is generated and starts being used.
+		This timeout applies to all resolvable private addresses generated by the Controller. */
+
+		/* Time range: 1 s to 1 hour (3600 s) */
+		if( ( RPA_Timeout_Cmd >= 1 ) && ( RPA_Timeout_Cmd <= 3600 ) ) /* Check if parameter values are OK */
+		{
+			RPA_Timeout = RPA_Timeout_Cmd;
+			EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
+		}else
+		{
+			EventPacketPtr->Event_Parameter[3] = INVALID_HCI_COMMAND_PARAMETERS;
 		}
 		Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
 
@@ -417,16 +523,44 @@ static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( void )
+static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 {
 	for ( uint8_t i = 0; i < Hosted_Resolving_List.NumberOfEntries; i++ )
 	{
 		/* Check if this entry is in the list */
-		if ( memcmp( &Hosted_Resolving_List.Entry[i].Id.Peer_Identity_Address, &Read_Peer_Resolvable_Device, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		if ( memcmp( &Hosted_Resolving_List.Entry[i].Id.Peer_Identity_Address, PtrId, sizeof(IDENTITY_ADDRESS) ) == 0 )
 		{
 			if( Hosted_Resolving_List.Entry[i].PeerAddrValid )
 			{
 				return ( &Hosted_Resolving_List.Entry[i].PeerAddr );
+			}else
+			{
+				break;
+			}
+		}
+	}
+
+	return (NULL);
+}
+
+
+/****************************************************************/
+/* Get_Local_Resolvable_Address()             	   		        */
+/* Purpose: Return peer device from resolving list.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
+{
+	for ( uint8_t i = 0; i < Hosted_Resolving_List.NumberOfEntries; i++ )
+	{
+		/* Check if this entry is in the list */
+		if ( memcmp( &Hosted_Resolving_List.Entry[i].Id.Peer_Identity_Address, PtrId, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		{
+			if( Hosted_Resolving_List.Entry[i].LocalAddrValid )
+			{
+				return ( &Hosted_Resolving_List.Entry[i].LocalAddr );
 			}else
 			{
 				break;
@@ -447,10 +581,18 @@ static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( void )
 /****************************************************************/
 void Hosted_Functions_Process( void )
 {
+	static uint32_t DelayCounter = 0;
+
 	/* Generates/resolve device addresses */
 	if( Hosted_Resolving_List.NumberOfEntries )
 	{
+		if ( TimeBase_DelayMs( &DelayCounter, (uint32_t)( RPA_Timeout * 1000 ), TRUE ) )
+		{
 
+		}
+	}else
+	{
+		DelayCounter = 0;
 	}
 }
 

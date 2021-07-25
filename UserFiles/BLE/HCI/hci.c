@@ -2094,7 +2094,7 @@ uint8_t HCI_LE_Read_Local_Resolvable_Address( PEER_ADDR_TYPE Peer_Identity_Addre
 
 	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Read_Local_Resolvable_Address, &CmdCallBack );
 
 	free( PcktPtr );
 
@@ -2174,7 +2174,7 @@ uint8_t HCI_LE_Set_Resolvable_Private_Address_Timeout( uint16_t RPA_Timeout, Def
 
 	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Set_Resolvable_Private_Address_Timeout, &CmdCallBack );
 
 	free( PcktPtr );
 
