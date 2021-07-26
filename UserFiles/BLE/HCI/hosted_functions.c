@@ -31,7 +31,7 @@ typedef struct
 typedef struct
 {
 	uint8_t NumberOfEntries;
-	RESOLVABLE_DESCRIPTOR Entry[4];
+	RESOLVABLE_DESCRIPTOR Entry[MAX_NUMBER_OF_RESOLVING_LIST_ENTRIES];
 }HOSTED_RESOLVING_LIST;
 
 

@@ -146,7 +146,9 @@ int main(void)
 //			Id.Peer_IRK.Bytes[15] = 51;
 
 //			Add_Device_Identity_To_Resolving_List( &Id );
-//
+//			Remove_Device_Identity_From_Resolving_List( &Id.Peer_Identity_Address );
+//			Clear_Resolving_List();
+
 //			static uint16_t index = 0;
 //			Id = *Get_Device_Identity_From_Resolving_List( index++ );
 

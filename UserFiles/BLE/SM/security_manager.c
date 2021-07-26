@@ -103,6 +103,16 @@ uint16_t Add_Device_Identity_To_Resolving_List( DEVICE_IDENTITY* Device )
 
 	if( NumberOfEntries < MAX_NUMBER_OF_RESOLVING_LIST_ENTRIES )
 	{
+		/* Check if there is no similar device identity already allocated. */
+		for ( uint16_t i = 0; i < NumberOfEntries; i++ )
+		{
+			DEVICE_IDENTITY* DevId = Get_Device_Identity_From_Resolving_List( i );
+			if ( memcmp( &( DevId->Peer_Identity_Address ), &(Device->Peer_Identity_Address), sizeof(IDENTITY_ADDRESS) ) == 0 )
+			{
+				return (FALSE);
+			}
+		}
+
 		/* Program device identity */
 		FLASH_Program( ListAddress + offsetof(RESOLVING_LIST,Entry[NumberOfEntries]), (uint8_t*)( Device ), sizeof(DEVICE_IDENTITY) );
 
@@ -114,6 +124,76 @@ uint16_t Add_Device_Identity_To_Resolving_List( DEVICE_IDENTITY* Device )
 		{
 			return (TRUE);
 		}
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Remove_Device_Identity_From_Resolving_List()		 			*/
+/* Location: 					 								*/
+/* Purpose: Remove device identity from resolving list.			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint16_t Remove_Device_Identity_From_Resolving_List( IDENTITY_ADDRESS* IdentityAddress )
+{
+	uint32_t ListAddress = GET_LE_RESOLVING_LIST_BASE_ADDRESS();
+
+	RESOLVING_LIST* ListPtr = (RESOLVING_LIST*)( ListAddress );
+	DEVICE_IDENTITY Device;
+	uint16_t NumberOfEntries = Get_Size_Of_Resolving_List();
+
+	/* TODO: this code is not optimized for performance. A better implementation
+	 * is encouraged. */
+	for ( uint16_t i = 0; i < NumberOfEntries; i++ )
+	{
+		DEVICE_IDENTITY* DevId = Get_Device_Identity_From_Resolving_List( i );
+		if ( memcmp( &( DevId->Peer_Identity_Address ), IdentityAddress, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		{
+			for ( uint16_t a = i; a < (NumberOfEntries - 1); a++ )
+			{
+				DevId = Get_Device_Identity_From_Resolving_List( a + 1 );
+				Device = *DevId;
+				FLASH_Program( ListAddress + offsetof(RESOLVING_LIST,Entry[a]), (uint8_t*)( &Device ), sizeof(DEVICE_IDENTITY) );
+			}
+
+			/* Update number of entries */
+			NumberOfEntries--;
+			FLASH_Program( ListAddress + offsetof(RESOLVING_LIST,Flags.NumberOfEntries), (uint8_t*)( &NumberOfEntries ), sizeof(ListPtr->Flags.NumberOfEntries) );
+
+			return (TRUE);
+		}
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Clear_Resolving_List()		 								*/
+/* Location: 					 								*/
+/* Purpose: clear resolving list.								*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint16_t Clear_Resolving_List( void )
+{
+	uint32_t ListAddress = GET_LE_RESOLVING_LIST_BASE_ADDRESS();
+
+	RESOLVING_LIST* ListPtr = (RESOLVING_LIST*)( ListAddress );
+	uint16_t NumberOfEntries = Get_Size_Of_Resolving_List();
+
+	/* Update number of entries */
+	NumberOfEntries = 0;
+	FLASH_Program( ListAddress + offsetof(RESOLVING_LIST,Flags.NumberOfEntries), (uint8_t*)( &NumberOfEntries ), sizeof(ListPtr->Flags.NumberOfEntries) );
+
+	if( ListPtr->Flags.NumberOfEntries == NumberOfEntries )
+	{
+		return (TRUE);
 	}
 
 	return (FALSE);

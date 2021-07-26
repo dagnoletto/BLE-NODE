@@ -7,6 +7,7 @@
 #include "TimeFunctions.h"
 #include "ble_utils.h"
 #include "hosted_functions.h"
+#include "security_manager.h"
 
 
 /****************************************************************/
@@ -28,6 +29,8 @@ typedef enum
 	ADDRESS_RESOLUTION,
 	CLEAR_RESOLVING_LIST,
 	READ_RESOLVING_LIST_SIZE,
+	ADD_IDENTITY_ADDRESS,
+	SET_RPA_TIMEOUT,
 	CLEAR_TIMER,
 	WAIT_STATUS,
 	BLE_INIT_DONE
@@ -75,8 +78,11 @@ static void LE_Set_Data_Complete( CONTROLLER_ERROR_CODES Status );
 static void Vendor_Specific_Init_CallBack( void* ConfigData );
 static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
 static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Set_Address_Resolution_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Read_Resolving_List_Size_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Resolving_List_Size );
+static void LE_Add_Device_To_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Set_Resolvable_Private_Address_Timeout_Complete( CONTROLLER_ERROR_CODES Status );
 static void Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Status,
 		HCI_VERSION HCI_Version, uint16_t HCI_Revision,
 		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name,
@@ -120,7 +126,8 @@ static uint8_t Total_Num_LE_ACL_Data_Packets_Supported;
 static BLE_VERSION_INFO LocalInfo;
 static ADVERTISING_PARAMETERS* AdvertisingParameters = NULL;
 static ADV_CONFIG AdvConfig = { DISABLE_ADVERTISING, DISABLE_ADVERTISING };
-static uint8_t ResolvingListSize;
+static uint8_t ControllerResolvingListSize;
+static uint16_t SM_Resolving_List_Index;
 
 
 /****************************************************************/
@@ -457,22 +464,35 @@ static uint8_t BLE_Init( void )
 		break;
 
 	case ADDRESS_RESOLUTION:
-		/* Some controller may not have this command. For such ones, this stack implement the resolving list
-		 * in the host, that is why this command is not tested for existence here. */
 		/* Disable address resolution */
-		BLEInitSteps = HCI_LE_Set_Address_Resolution_Enable( FALSE, NULL, NULL ) ? CLEAR_RESOLVING_LIST : CLEAR_TIMER;
+		BLEInitSteps = HCI_LE_Set_Address_Resolution_Enable( FALSE, &LE_Set_Address_Resolution_Enable_Complete, NULL ) ? CLEAR_TIMER : ADDRESS_RESOLUTION;
 		break;
 
 	case CLEAR_RESOLVING_LIST:
-		/* Some controller may not have this command. For such ones, this stack implement the resolving list
-		 * in the host, that is why this command is not tested for existence here. */
 		BLEInitSteps = HCI_LE_Clear_Resolving_List( &LE_Clear_Resolving_List_Complete, NULL ) ? CLEAR_TIMER : CLEAR_RESOLVING_LIST;
 		break;
 
 	case READ_RESOLVING_LIST_SIZE:
-		/* Some controller may not have this command. For such ones, this stack implement the resolving list
-		 * in the host, that is why this command is not tested for existence here. */
 		BLEInitSteps = HCI_LE_Read_Resolving_List_Size( &LE_Read_Resolving_List_Size_Complete, NULL ) ? CLEAR_TIMER : READ_RESOLVING_LIST_SIZE;
+		SM_Resolving_List_Index = 0;
+		break;
+
+	case ADD_IDENTITY_ADDRESS:
+		/* Check if we have bonded devices to add to the resolving list */
+		if ( ( ControllerResolvingListSize > SM_Resolving_List_Index ) && ( SM_Resolving_List_Index < Get_Size_Of_Resolving_List() ) )
+		{
+			DEVICE_IDENTITY* DevId = Get_Device_Identity_From_Resolving_List( SM_Resolving_List_Index );
+			BLEInitSteps = HCI_LE_Add_Device_To_Resolving_List( DevId->Peer_Identity_Address.Type, DevId->Peer_Identity_Address.Address,
+					&(DevId->Peer_IRK), &(DevId->Local_IRK), &LE_Add_Device_To_Resolving_List_Complete, NULL ) ? CLEAR_TIMER : ADD_IDENTITY_ADDRESS;
+		}else
+		{
+			BLEInitSteps = SET_RPA_TIMEOUT;
+		}
+		break;
+
+	case SET_RPA_TIMEOUT:
+		/* 900 seconds is the default value */
+		BLEInitSteps = HCI_LE_Set_Resolvable_Private_Address_Timeout( 900, &LE_Set_Resolvable_Private_Address_Timeout_Complete, NULL ) ? CLEAR_TIMER : SET_RPA_TIMEOUT;
 		break;
 
 	case CLEAR_TIMER:
@@ -784,8 +804,6 @@ static void Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Statu
 
 /****************************************************************/
 /* Clear_White_List_Complete()        							*/
-/* Location: 					 								*/
-/* Purpose: 													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
@@ -797,9 +815,19 @@ static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status )
 
 
 /****************************************************************/
+/* LE_Set_Address_Resolution_Enable_Complete()       			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Set_Address_Resolution_Enable_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	BLEInitSteps = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? CLEAR_RESOLVING_LIST : ADDRESS_RESOLUTION;
+}
+
+
+/****************************************************************/
 /* LE_Clear_Resolving_List_Complete()        					*/
-/* Location: 					 								*/
-/* Purpose: 													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
@@ -812,16 +840,42 @@ static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status )
 
 /****************************************************************/
 /* LE_Read_Resolving_List_Size_Complete()      					*/
-/* Location: 					 								*/
-/* Purpose: 													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
 static void LE_Read_Resolving_List_Size_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Resolving_List_Size )
 {
-	ResolvingListSize = Resolving_List_Size;
-	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? BLE_INIT_DONE : READ_RESOLVING_LIST_SIZE;
+	ControllerResolvingListSize = Resolving_List_Size;
+	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? ADD_IDENTITY_ADDRESS : READ_RESOLVING_LIST_SIZE;
+}
+
+
+/****************************************************************/
+/* LE_Add_Device_To_Resolving_List_Complete()      				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Add_Device_To_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	if ( Status == COMMAND_SUCCESS )
+	{
+		SM_Resolving_List_Index++;
+	}
+	BLEInitSteps = ADD_IDENTITY_ADDRESS;
+}
+
+
+/****************************************************************/
+/* LE_Set_Resolvable_Private_Address_Timeout_Complete()  		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Set_Resolvable_Private_Address_Timeout_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	BLEInitSteps = ( Status == COMMAND_SUCCESS ) ? BLE_INIT_DONE : SET_RPA_TIMEOUT;
 }
 
 
