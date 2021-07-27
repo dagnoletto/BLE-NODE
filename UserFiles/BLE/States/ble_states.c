@@ -40,6 +40,8 @@ typedef enum
 typedef enum
 {
 	DISABLE_ADVERTISING,
+	VERIFY_ADDRESS,
+	SET_RANDOM_ADDRESS,
 	SET_ADV_PARAMETERS,
 	LOAD_ADV_DATA,
 	READ_ADV_POWER,
@@ -73,6 +75,7 @@ static int8_t Advertising_Config( void );
 static void Advertising( void );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Set_Random_Address_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level );
 static void LE_Set_Data_Complete( CONTROLLER_ERROR_CODES Status );
 static void Vendor_Specific_Init_CallBack( void* ConfigData );
@@ -528,6 +531,7 @@ static uint8_t BLE_Init( void )
 static int8_t Advertising_Config( void )
 {
 	static uint32_t AdvConfigTimeout = 0;
+	static BD_ADDR_TYPE RandomAddress;
 
 	switch( AdvConfig.Actual )
 	{
@@ -537,8 +541,52 @@ static int8_t Advertising_Config( void )
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Enable )
 		{
 			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
-			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_ADV_PARAMETERS : AdvConfig.Actual;
+			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? VERIFY_ADDRESS : AdvConfig.Actual;
 			AdvConfig.Prev = DISABLE_ADVERTISING;
+		}
+		break;
+
+	case VERIFY_ADDRESS:
+	{
+		switch ( AdvertisingParameters->Own_Address_Type )
+		{
+		case OWN_RANDOM_DEV_ADDR:
+			if( AdvertisingParameters->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE )
+			{
+
+			}else if( AdvertisingParameters->Own_Random_Address_Type == STATIC_DEVICE_ADDRESS )
+			{
+				RandomAddress = *( Get_Static_Random_Device_Address( ).Ptr );
+				AdvConfig.Actual = SET_RANDOM_ADDRESS;
+			}else
+			{
+
+			}
+			break;
+
+		case OWN_RESOL_OR_PUBLIC_ADDR:
+			//AdvConfig.Actual
+			break;
+
+		case OWN_RESOL_OR_RANDOM_ADDR:
+			//AdvConfig.Actual
+			break;
+
+			/* The default is public device address */
+		case OWN_PUBLIC_DEV_ADDR:
+		default:
+			AdvConfig.Actual = SET_ADV_PARAMETERS;
+			break;
+		}
+	}
+	break;
+
+	case SET_RANDOM_ADDRESS:
+		AdvConfigTimeout = 0;
+		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Random_Address )
+		{
+			AdvConfig.Actual = HCI_LE_Set_Random_Address( RandomAddress, &LE_Set_Random_Address_Complete, NULL ) ? WAIT_OPERATION : SET_RANDOM_ADDRESS;
+			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_ADV_PARAMETERS : AdvConfig.Actual;
 		}
 		break;
 
@@ -690,6 +738,20 @@ static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status )
 static void LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? AdvConfig.Next : SET_ADV_PARAMETERS;
+}
+
+
+/****************************************************************/
+/* LE_Set_Random_Address_Complete()        	 					*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Set_Random_Address_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? AdvConfig.Next : SET_RANDOM_ADDRESS;
 }
 
 
