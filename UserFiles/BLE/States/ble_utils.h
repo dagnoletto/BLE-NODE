@@ -39,6 +39,7 @@ uint8_t AES_128_Encrypt( SUPPORTED_COMMANDS* HCI_Sup_Cmd, uint8_t Key[16], uint8
 uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* PrivateAddress, IRK_TYPE* IRK, StatusCallBack CallBack );
 GET_BD_ADDR Get_Public_Device_Address( void );
 GET_BD_ADDR Get_Static_Random_Device_Address( void );
+BD_ADDR_TYPE* Get_Identity_Address( PEER_ADDR_TYPE Type );
 LE_BD_ADDR_TYPE* Get_LE_Bluetooth_Device_Address( void );
 uint8_t Get_Max_Advertising_Data_Length( void );
 uint8_t Get_Max_Scan_Response_Data_Length( void );

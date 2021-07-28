@@ -376,6 +376,36 @@ static uint8_t Set_Static_Random_Device_Address( BD_ADDR_TYPE* StaticAddress )
 
 
 /****************************************************************/
+/* Get_Identity_Address()        								*/
+/* Location: 					 								*/
+/* Purpose: Return the identity address of the LE device.		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+BD_ADDR_TYPE* Get_Identity_Address( PEER_ADDR_TYPE Type )
+{
+	GET_BD_ADDR Addr;
+
+	if ( Type == PEER_PUBLIC_DEV_ADDR )
+	{
+		Addr = Get_Public_Device_Address();
+	}else
+	{
+		Addr = Get_Static_Random_Device_Address();
+	}
+
+	if ( Addr.Status )
+	{
+		return ( Addr.Ptr );
+	}else
+	{
+		return (NULL);
+	}
+}
+
+
+/****************************************************************/
 /* Get_LE_Bluetooth_Device_Address()        					*/
 /* Location: 					 								*/
 /* Purpose: Return the address being used by the LE device. 	*/
@@ -385,6 +415,8 @@ static uint8_t Set_Static_Random_Device_Address( BD_ADDR_TYPE* StaticAddress )
 /****************************************************************/
 LE_BD_ADDR_TYPE* Get_LE_Bluetooth_Device_Address( void )
 {
+	//TODO: verificar se não deve ser o identity address porque
+	//não há como retornar o resolvable address
 	return (&LE_BLUETOOTH_DEVICE_ADDRESS);
 }
 
@@ -463,6 +495,12 @@ __attribute__((weak)) LE_BD_ADDR_TYPE* LE_Read_Address( PEER_ADDR_TYPE AddressTy
 /****************************************************************/
 uint8_t Check_Advertising_Parameters( ADVERTISING_PARAMETERS* AdvPar )
 {
+	if ( ( AdvPar->Own_Address_Type == OWN_RANDOM_DEV_ADDR ) && ( AdvPar->Own_Random_Address_Type == RESOLVABLE_PRIVATE ) )
+	{
+		/* We should only configure random as non-resolvable or static random address */
+		return (FALSE);
+	}
+
 	switch( AdvPar->Role )
 	{
 

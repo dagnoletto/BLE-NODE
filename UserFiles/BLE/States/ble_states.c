@@ -41,6 +41,7 @@ typedef enum
 {
 	DISABLE_ADVERTISING,
 	VERIFY_ADDRESS,
+	GENERATE_NON_RESOLVABLE_ADDRESS,
 	SET_RANDOM_ADDRESS,
 	SET_ADV_PARAMETERS,
 	LOAD_ADV_DATA,
@@ -553,23 +554,37 @@ static int8_t Advertising_Config( void )
 		case OWN_RANDOM_DEV_ADDR:
 			if( AdvertisingParameters->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE )
 			{
-
+				AdvConfig.Actual = GENERATE_NON_RESOLVABLE_ADDRESS;
 			}else if( AdvertisingParameters->Own_Random_Address_Type == STATIC_DEVICE_ADDRESS )
 			{
 				RandomAddress = *( Get_Static_Random_Device_Address( ).Ptr );
 				AdvConfig.Actual = SET_RANDOM_ADDRESS;
 			}else
 			{
-
+				AdvConfig.Actual = FAILED_ADV_CONFIG;
 			}
 			break;
 
 		case OWN_RESOL_OR_PUBLIC_ADDR:
-			//AdvConfig.Actual
+			if ( Get_Local_Version_Information()->HCI_Version > CORE_SPEC_4_1 )
+			{
+				AdvConfig.Actual = SET_ADV_PARAMETERS;
+			}else
+			{
+				/* For lower versions, the host must generate the resolvable address */
+				//AdvConfig.Actual //TODO
+			}
 			break;
 
 		case OWN_RESOL_OR_RANDOM_ADDR:
-			//AdvConfig.Actual
+			if ( Get_Local_Version_Information()->HCI_Version > CORE_SPEC_4_1 )
+			{
+				AdvConfig.Actual = SET_ADV_PARAMETERS;
+			}else
+			{
+				/* For lower versions, the host must generate the resolvable address */
+				//AdvConfig.Actual //TODO
+			}
 			break;
 
 			/* The default is public device address */
@@ -577,6 +592,17 @@ static int8_t Advertising_Config( void )
 		default:
 			AdvConfig.Actual = SET_ADV_PARAMETERS;
 			break;
+		}
+	}
+	break;
+
+	case GENERATE_NON_RESOLVABLE_ADDRESS:
+	{
+		BD_ADDR_TYPE* Ptr = Generate_Device_Address( &HCI_Supported_Commands, NON_RESOLVABLE_PRIVATE, NULL );
+		if ( Ptr != NULL )
+		{
+			RandomAddress = *Ptr;
+			AdvConfig.Actual = SET_RANDOM_ADDRESS;
 		}
 	}
 	break;

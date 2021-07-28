@@ -121,8 +121,8 @@ int main(void)
 			Adv.Advertising_Interval_Min = 160;
 			Adv.Advertising_Interval_Max = 320;
 			Adv.Advertising_Type = ADV_IND;
-			Adv.Own_Address_Type = OWN_RANDOM_DEV_ADDR; //OWN_PUBLIC_DEV_ADDR;
-			Adv.Own_Random_Address_Type = STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE;
+			Adv.Own_Address_Type = OWN_RANDOM_DEV_ADDR; //OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RANDOM_DEV_ADDR; //OWN_PUBLIC_DEV_ADDR;
+			Adv.Own_Random_Address_Type = STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE;
 			Adv.Peer_Address_Type = PEER_PUBLIC_DEV_ADDR;
 			memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
 			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
