@@ -383,9 +383,12 @@ static uint8_t Set_Static_Random_Device_Address( BD_ADDR_TYPE* StaticAddress )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-BD_ADDR_TYPE* Get_Identity_Address( PEER_ADDR_TYPE Type )
+IDENTITY_ADDRESS Get_Identity_Address( PEER_ADDR_TYPE Type )
 {
 	GET_BD_ADDR Addr;
+	IDENTITY_ADDRESS Identity;
+
+	memset( &Identity, 0, sizeof(Identity) );
 
 	if ( Type == PEER_PUBLIC_DEV_ADDR )
 	{
@@ -397,11 +400,10 @@ BD_ADDR_TYPE* Get_Identity_Address( PEER_ADDR_TYPE Type )
 
 	if ( Addr.Status )
 	{
-		return ( Addr.Ptr );
-	}else
-	{
-		return (NULL);
+		Identity.Address = *( Addr.Ptr );
 	}
+
+	return ( Identity );
 }
 
 

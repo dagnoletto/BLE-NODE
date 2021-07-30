@@ -218,7 +218,7 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 	switch ( OpCode.Val )
 	{
 	case HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST:
-
+		//TODO: gera endereços ao adicionar
 		EventPacketPtr->Parameter_Total_Length = 4;
 		Transform_Status_To_Command_Event( EventPacketPtr );
 
@@ -321,7 +321,7 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		break;
 
 	case HCI_LE_READ_PEER_RESOLVABLE_ADDRESS:
-
+		//TODO: gera endereços ao ler
 		EventPacketPtr->Parameter_Total_Length = 4 + sizeof( BD_ADDR_TYPE );
 		Transform_Status_To_Command_Event( EventPacketPtr );
 
@@ -354,7 +354,7 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		break;
 
 	case HCI_LE_READ_LOCAL_RESOLVABLE_ADDRESS:
-
+		//TODO: gera endereços ao ler
 		EventPacketPtr->Parameter_Total_Length = 4 + sizeof( BD_ADDR_TYPE );
 		Transform_Status_To_Command_Event( EventPacketPtr );
 

@@ -24,7 +24,7 @@ typedef struct
 typedef struct
 {
 	RESOLVING_LIST_FLAGS Flags;
-	DEVICE_IDENTITY Entry[];
+	RESOLVING_RECORD Entry[];
 }__attribute__((packed)) RESOLVING_LIST;
 
 
@@ -50,15 +50,15 @@ typedef struct
 
 
 /****************************************************************/
-/* Get_Size_Of_Resolving_List()		      						*/
+/* Get_Number_Of_Resolving_Records()		      				*/
 /* Location: 					 								*/
-/* Purpose: Get the number of device identities actually saved	*/
+/* Purpose: Get the number of records actually saved			*/
 /* on Non-volatile memory.										*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint16_t Get_Size_Of_Resolving_List( void )
+uint16_t Get_Number_Of_Resolving_Records( void )
 {
 	uint16_t ListSize = 0;
 	uint32_t ListAddress = GET_LE_RESOLVING_LIST_BASE_ADDRESS();
@@ -87,34 +87,34 @@ uint16_t Get_Size_Of_Resolving_List( void )
 
 
 /****************************************************************/
-/* Add_Device_Identity_To_Resolving_List()		  				*/
+/* Add_Record_To_Resolving_List()		  						*/
 /* Location: 					 								*/
-/* Purpose: Add device identity to resolving list.				*/
+/* Purpose: Add item to resolving list.							*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint16_t Add_Device_Identity_To_Resolving_List( DEVICE_IDENTITY* Device )
+uint16_t Add_Record_To_Resolving_List( RESOLVING_RECORD* Record )
 {
 	uint32_t ListAddress = GET_LE_RESOLVING_LIST_BASE_ADDRESS();
 
 	RESOLVING_LIST* ListPtr = (RESOLVING_LIST*)( ListAddress );
-	uint16_t NumberOfEntries = Get_Size_Of_Resolving_List();
+	uint16_t NumberOfEntries = Get_Number_Of_Resolving_Records();
 
 	if( NumberOfEntries < MAX_NUMBER_OF_RESOLVING_LIST_ENTRIES )
 	{
 		/* Check if there is no similar device identity already allocated. */
 		for ( uint16_t i = 0; i < NumberOfEntries; i++ )
 		{
-			DEVICE_IDENTITY* DevId = Get_Device_Identity_From_Resolving_List( i );
-			if ( memcmp( &( DevId->Peer_Identity_Address ), &(Device->Peer_Identity_Address), sizeof(IDENTITY_ADDRESS) ) == 0 )
+			RESOLVING_RECORD* LocalRecord = Get_Record_From_Index( i );
+			if ( memcmp( &( LocalRecord->Peer.Peer_Identity_Address ), &(Record->Peer.Peer_Identity_Address), sizeof(IDENTITY_ADDRESS) ) == 0 )
 			{
 				return (FALSE);
 			}
 		}
 
 		/* Program device identity */
-		FLASH_Program( ListAddress + offsetof(RESOLVING_LIST,Entry[NumberOfEntries]), (uint8_t*)( Device ), sizeof(DEVICE_IDENTITY) );
+		FLASH_Program( ListAddress + offsetof(RESOLVING_LIST,Entry[NumberOfEntries]), (uint8_t*)( Record ), sizeof(RESOLVING_RECORD) );
 
 		/* Update number of entries */
 		NumberOfEntries++;
@@ -131,33 +131,33 @@ uint16_t Add_Device_Identity_To_Resolving_List( DEVICE_IDENTITY* Device )
 
 
 /****************************************************************/
-/* Remove_Device_Identity_From_Resolving_List()		 			*/
+/* Remove_Record_From_Resolving_List()		 					*/
 /* Location: 					 								*/
-/* Purpose: Remove device identity from resolving list.			*/
+/* Purpose: Remove item from resolving list.					*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint16_t Remove_Device_Identity_From_Resolving_List( IDENTITY_ADDRESS* IdentityAddress )
+uint16_t Remove_Record_From_Resolving_List( IDENTITY_ADDRESS* Peer_Identity_Address )
 {
 	uint32_t ListAddress = GET_LE_RESOLVING_LIST_BASE_ADDRESS();
 
 	RESOLVING_LIST* ListPtr = (RESOLVING_LIST*)( ListAddress );
-	DEVICE_IDENTITY Device;
-	uint16_t NumberOfEntries = Get_Size_Of_Resolving_List();
+	RESOLVING_RECORD Record;
+	uint16_t NumberOfEntries = Get_Number_Of_Resolving_Records();
 
 	/* TODO: this code is not optimized for performance. A better implementation
 	 * is encouraged. */
 	for ( uint16_t i = 0; i < NumberOfEntries; i++ )
 	{
-		DEVICE_IDENTITY* DevId = Get_Device_Identity_From_Resolving_List( i );
-		if ( memcmp( &( DevId->Peer_Identity_Address ), IdentityAddress, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		RESOLVING_RECORD* LocalRecord = Get_Record_From_Index( i );
+		if ( memcmp( &( LocalRecord->Peer.Peer_Identity_Address ), Peer_Identity_Address, sizeof(IDENTITY_ADDRESS) ) == 0 )
 		{
 			for ( uint16_t a = i; a < (NumberOfEntries - 1); a++ )
 			{
-				DevId = Get_Device_Identity_From_Resolving_List( a + 1 );
-				Device = *DevId;
-				FLASH_Program( ListAddress + offsetof(RESOLVING_LIST,Entry[a]), (uint8_t*)( &Device ), sizeof(DEVICE_IDENTITY) );
+				LocalRecord = Get_Record_From_Index( a + 1 );
+				Record = *LocalRecord;
+				FLASH_Program( ListAddress + offsetof(RESOLVING_LIST,Entry[a]), (uint8_t*)( &Record ), sizeof(RESOLVING_RECORD) );
 			}
 
 			/* Update number of entries */
@@ -185,7 +185,7 @@ uint16_t Clear_Resolving_List( void )
 	uint32_t ListAddress = GET_LE_RESOLVING_LIST_BASE_ADDRESS();
 
 	RESOLVING_LIST* ListPtr = (RESOLVING_LIST*)( ListAddress );
-	uint16_t NumberOfEntries = Get_Size_Of_Resolving_List();
+	uint16_t NumberOfEntries = Get_Number_Of_Resolving_Records();
 
 	/* Update number of entries */
 	NumberOfEntries = 0;
@@ -201,17 +201,44 @@ uint16_t Clear_Resolving_List( void )
 
 
 /****************************************************************/
-/* Get_Device_Identity_From_Resolving_List()	  				*/
+/* Get_Record_From_Peer_Identity()		 						*/
 /* Location: 					 								*/
-/* Purpose: Get device identity from resolving list.			*/
+/* Purpose: Return the record from peer identity.				*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-DEVICE_IDENTITY* Get_Device_Identity_From_Resolving_List( uint16_t Index )
+RESOLVING_RECORD* Get_Record_From_Peer_Identity( IDENTITY_ADDRESS* Peer_Identity_Address )
 {
 	RESOLVING_LIST* ListPtr = (RESOLVING_LIST*)( GET_LE_RESOLVING_LIST_BASE_ADDRESS() );
-	uint16_t NumberOfEntries = Get_Size_Of_Resolving_List();
+	uint16_t NumberOfEntries = Get_Number_Of_Resolving_Records();
+
+	for ( uint16_t i = 0; i < NumberOfEntries; i++ )
+	{
+		RESOLVING_RECORD* LocalRecord = &( ListPtr->Entry[i] );
+
+		if ( memcmp( &( LocalRecord->Peer.Peer_Identity_Address ), Peer_Identity_Address, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		{
+			return ( LocalRecord );
+		}
+	}
+
+	return (NULL);
+}
+
+
+/****************************************************************/
+/* Get_Record_From_Index()	  									*/
+/* Location: 					 								*/
+/* Purpose: Get item from resolving list.						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+RESOLVING_RECORD* Get_Record_From_Index( uint16_t Index )
+{
+	RESOLVING_LIST* ListPtr = (RESOLVING_LIST*)( GET_LE_RESOLVING_LIST_BASE_ADDRESS() );
+	uint16_t NumberOfEntries = Get_Number_Of_Resolving_Records();
 
 	if( Index < NumberOfEntries )
 	{

@@ -144,9 +144,15 @@ int main(void)
 //			Id.Local_IRK.Bytes[15] = 15;
 //			Id.Peer_IRK.Bytes[0] = 5;
 //			Id.Peer_IRK.Bytes[15] = 51;
+//			RESOLVING_RECORD Record;
+//			Record.Peer = Id;
+//			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
 
-//			Add_Device_Identity_To_Resolving_List( &Id );
-//			Remove_Device_Identity_From_Resolving_List( &Id.Peer_Identity_Address );
+//			Add_Record_To_Resolving_List( &Record );
+
+//			volatile RESOLVING_RECORD* Ptr = Get_Record_From_Peer_Identity( &Id.Peer_Identity_Address );
+
+//			Remove_Record_From_Resolving_List( &Id.Peer_Identity_Address );
 //			Clear_Resolving_List();
 
 //			static uint16_t index = 0;

@@ -34,14 +34,22 @@ typedef struct
 }__attribute__((packed)) DEVICE_IDENTITY;
 
 
+typedef struct
+{
+	DEVICE_IDENTITY Peer;
+	IDENTITY_ADDRESS Local_Identity_Address;
+}__attribute__((packed)) RESOLVING_RECORD;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-uint16_t Get_Size_Of_Resolving_List( void );
-uint16_t Add_Device_Identity_To_Resolving_List( DEVICE_IDENTITY* Device );
-uint16_t Remove_Device_Identity_From_Resolving_List( IDENTITY_ADDRESS* IdentityAddress );
+uint16_t Get_Number_Of_Resolving_Records( void );
+uint16_t Add_Record_To_Resolving_List( RESOLVING_RECORD* Record );
+uint16_t Remove_Record_From_Resolving_List( IDENTITY_ADDRESS* Peer_Identity_Address );
+RESOLVING_RECORD* Get_Record_From_Peer_Identity( IDENTITY_ADDRESS* Peer_Identity_Address );
+RESOLVING_RECORD* Get_Record_From_Index( uint16_t Index );
 uint16_t Clear_Resolving_List( void );
-DEVICE_IDENTITY* Get_Device_Identity_From_Resolving_List( uint16_t Index );
 
 
 /****************************************************************/
