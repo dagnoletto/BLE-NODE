@@ -73,6 +73,9 @@ static void Reset_Complete( CONTROLLER_ERROR_CODES Status );
 static uint8_t Vendor_Specific_Init( void );
 static uint8_t BLE_Init( void );
 static int8_t Advertising_Config( void );
+static ADV_CONFIG Update_Random_Address( void );
+static ADV_CONFIG Check_Local_IRK( RESOLVING_RECORD* ResolvingRecord, uint8_t RPAInController );
+static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
 static void Advertising( void );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
@@ -132,6 +135,7 @@ static ADVERTISING_PARAMETERS* AdvertisingParameters = NULL;
 static ADV_CONFIG AdvConfig = { DISABLE_ADVERTISING, DISABLE_ADVERTISING };
 static uint8_t ControllerResolvingListSize;
 static uint16_t SM_Resolving_List_Index;
+static BD_ADDR_TYPE RandomAddress;
 
 
 /****************************************************************/
@@ -532,7 +536,8 @@ static uint8_t BLE_Init( void )
 static int8_t Advertising_Config( void )
 {
 	static uint32_t AdvConfigTimeout = 0;
-	static BD_ADDR_TYPE RandomAddress;
+	IDENTITY_ADDRESS PeerId;
+	RESOLVING_RECORD* Ptr;
 
 	switch( AdvConfig.Actual )
 	{
@@ -552,38 +557,44 @@ static int8_t Advertising_Config( void )
 		switch ( AdvertisingParameters->Own_Address_Type )
 		{
 		case OWN_RANDOM_DEV_ADDR:
-			if( AdvertisingParameters->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE )
-			{
-				AdvConfig.Actual = GENERATE_NON_RESOLVABLE_ADDRESS;
-			}else if( AdvertisingParameters->Own_Random_Address_Type == STATIC_DEVICE_ADDRESS )
-			{
-				RandomAddress = *( Get_Static_Random_Device_Address( ).Ptr );
-				AdvConfig.Actual = SET_RANDOM_ADDRESS;
-			}else
-			{
-				AdvConfig.Actual = FAILED_ADV_CONFIG;
-			}
+			AdvConfig.Actual = Update_Random_Address( ).Actual;
 			break;
 
 		case OWN_RESOL_OR_PUBLIC_ADDR:
-			if ( Get_Local_Version_Information()->HCI_Version > CORE_SPEC_4_1 )
-			{
-				AdvConfig.Actual = SET_ADV_PARAMETERS;
-			}else
-			{
-				/* For lower versions, the host must generate the resolvable address */
-				//AdvConfig.Actual //TODO
-			}
-			break;
-
 		case OWN_RESOL_OR_RANDOM_ADDR:
+			PeerId.Type = AdvertisingParameters->Peer_Address_Type;
+			PeerId.Address = AdvertisingParameters->Peer_Address;
+			Ptr = Get_Record_From_Peer_Identity( &PeerId );
+
 			if ( Get_Local_Version_Information()->HCI_Version > CORE_SPEC_4_1 )
 			{
-				AdvConfig.Actual = SET_ADV_PARAMETERS;
+				/* Above version 4.1, the controller generates the addresses.
+				 * However, we still have to check if local IRK is not null because controller does'nt have
+				 * the local identity to do it. */
+				AdvConfig.Actual = ( Ptr != NULL ) ? Check_Local_IRK( Ptr, TRUE ).Actual : SET_ADV_PARAMETERS;
+				/* TODO: here we assume the controller automatically loads the address based on the list and
+				 * we don't need to retrieve the address using HCI_LE_Read_Local_Resolvable_Address command. */
 			}else
 			{
 				/* For lower versions, the host must generate the resolvable address */
-				//AdvConfig.Actual //TODO
+				/* Check if this device identity is in the Host resolving list */
+				if ( Ptr != NULL )
+				{
+					AdvConfig.Actual = Check_Local_IRK( Ptr, FALSE ).Actual;
+				}else
+				{
+					if( AdvertisingParameters->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR )
+					{
+						/* It is NOT on the list, we shall use the public address. */
+						AdvertisingParameters->Own_Address_Type = OWN_PUBLIC_DEV_ADDR;
+						AdvConfig.Actual = SET_ADV_PARAMETERS;
+					}else
+					{
+						/* It is NOT on the list, we shall use the random address from LE_Set_Random_Address. */
+						AdvertisingParameters->Own_Address_Type = OWN_RANDOM_DEV_ADDR;
+						AdvConfig.Actual = Update_Random_Address( ).Actual;
+					}
+				}
 			}
 			break;
 
@@ -615,6 +626,8 @@ static int8_t Advertising_Config( void )
 			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_ADV_PARAMETERS : AdvConfig.Actual;
 		}
 		break;
+
+		//TODO: inserir um novo estado aqui para ajustar o peer address quando necessário!!!
 
 	case SET_ADV_PARAMETERS:
 		AdvConfigTimeout = 0;
@@ -712,6 +725,107 @@ static int8_t Advertising_Config( void )
 	}
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Update_Random_Address()        	   							*/
+/* Location: 					 								*/
+/* Purpose: Update random address based on advertising 			*/
+/* parameters.													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static ADV_CONFIG Update_Random_Address( void )
+{
+	ADV_CONFIG AdvStep;
+
+	if( AdvertisingParameters->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE )
+	{
+		AdvStep.Actual = GENERATE_NON_RESOLVABLE_ADDRESS;
+	}else if( AdvertisingParameters->Own_Random_Address_Type == STATIC_DEVICE_ADDRESS )
+	{
+		RandomAddress = *( Get_Static_Random_Device_Address( ).Ptr );
+		AdvStep.Actual = SET_RANDOM_ADDRESS;
+	}else
+	{
+		AdvStep.Actual = FAILED_ADV_CONFIG;
+	}
+
+	return ( AdvStep );
+}
+
+
+/****************************************************************/
+/* Check_Local_IRK()        	   								*/
+/* Location: Page 3023 Core_v5.2								*/
+/* Purpose: Test if the local IRK is null.			 			*/
+/* parameters.													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:	If the Host, when populating the resolving 		*/
+/* list, sets a local IRK to all zeros, then any local address 	*/
+/* used within an advertising physical channel PDU shall use 	*/
+/* the local Identity Address, which is provided by the Host.	*/
+/****************************************************************/
+static ADV_CONFIG Check_Local_IRK( RESOLVING_RECORD* ResolvingRecord, uint8_t RPAInController )
+{
+	ADV_CONFIG AdvStep;
+	uint8_t LocalIRKNull = TRUE; /* Consider null at first */
+
+	for ( uint8_t i = 0; i < sizeof(ResolvingRecord->Peer.Local_IRK); i++ )
+	{
+		if ( ResolvingRecord->Peer.Local_IRK.Bytes[i] != 0 )
+		{
+			LocalIRKNull = FALSE; /* The IRK is not null */
+			break;
+		}
+	}
+
+	if ( LocalIRKNull )
+	{
+		/* The local IRK is null, we shall use the local identity instead. */
+		if ( ResolvingRecord->Local_Identity_Address.Type == PEER_RANDOM_DEV_ADDR )
+		{
+			/* Random static local identity */
+			AdvertisingParameters->Own_Address_Type = OWN_RANDOM_DEV_ADDR;
+			AdvertisingParameters->Own_Random_Address_Type = STATIC_DEVICE_ADDRESS;
+			AdvStep.Actual = Update_Random_Address( ).Actual;
+		}else
+		{
+			/* Public identity address */
+			AdvertisingParameters->Own_Address_Type = OWN_PUBLIC_DEV_ADDR;
+			AdvStep.Actual = SET_ADV_PARAMETERS;
+		}
+	}else if( !RPAInController )
+	{
+		/* Make it random for controller 4.1 compatibility */
+		/* RPAInController - Resolvable Private Address in controller is not available, call this function to load
+		 * the RPA. */
+		AdvertisingParameters->Own_Address_Type = OWN_RANDOM_DEV_ADDR;
+		/* We should use RPA generated by the controller. */
+		AdvStep.Actual = HCI_LE_Read_Local_Resolvable_Address( ResolvingRecord->Peer.Peer_Identity_Address.Type,
+				ResolvingRecord->Peer.Peer_Identity_Address.Address, &Read_Local_Resolvable_Address_Complete, NULL ) ? WAIT_OPERATION : FAILED_ADV_CONFIG;
+	}else
+	{
+		AdvStep.Actual = SET_ADV_PARAMETERS;
+	}
+
+	return (AdvStep);
+}
+
+
+/****************************************************************/
+/* Read_Local_Resolvable_Address_Complete()        	   			*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Description:													*/
+/****************************************************************/
+static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address )
+{
+	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? SET_RANDOM_ADDRESS : FAILED_ADV_CONFIG;
+	RandomAddress = *Local_Resolvable_Address;
 }
 
 
