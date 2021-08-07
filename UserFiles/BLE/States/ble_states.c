@@ -571,7 +571,16 @@ static int8_t Advertising_Config( void )
 				/* Above version 4.1, the controller generates the addresses.
 				 * However, we still have to check if local IRK is not null because controller does'nt have
 				 * the local identity to do it. */
-				AdvConfig.Actual = ( Ptr != NULL ) ? Check_Local_IRK( Ptr, TRUE ).Actual : SET_ADV_PARAMETERS;
+				if( Ptr != NULL )
+				{
+					AdvConfig.Actual = Check_Local_IRK( Ptr, TRUE ).Actual;
+				}else if( AdvertisingParameters->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR )
+				{
+					AdvConfig.Actual = SET_ADV_PARAMETERS;
+				}else
+				{
+					AdvConfig.Actual = Update_Random_Address( ).Actual;
+				}
 				/* TODO: here we assume the controller automatically loads the address based on the list and
 				 * we don't need to retrieve the address using HCI_LE_Read_Local_Resolvable_Address command. */
 			}else
