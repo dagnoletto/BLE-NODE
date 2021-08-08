@@ -441,7 +441,7 @@ static uint8_t BLE_Init( void )
 	case GENERATE_STATIC_RANDOM_ADDRESS:
 		if( Get_Static_Random_Device_Address().Status != TRUE ) /* Verify if an static address is available */
 		{
-			if( Generate_Device_Address( &HCI_Supported_Commands, STATIC_DEVICE_ADDRESS, NULL ) != NULL )
+			if( Generate_Device_Address( &HCI_Supported_Commands, STATIC_DEVICE_ADDRESS, NULL, 1 ) != NULL )
 			{
 				BLEInitSteps = READ_LOCAL_VERSION;
 			}
@@ -489,7 +489,7 @@ static uint8_t BLE_Init( void )
 		/* Check if we have bonded devices to add to the resolving list */
 		if ( ( ControllerResolvingListSize > SM_Resolving_List_Index ) && ( SM_Resolving_List_Index < Get_Number_Of_Resolving_Records() ) )
 		{
-			DEVICE_IDENTITY* DevId = Get_Record_From_Index( SM_Resolving_List_Index );
+			DEVICE_IDENTITY* DevId = &( Get_Record_From_Index( SM_Resolving_List_Index )->Peer );
 			BLEInitSteps = HCI_LE_Add_Device_To_Resolving_List( DevId->Peer_Identity_Address.Type, DevId->Peer_Identity_Address.Address,
 					&(DevId->Peer_IRK), &(DevId->Local_IRK), &LE_Add_Device_To_Resolving_List_Complete, NULL ) ? CLEAR_TIMER : ADD_IDENTITY_ADDRESS;
 		}else
@@ -618,7 +618,7 @@ static int8_t Advertising_Config( void )
 
 	case GENERATE_NON_RESOLVABLE_ADDRESS:
 	{
-		BD_ADDR_TYPE* Ptr = Generate_Device_Address( &HCI_Supported_Commands, NON_RESOLVABLE_PRIVATE, NULL );
+		BD_ADDR_TYPE* Ptr = Generate_Device_Address( &HCI_Supported_Commands, NON_RESOLVABLE_PRIVATE, NULL, 2 );
 		if ( Ptr != NULL )
 		{
 			RandomAddress = *Ptr;

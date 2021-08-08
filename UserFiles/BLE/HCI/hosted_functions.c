@@ -7,6 +7,7 @@
 #include "ble_states.h"
 #include "security_manager.h"
 #include "TimeFunctions.h"
+#include "ble_utils.h"
 
 
 /****************************************************************/
@@ -35,14 +36,30 @@ typedef struct
 }HOSTED_RESOLVING_LIST;
 
 
+typedef struct
+{
+	HCI_COMMAND_OPCODE OpCode;
+	CMD_CALLBACK* CmdCallBack;
+	uint8_t ProcessSteps;
+	/*  The Host shall be able to accept HCI Event
+	  packets with up to 255 octets of data excluding the HCI Event packet header. The
+	  The HCI Event packet header is the first 2 octets of the packet. So, this
+	  EventBytes[257] should be the ideal. However, 52 bytes is enough for the commands
+	  being simulated here. */
+	uint8_t EventBytes[52];
+}ASYNC_COMMAND;
+
+
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
 static void Transform_Status_To_Command_Event( HCI_EVENT_PCKT* EventPacketPtr );
 static CONTROLLER_ERROR_CODES Add_To_Resolving_List( void );
 static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void );
+static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor( IDENTITY_ADDRESS* PtrId );
 static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
 static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
+static ASYNC_COMMAND CommandToProcess;
 
 
 /****************************************************************/
@@ -55,6 +72,7 @@ static DEVICE_IDENTITY Add_Device;
 static IDENTITY_ADDRESS Remove_Device;
 static IDENTITY_ADDRESS Read_Peer_Resolvable_Device;
 static IDENTITY_ADDRESS Read_Local_Resolvable_Device;
+static IDENTITY_ADDRESS Update_Device;
 static uint16_t RPA_Timeout_Cmd;
 static uint16_t RPA_Timeout = 900; /* Default value is 900 seconds (15 minutes) */
 
@@ -218,7 +236,6 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 	switch ( OpCode.Val )
 	{
 	case HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST:
-		//TODO: gera endereços ao adicionar
 		EventPacketPtr->Parameter_Total_Length = 4;
 		Transform_Status_To_Command_Event( EventPacketPtr );
 
@@ -242,12 +259,31 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 			EventPacketPtr->Event_Parameter[3] = INVALID_HCI_COMMAND_PARAMETERS;
 		}else if( Hosted_Resolving_List.NumberOfEntries < HOSTED_RESOLVING_LIST_SIZE )
 		{
-			EventPacketPtr->Event_Parameter[3] = Add_To_Resolving_List();
+			if( !CommandToProcess.OpCode.Val ) /* We will need additional processing, so make sure it is available */
+			{
+				EventPacketPtr->Event_Parameter[3] = Add_To_Resolving_List();
+			}else
+			{
+				EventPacketPtr->Event_Parameter[3] = CONTROLLER_BUSY;
+			}
 		}else
 		{
 			EventPacketPtr->Event_Parameter[3] = MEM_CAPACITY_EXCEEDED;
 		}
-		Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
+
+
+		if( EventPacketPtr->Event_Parameter[3] == COMMAND_SUCCESS )
+		{
+			/* This requires additional processing. So enqueue the parameters. */
+			CommandToProcess.OpCode.Val = HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST;
+			CommandToProcess.CmdCallBack = CmdCallBack;
+			CommandToProcess.ProcessSteps = 0;
+			Update_Device = Add_Device.Peer_Identity_Address;
+			memcpy( &CommandToProcess.EventBytes[0], &EventPacketPtr->Event_Code, (uint16_t)( EventPacketPtr->Parameter_Total_Length + 2 ) );
+		}else
+		{
+			Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
+		}
 
 		break;
 
@@ -321,7 +357,6 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		break;
 
 	case HCI_LE_READ_PEER_RESOLVABLE_ADDRESS:
-		//TODO: gera endereços ao ler
 		EventPacketPtr->Parameter_Total_Length = 4 + sizeof( BD_ADDR_TYPE );
 		Transform_Status_To_Command_Event( EventPacketPtr );
 
@@ -342,8 +377,19 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 
 			if ( AddrPtr != NULL )
 			{
-				EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
-				memcpy( &( EventPacketPtr->Event_Parameter[4] ), &( AddrPtr->Bytes[0] ), sizeof(BD_ADDR_TYPE) );
+				/* Make sure no command is ongoing (and possibly) updating the peer address */
+				if( !CommandToProcess.OpCode.Val )
+				{
+					/* Enqueue an update for the peer address, no callback is needed */
+					CommandToProcess.OpCode.Val = HCI_LE_READ_PEER_RESOLVABLE_ADDRESS;
+					CommandToProcess.ProcessSteps = 0;
+					Update_Device = Read_Peer_Resolvable_Device;
+					EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
+					memcpy( &( EventPacketPtr->Event_Parameter[4] ), &( AddrPtr->Bytes[0] ), sizeof(BD_ADDR_TYPE) );
+				}else
+				{
+					EventPacketPtr->Event_Parameter[3] = CONTROLLER_BUSY;
+				}
 			}else
 			{
 				EventPacketPtr->Event_Parameter[3] = UNKNOWN_CONNECTION_ID;
@@ -354,7 +400,6 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		break;
 
 	case HCI_LE_READ_LOCAL_RESOLVABLE_ADDRESS:
-		//TODO: gera endereços ao ler
 		EventPacketPtr->Parameter_Total_Length = 4 + sizeof( BD_ADDR_TYPE );
 		Transform_Status_To_Command_Event( EventPacketPtr );
 
@@ -375,8 +420,19 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 
 			if ( AddrPtr != NULL )
 			{
-				EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
-				memcpy( &( EventPacketPtr->Event_Parameter[4] ), &( AddrPtr->Bytes[0] ), sizeof(BD_ADDR_TYPE) );
+				/* Make sure no command is ongoing (and possibly) updating the local address */
+				if( !CommandToProcess.OpCode.Val )
+				{
+					/* Enqueue an update for the local address, no callback is needed */
+					CommandToProcess.OpCode.Val = HCI_LE_READ_LOCAL_RESOLVABLE_ADDRESS;
+					CommandToProcess.ProcessSteps = 0;
+					Update_Device = Read_Local_Resolvable_Device;
+					EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
+					memcpy( &( EventPacketPtr->Event_Parameter[4] ), &( AddrPtr->Bytes[0] ), sizeof(BD_ADDR_TYPE) );
+				}else
+				{
+					EventPacketPtr->Event_Parameter[3] = CONTROLLER_BUSY;
+				}
 			}else
 			{
 				EventPacketPtr->Event_Parameter[3] = UNKNOWN_CONNECTION_ID;
@@ -517,6 +573,28 @@ static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void )
 
 
 /****************************************************************/
+/* Get_Resolvable_Descriptor()         	    	   		        */
+/* Purpose: Return the descriptor from the list.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor( IDENTITY_ADDRESS* PtrId )
+{
+	for ( uint8_t i = 0; i < Hosted_Resolving_List.NumberOfEntries; i++ )
+	{
+		/* Check if this entry is in the list */
+		if ( memcmp( &Hosted_Resolving_List.Entry[i].Id.Peer_Identity_Address, PtrId, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		{
+			return ( &Hosted_Resolving_List.Entry[i] );
+		}
+	}
+
+	return (NULL);
+}
+
+
+/****************************************************************/
 /* Get_Peer_Resolvable_Address()             	   		        */
 /* Purpose: Return peer device from resolving list.				*/
 /* Parameters: none				         						*/
@@ -525,18 +603,13 @@ static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void )
 /****************************************************************/
 static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 {
-	for ( uint8_t i = 0; i < Hosted_Resolving_List.NumberOfEntries; i++ )
+	RESOLVABLE_DESCRIPTOR* Descriptor = Get_Resolvable_Descriptor(PtrId);
+
+	if( Descriptor != NULL )
 	{
-		/* Check if this entry is in the list */
-		if ( memcmp( &Hosted_Resolving_List.Entry[i].Id.Peer_Identity_Address, PtrId, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		if( Descriptor->PeerAddrValid )
 		{
-			if( Hosted_Resolving_List.Entry[i].PeerAddrValid )
-			{
-				return ( &Hosted_Resolving_List.Entry[i].PeerAddr );
-			}else
-			{
-				break;
-			}
+			return ( &Descriptor->PeerAddr );
 		}
 	}
 
@@ -553,18 +626,13 @@ static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 /****************************************************************/
 static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 {
-	for ( uint8_t i = 0; i < Hosted_Resolving_List.NumberOfEntries; i++ )
+	RESOLVABLE_DESCRIPTOR* Descriptor = Get_Resolvable_Descriptor(PtrId);
+
+	if( Descriptor != NULL )
 	{
-		/* Check if this entry is in the list */
-		if ( memcmp( &Hosted_Resolving_List.Entry[i].Id.Peer_Identity_Address, PtrId, sizeof(IDENTITY_ADDRESS) ) == 0 )
+		if( Descriptor->LocalAddrValid )
 		{
-			if( Hosted_Resolving_List.Entry[i].LocalAddrValid )
-			{
-				return ( &Hosted_Resolving_List.Entry[i].LocalAddr );
-			}else
-			{
-				break;
-			}
+			return ( &Descriptor->LocalAddr );
 		}
 	}
 
@@ -582,6 +650,8 @@ static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 void Hosted_Functions_Process( void )
 {
 	static uint32_t DelayCounter = 0;
+	static RESOLVABLE_DESCRIPTOR* Desc;
+	BD_ADDR_TYPE* Ptr;
 
 	/* Generates/resolve device addresses */
 	if( Hosted_Resolving_List.NumberOfEntries )
@@ -593,6 +663,96 @@ void Hosted_Functions_Process( void )
 	}else
 	{
 		DelayCounter = 0;
+	}
+
+
+	/* Terminate commands that need more processing */
+	switch( CommandToProcess.OpCode.Val )
+	{
+
+	case HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST:
+	{
+		switch ( CommandToProcess.ProcessSteps )
+		{
+		case 0:
+			Desc = Get_Resolvable_Descriptor( &Update_Device );
+			CommandToProcess.ProcessSteps = 1;
+			break;
+
+		case 1:
+			Ptr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Local_IRK, 3 );
+			if ( Ptr != NULL )
+			{
+				Desc->LocalAddr = *Ptr;
+				Desc->LocalAddrValid = TRUE;
+				CommandToProcess.ProcessSteps = 2;
+			}
+			break;
+
+		case 2:
+			Ptr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Peer_IRK, 4 );
+			if ( Ptr != NULL )
+			{
+				Desc->PeerAddr = *Ptr;
+				Desc->PeerAddrValid = TRUE;
+				CommandToProcess.ProcessSteps = 0;
+				CommandToProcess.OpCode.Val = 0;
+				Command_Complete_Handler( CommandToProcess.OpCode, CommandToProcess.CmdCallBack, (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
+			}
+			break;
+		}
+	}
+	break;
+
+	case HCI_LE_READ_PEER_RESOLVABLE_ADDRESS:
+	{
+		switch ( CommandToProcess.ProcessSteps )
+		{
+		case 0:
+			Desc = Get_Resolvable_Descriptor( &Update_Device );
+			CommandToProcess.ProcessSteps = 1;
+			break;
+
+		case 1:
+			Ptr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Peer_IRK, 5 );
+			if ( Ptr != NULL )
+			{
+				Desc->PeerAddr = *Ptr;
+				Desc->PeerAddrValid = TRUE;
+				CommandToProcess.ProcessSteps = 0;
+				CommandToProcess.OpCode.Val = 0;
+			}
+			break;
+		}
+	}
+	break;
+
+	case HCI_LE_READ_LOCAL_RESOLVABLE_ADDRESS:
+	{
+		switch ( CommandToProcess.ProcessSteps )
+		{
+		case 0:
+			Desc = Get_Resolvable_Descriptor( &Update_Device );
+			CommandToProcess.ProcessSteps = 1;
+			break;
+
+		case 1:
+			Ptr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Local_IRK, 6 );
+			if ( Ptr != NULL )
+			{
+				Desc->LocalAddr = *Ptr;
+				Desc->LocalAddrValid = TRUE;
+				CommandToProcess.ProcessSteps = 0;
+				CommandToProcess.OpCode.Val = 0;
+			}
+			break;
+		}
+	}
+	break;
+
+	default:
+		CommandToProcess.OpCode.Val = 0;
+		break;
 	}
 }
 

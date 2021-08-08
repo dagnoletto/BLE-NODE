@@ -82,10 +82,25 @@ static RESOLVE_ADDR_STRUCT ResolveStruct = { .CallBack = NULL };
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_ADDRESS_TYPE AddrType, IRK_TYPE* IRK )
+BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_ADDRESS_TYPE AddrType, IRK_TYPE* IRK, uint8_t Token )
 {
 	static uint32_t TimeoutCounter = 0;
 	static BD_ADDR_TYPE RANDOM_ADDRESS;
+	static volatile uint8_t Acquire = 0; /* This function can be called by more than one process */
+
+	EnterCritical(); /* Critical section enter */
+
+	if( ( Acquire != 0 ) && ( Acquire != Token ) )
+	{
+		/* Another process is holding this function */
+		ExitCritical(); /* Critical section exit */
+		return (NULL);
+	}
+
+	Acquire = Token;
+
+	ExitCritical(); /* Critical section exit */
+
 	uint8_t status = TRUE;
 	GET_BD_ADDR StaticAddr;
 
@@ -154,6 +169,11 @@ BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_A
 				RANDOM_ADDRESS = *StaticAddr.Ptr;
 			}
 			BD_Config = GENERATE_RANDOM_NUMBER_PART_A;
+
+			EnterCritical(); /* Critical section enter */
+			Acquire = 0;
+			ExitCritical(); /* Critical section exit */
+
 			return ( ( status == TRUE ) ? &RANDOM_ADDRESS : NULL );
 			break;
 
@@ -208,6 +228,11 @@ BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_A
 
 		case END_ADDRESSES_CONFIG:
 			BD_Config = GENERATE_RANDOM_NUMBER_PART_A;
+
+			EnterCritical(); /* Critical section enter */
+			Acquire = 0;
+			ExitCritical(); /* Critical section exit */
+
 			return (&RANDOM_ADDRESS);
 			break;
 
