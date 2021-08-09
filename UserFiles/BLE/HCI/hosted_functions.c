@@ -59,7 +59,7 @@ static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void );
 static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor( IDENTITY_ADDRESS* PtrId );
 static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
 static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
-static ASYNC_COMMAND CommandToProcess;
+static uint8_t Check_Peer_IRK( IRK_TYPE* Peer_IRK );
 
 
 /****************************************************************/
@@ -75,6 +75,7 @@ static IDENTITY_ADDRESS Read_Local_Resolvable_Device;
 static IDENTITY_ADDRESS Update_Device;
 static uint16_t RPA_Timeout_Cmd;
 static uint16_t RPA_Timeout = 900; /* Default value is 900 seconds (15 minutes) */
+static ASYNC_COMMAND CommandToProcess;
 
 
 /****************************************************************/
@@ -311,7 +312,13 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 			EventPacketPtr->Event_Parameter[3] = INVALID_HCI_COMMAND_PARAMETERS;
 		}else if( Hosted_Resolving_List.NumberOfEntries )
 		{
-			EventPacketPtr->Event_Parameter[3] = Remove_From_Resolving_List();
+			if( !CommandToProcess.OpCode.Val ) /* Make sure any processing is happening on the list right now */
+			{
+				EventPacketPtr->Event_Parameter[3] = Remove_From_Resolving_List();
+			}else
+			{
+				EventPacketPtr->Event_Parameter[3] = CONTROLLER_BUSY;
+			}
 		}else
 		{
 			EventPacketPtr->Event_Parameter[3] = UNKNOWN_CONNECTION_ID;
@@ -641,6 +648,33 @@ static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 
 
 /****************************************************************/
+/* Check_Peer_IRK()        	   									*/
+/* Location: Page 3023 Core_v5.2								*/
+/* Purpose: Test if the peer IRK is null.			 			*/
+/* parameters.													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:	If the Host, when populating the resolving list,*/
+/* sets a peer IRK to all zeros, then the peer address used 	*/
+/* within an advertising physical channel PDU shall use the 	*/
+/* peer’s Identity Address, which is provided by the Host.		*/
+/****************************************************************/
+static uint8_t Check_Peer_IRK( IRK_TYPE* Peer_IRK )
+{
+	for ( uint8_t i = 0; i < sizeof(IRK_TYPE); i++ )
+	{
+		if ( Peer_IRK->Bytes[i] != 0 )
+		{
+			return (FALSE); /* The IRK is not null */
+			break;
+		}
+	}
+
+	return (TRUE); /* The IRK is null */
+}
+
+
+/****************************************************************/
 /* Hosted_Functions_Process()            		   	            */
 /* Purpose: Process hosted functions.							*/
 /* Parameters: none				         						*/
@@ -651,18 +685,54 @@ void Hosted_Functions_Process( void )
 {
 	static uint32_t DelayCounter = 0;
 	static RESOLVABLE_DESCRIPTOR* Desc;
+	static uint8_t RenewRPAs = FALSE;
+	static uint8_t EntriesCounter = 0;
 	BD_ADDR_TYPE* Ptr;
 
 	/* Generates/resolve device addresses */
 	if( Hosted_Resolving_List.NumberOfEntries )
 	{
-		if ( TimeBase_DelayMs( &DelayCounter, (uint32_t)( RPA_Timeout * 1000 ), TRUE ) )
+		if( !RenewRPAs )
 		{
-
+			if ( TimeBase_DelayMs( &DelayCounter, (uint32_t)( RPA_Timeout * 1000 ), TRUE ) )
+			{
+				RenewRPAs = TRUE;
+				EntriesCounter = 0;
+			}
+		}else if( !CommandToProcess.OpCode.Val ) /* Is it free? */
+		{
+			if( EntriesCounter < Hosted_Resolving_List.NumberOfEntries )
+			{
+				CommandToProcess.OpCode.Val = TRUE;
+				CommandToProcess.ProcessSteps = 0;
+				Update_Device = Hosted_Resolving_List.Entry[EntriesCounter].Id.Peer_Identity_Address;
+				EntriesCounter++;
+				/* TODO: Important note: the Core_v5.2 specification manual, Page 2566, mentioned
+				 * that the new RPA "is generated and starts being used". We just generate the new
+				 * RPAs here, we do not substitute whatever RPA used by the Controller since for this
+				 * we should know the Device Identity entry the Controller is currently using. For
+				 * this to happen, we should read the Random Address from the controller and resolve
+				 * it (if RPA) and then substitute by the newly generated address. For controller
+				 * versions above 4.1, all these hosted simulated functions are not used and this
+				 * is not a problem. For version 4.1 and below, the Host shall periodically restart
+				 * the advertising (or change its address) to comply with privacy and being constantly
+				 * changing its RPA. Making this happens inside this simulated controller functions
+				 * is too hard. For example, if we use a direct advertising, we should substitute
+				 * the own and peer addresses in the controller. This may be done for own address
+				 * by setting HCI_LE_Set_Random_Address but cannot be done for the peer address without
+				 * sending again the advertising parameters command. So this implementation only generates
+				 * new values just to be different from the previous one, making sure times to time the
+				 * RPAs change. */
+			}else
+			{
+				RenewRPAs = FALSE;
+			}
 		}
 	}else
 	{
 		DelayCounter = 0;
+		EntriesCounter = 0;
+		RenewRPAs = FALSE;
 	}
 
 
@@ -670,6 +740,7 @@ void Hosted_Functions_Process( void )
 	switch( CommandToProcess.OpCode.Val )
 	{
 
+	case TRUE:
 	case HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST:
 	{
 		switch ( CommandToProcess.ProcessSteps )
@@ -686,6 +757,18 @@ void Hosted_Functions_Process( void )
 				Desc->LocalAddr = *Ptr;
 				Desc->LocalAddrValid = TRUE;
 				CommandToProcess.ProcessSteps = 2;
+
+				if( Check_Peer_IRK(&Desc->Id.Peer_IRK) )
+				{
+					/* The peer IRK is null, use the peer's identity for the address */
+					Desc->PeerAddr = Desc->Id.Peer_Identity_Address.Address;
+					Desc->PeerAddrValid = TRUE;
+					if( CommandToProcess.OpCode.Val == HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST )
+					{
+						Command_Complete_Handler( CommandToProcess.OpCode, CommandToProcess.CmdCallBack, (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
+					}
+					CommandToProcess.OpCode.Val = 0;
+				}
 			}
 			break;
 
@@ -695,9 +778,11 @@ void Hosted_Functions_Process( void )
 			{
 				Desc->PeerAddr = *Ptr;
 				Desc->PeerAddrValid = TRUE;
-				CommandToProcess.ProcessSteps = 0;
+				if( CommandToProcess.OpCode.Val == HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST )
+				{
+					Command_Complete_Handler( CommandToProcess.OpCode, CommandToProcess.CmdCallBack, (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
+				}
 				CommandToProcess.OpCode.Val = 0;
-				Command_Complete_Handler( CommandToProcess.OpCode, CommandToProcess.CmdCallBack, (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
 			}
 			break;
 		}
@@ -711,6 +796,14 @@ void Hosted_Functions_Process( void )
 		case 0:
 			Desc = Get_Resolvable_Descriptor( &Update_Device );
 			CommandToProcess.ProcessSteps = 1;
+
+			if( Check_Peer_IRK(&Desc->Id.Peer_IRK) )
+			{
+				/* The peer IRK is null, use the peer's identity for the address */
+				Desc->PeerAddr = Desc->Id.Peer_Identity_Address.Address;;
+				Desc->PeerAddrValid = TRUE;
+				CommandToProcess.OpCode.Val = 0;
+			}
 			break;
 
 		case 1:
@@ -719,7 +812,6 @@ void Hosted_Functions_Process( void )
 			{
 				Desc->PeerAddr = *Ptr;
 				Desc->PeerAddrValid = TRUE;
-				CommandToProcess.ProcessSteps = 0;
 				CommandToProcess.OpCode.Val = 0;
 			}
 			break;
@@ -742,7 +834,6 @@ void Hosted_Functions_Process( void )
 			{
 				Desc->LocalAddr = *Ptr;
 				Desc->LocalAddrValid = TRUE;
-				CommandToProcess.ProcessSteps = 0;
 				CommandToProcess.OpCode.Val = 0;
 			}
 			break;
@@ -751,6 +842,7 @@ void Hosted_Functions_Process( void )
 	break;
 
 	default:
+		CommandToProcess.ProcessSteps = 0;
 		CommandToProcess.OpCode.Val = 0;
 		break;
 	}

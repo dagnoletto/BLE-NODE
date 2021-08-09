@@ -446,7 +446,7 @@ BLE_STATUS Write_Config_Data( CONFIG_DATA* ConfigData, VS_Callback CallBackFun )
 	{
 		BLE_STATES BleState = Get_BLE_State();
 
-		if( BleState == VENDOR_SPECIFIC_INIT /* || BleState == BLE_STANDBY */ ) /* TODO: Verificar em quais circunstâncias a configuração pode ser alterada */
+		if( BleState == VENDOR_SPECIFIC_INIT )
 		{
 			CONFIG_JOBS* Jobs = All_Job_List( ConfigData );
 			if( Jobs != NULL )
@@ -508,7 +508,7 @@ BLE_STATUS Write_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallB
 	{
 		BLE_STATES BleState = Get_BLE_State();
 
-		if( BleState == VENDOR_SPECIFIC_INIT /* || BleState == BLE_STANDBY */ ) /* TODO: Verificar em quais circunstâncias o PA pode ser alterado */
+		if( BleState == VENDOR_SPECIFIC_INIT )
 		{
 			CONFIG_JOBS* Jobs = Single_Job_List( PUBLIC_ADDRESS_OFFSET, &Public_Address->Bytes[0], sizeof(BD_ADDR_TYPE) );
 			if( Jobs != NULL )

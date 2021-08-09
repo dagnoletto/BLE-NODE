@@ -69,6 +69,8 @@ typedef struct
 	GAP_LE_ROLE Role;
 	GAP_DISCOVERY_MODE DiscoveryMode;
 	ADV_SCAN_DATA HostData;
+	OWN_ADDR_TYPE Original_Own_Address_Type;
+	BD_ADDR_TYPE Original_Peer_Address;
 }ADVERTISING_PARAMETERS;
 
 
