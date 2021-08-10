@@ -687,7 +687,7 @@ void Hosted_Functions_Process( void )
 	static RESOLVABLE_DESCRIPTOR* Desc;
 	static uint8_t RenewRPAs = FALSE;
 	static uint8_t EntriesCounter = 0;
-	BD_ADDR_TYPE* Ptr;
+	BD_ADDR_TYPE* Addr;
 
 	/* Generates/resolve device addresses */
 	if( Hosted_Resolving_List.NumberOfEntries )
@@ -751,10 +751,10 @@ void Hosted_Functions_Process( void )
 			break;
 
 		case 1:
-			Ptr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Local_IRK, 3 );
-			if ( Ptr != NULL )
+			Addr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Local_IRK, 3 );
+			if ( Addr != NULL )
 			{
-				Desc->LocalAddr = *Ptr;
+				Desc->LocalAddr = *Addr;
 				Desc->LocalAddrValid = TRUE;
 				CommandToProcess.ProcessSteps = 2;
 
@@ -773,10 +773,10 @@ void Hosted_Functions_Process( void )
 			break;
 
 		case 2:
-			Ptr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Peer_IRK, 4 );
-			if ( Ptr != NULL )
+			Addr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Peer_IRK, 4 );
+			if ( Addr != NULL )
 			{
-				Desc->PeerAddr = *Ptr;
+				Desc->PeerAddr = *Addr;
 				Desc->PeerAddrValid = TRUE;
 				if( CommandToProcess.OpCode.Val == HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST )
 				{
@@ -807,10 +807,10 @@ void Hosted_Functions_Process( void )
 			break;
 
 		case 1:
-			Ptr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Peer_IRK, 5 );
-			if ( Ptr != NULL )
+			Addr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Peer_IRK, 5 );
+			if ( Addr != NULL )
 			{
-				Desc->PeerAddr = *Ptr;
+				Desc->PeerAddr = *Addr;
 				Desc->PeerAddrValid = TRUE;
 				CommandToProcess.OpCode.Val = 0;
 			}
@@ -829,10 +829,10 @@ void Hosted_Functions_Process( void )
 			break;
 
 		case 1:
-			Ptr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Local_IRK, 6 );
-			if ( Ptr != NULL )
+			Addr = Generate_Device_Address( Get_Supported_Commands(), RESOLVABLE_PRIVATE, &Desc->Id.Local_IRK, 6 );
+			if ( Addr != NULL )
 			{
-				Desc->LocalAddr = *Ptr;
+				Desc->LocalAddr = *Addr;
 				Desc->LocalAddrValid = TRUE;
 				CommandToProcess.OpCode.Val = 0;
 			}

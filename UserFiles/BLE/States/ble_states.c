@@ -40,10 +40,14 @@ typedef enum
 typedef enum
 {
 	DISABLE_ADVERTISING,
+	REMOVE_FROM_RESOLVING_LIST,
+	ADD_TO_RESOLVING_LIST,
 	VERIFY_ADDRESS,
+	WAIT_FOR_NEW_LOCAL_READ,
 	GENERATE_NON_RESOLVABLE_ADDRESS,
 	SET_RANDOM_ADDRESS,
 	SET_PEER_ADDRESS,
+	WAIT_FOR_NEW_PEER_READ,
 	SET_ADV_PARAMETERS,
 	LOAD_ADV_DATA,
 	READ_ADV_POWER,
@@ -77,6 +81,8 @@ static int8_t Advertising_Config( void );
 static ADV_CONFIG Update_Random_Address( void );
 static ADV_CONFIG Check_Local_IRK( RESOLVING_RECORD* ResolvingRecord, uint8_t RPAInController );
 static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
+static void LE_Remove_Device_From_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Add_Device_To_Resolving_List_Complete_Adv( CONTROLLER_ERROR_CODES Status );
 static void Read_Peer_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Peer_Resolvable_Address );
 static void Advertising( void );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
@@ -540,8 +546,7 @@ static uint8_t BLE_Init( void )
 static int8_t Advertising_Config( void )
 {
 	static uint32_t AdvConfigTimeout = 0;
-	IDENTITY_ADDRESS PeerId;
-	RESOLVING_RECORD* Ptr;
+	static RESOLVING_RECORD* Ptr;
 
 	switch( AdvConfig.Actual )
 	{
@@ -553,13 +558,44 @@ static int8_t Advertising_Config( void )
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Enable )
 		{
 			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
-			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? VERIFY_ADDRESS : AdvConfig.Actual;
+			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? REMOVE_FROM_RESOLVING_LIST : AdvConfig.Actual;
 			AdvConfig.Prev = DISABLE_ADVERTISING;
 		}
 		break;
 
+	case REMOVE_FROM_RESOLVING_LIST:
+		if( ( AdvertisingParameters->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR ) || ( AdvertisingParameters->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) )
+		{
+			IDENTITY_ADDRESS PeerId;
+			/* Check if this peer device is in the resolving list */
+			PeerId.Type = AdvertisingParameters->Peer_Address_Type;
+			PeerId.Address = AdvertisingParameters->Peer_Address;
+			Ptr = Get_Record_From_Peer_Identity( &PeerId );
+			if( Ptr != NULL )
+			{
+				/* This device is in the Host's list. Remove from the controller's list (it may or may not be there) */
+				AdvConfig.Actual = HCI_LE_Remove_Device_From_Resolving_List( Ptr->Peer.Peer_Identity_Address.Type, Ptr->Peer.Peer_Identity_Address.Address,
+						&LE_Remove_Device_From_Resolving_List_Complete, NULL ) ? WAIT_OPERATION : REMOVE_FROM_RESOLVING_LIST;
+			}else
+			{
+				/* This peer device identity is not in the Host list */
+				AdvConfig.Actual = VERIFY_ADDRESS;
+			}
+		}else
+		{
+			AdvConfig.Actual = VERIFY_ADDRESS;
+		}
+		break;
+
+	case ADD_TO_RESOLVING_LIST:
+		/* Here we add a device to the controller's resolving list if it exists in the Host's list */
+		AdvConfig.Actual = HCI_LE_Add_Device_To_Resolving_List( Ptr->Peer.Peer_Identity_Address.Type, Ptr->Peer.Peer_Identity_Address.Address,
+				&Ptr->Peer.Peer_IRK, &Ptr->Peer.Local_IRK, &LE_Add_Device_To_Resolving_List_Complete_Adv, NULL ) ? WAIT_OPERATION : ADD_TO_RESOLVING_LIST;
+		break;
+
 	case VERIFY_ADDRESS:
 	{
+		AdvConfigTimeout = 0;
 		switch ( AdvertisingParameters->Own_Address_Type )
 		{
 		case OWN_RANDOM_DEV_ADDR:
@@ -568,10 +604,6 @@ static int8_t Advertising_Config( void )
 
 		case OWN_RESOL_OR_PUBLIC_ADDR:
 		case OWN_RESOL_OR_RANDOM_ADDR:
-			PeerId.Type = AdvertisingParameters->Peer_Address_Type;
-			PeerId.Address = AdvertisingParameters->Peer_Address;
-			Ptr = Get_Record_From_Peer_Identity( &PeerId );
-
 			if ( Get_Local_Version_Information()->HCI_Version > CORE_SPEC_4_1 )
 			{
 				/* Above version 4.1, the controller generates the addresses.
@@ -622,6 +654,15 @@ static int8_t Advertising_Config( void )
 	}
 	break;
 
+	case WAIT_FOR_NEW_LOCAL_READ:
+		AdvertisingParameters->Own_Address_Type = AdvertisingParameters->Original_Own_Address_Type;
+		AdvertisingParameters->Peer_Address = AdvertisingParameters->Original_Peer_Address;
+		if( TimeBase_DelayMs( &AdvConfigTimeout, 500, TRUE ) )
+		{
+			AdvConfig.Actual = VERIFY_ADDRESS;
+		}
+		break;
+
 	case GENERATE_NON_RESOLVABLE_ADDRESS:
 	{
 		BD_ADDR_TYPE* Ptr = Generate_Device_Address( &HCI_Supported_Commands, NON_RESOLVABLE_PRIVATE, NULL, 2 );
@@ -643,6 +684,7 @@ static int8_t Advertising_Config( void )
 		break;
 
 	case SET_PEER_ADDRESS:
+		AdvConfigTimeout = 0;
 		if( ( Get_Local_Version_Information()->HCI_Version > CORE_SPEC_4_1 ) && ( AdvertisingParameters->Own_Address_Type == AdvertisingParameters->Original_Own_Address_Type ) )
 		{
 			/* The Peer_Address_Type and Peer_Address already contains the peer's device identity
@@ -657,9 +699,6 @@ static int8_t Advertising_Config( void )
 				( AdvertisingParameters->Original_Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR || AdvertisingParameters->Original_Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) )
 		{
 			/* Direct advertising is used, which means the peer address may be resolvable if the peer's identity is in the resolving list */
-			PeerId.Type = AdvertisingParameters->Peer_Address_Type;
-			PeerId.Address = AdvertisingParameters->Peer_Address;
-			Ptr = Get_Record_From_Peer_Identity( &PeerId );
 			if( Ptr != NULL )
 			{
 				/* Our hosted simulated function already deals with the condition stated in Page 3023 Core_v5.2:
@@ -667,12 +706,22 @@ static int8_t Advertising_Config( void )
 				 * advertising physical channel PDU shall use the peer’s Identity Address, which is provided by the Host. TODO: However, we are
 				 * not sure if versions of the controller above 4.1 do the same. We assume yes. */
 				AdvConfig.Actual = HCI_LE_Read_Peer_Resolvable_Address( Ptr->Peer.Peer_Identity_Address.Type,
-						Ptr->Peer.Peer_Identity_Address.Address, &Read_Peer_Resolvable_Address_Complete, NULL ) ? WAIT_OPERATION : SET_PEER_ADDRESS;
+						Ptr->Peer.Peer_Identity_Address.Address, &Read_Peer_Resolvable_Address_Complete, NULL ) ? WAIT_OPERATION : WAIT_FOR_NEW_PEER_READ;
 			}else
 			{
 				/* It is not on the list, so proceed with whatever peer address loaded */
 				AdvConfig.Actual = SET_ADV_PARAMETERS;
 			}
+		}else
+		{
+			AdvConfig.Actual = SET_ADV_PARAMETERS;
+		}
+		break;
+
+	case WAIT_FOR_NEW_PEER_READ:
+		if( TimeBase_DelayMs( &AdvConfigTimeout, 500, TRUE ) )
+		{
+			AdvConfig.Actual = SET_PEER_ADDRESS;
 		}
 		break;
 
@@ -853,13 +902,37 @@ static ADV_CONFIG Check_Local_IRK( RESOLVING_RECORD* ResolvingRecord, uint8_t RP
 		AdvertisingParameters->Own_Address_Type = OWN_RANDOM_DEV_ADDR;
 		/* We should use RPA generated by the controller. */
 		AdvStep.Actual = HCI_LE_Read_Local_Resolvable_Address( ResolvingRecord->Peer.Peer_Identity_Address.Type,
-				ResolvingRecord->Peer.Peer_Identity_Address.Address, &Read_Local_Resolvable_Address_Complete, NULL ) ? WAIT_OPERATION : FAILED_ADV_CONFIG;
+				ResolvingRecord->Peer.Peer_Identity_Address.Address, &Read_Local_Resolvable_Address_Complete, NULL ) ? WAIT_OPERATION : WAIT_FOR_NEW_LOCAL_READ;
 	}else
 	{
 		AdvStep.Actual = SET_PEER_ADDRESS;
 	}
 
 	return (AdvStep);
+}
+
+
+/****************************************************************/
+/* LE_Remove_Device_From_Resolving_List_Complete()      		*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Remove_Device_From_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	AdvConfig.Actual = ADD_TO_RESOLVING_LIST;
+}
+
+
+/****************************************************************/
+/* LE_Add_Device_To_Resolving_List_Complete_Adv()      			*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Add_Device_To_Resolving_List_Complete_Adv( CONTROLLER_ERROR_CODES Status )
+{
+	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? VERIFY_ADDRESS : ADD_TO_RESOLVING_LIST;
 }
 
 
@@ -871,8 +944,14 @@ static ADV_CONFIG Check_Local_IRK( RESOLVING_RECORD* ResolvingRecord, uint8_t RP
 /****************************************************************/
 static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address )
 {
-	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? SET_RANDOM_ADDRESS : FAILED_ADV_CONFIG;
-	RandomAddress = *Local_Resolvable_Address;
+	if( Status == COMMAND_SUCCESS )
+	{
+		AdvConfig.Actual = SET_RANDOM_ADDRESS;
+		RandomAddress = *Local_Resolvable_Address;
+	}else
+	{
+		AdvConfig.Actual = WAIT_FOR_NEW_LOCAL_READ;
+	}
 }
 
 
@@ -890,7 +969,7 @@ static void Read_Peer_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status
 		AdvConfig.Actual = SET_ADV_PARAMETERS;
 	}else
 	{
-		AdvConfig.Actual = SET_PEER_ADDRESS;
+		AdvConfig.Actual = WAIT_FOR_NEW_PEER_READ;
 	}
 }
 
