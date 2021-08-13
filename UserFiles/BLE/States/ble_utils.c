@@ -418,9 +418,11 @@ IDENTITY_ADDRESS Get_Identity_Address( PEER_ADDR_TYPE Type )
 	if ( Type == PEER_PUBLIC_DEV_ADDR )
 	{
 		Addr = Get_Public_Device_Address();
+		Identity.Type = PEER_PUBLIC_DEV_ADDR;
 	}else
 	{
 		Addr = Get_Static_Random_Device_Address();
+		Identity.Type = PEER_RANDOM_DEV_ADDR;
 	}
 
 	if ( Addr.Status )

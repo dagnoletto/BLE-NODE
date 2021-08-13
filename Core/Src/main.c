@@ -123,20 +123,22 @@ int main(void)
 			Id.Peer_Identity_Address.Address.Bytes[5] = 70;
 			Id.Local_IRK.Bytes[0] = 0;
 			Id.Local_IRK.Bytes[15] = 15;
+			//memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
 			Id.Peer_IRK.Bytes[0] = 5;
 			Id.Peer_IRK.Bytes[15] = 51;
+			//memset( &Id.Peer_IRK.Bytes[0], 0, sizeof(Id.Peer_IRK) );
 			RESOLVING_RECORD Record;
 			Record.Peer = Id;
-			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
+			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR /*PEER_RANDOM_DEV_ADDR*/ );
 
 			Add_Record_To_Resolving_List( &Record );
 
 
 			Adv.Advertising_Interval_Min = 160;
 			Adv.Advertising_Interval_Max = 320;
-			Adv.Advertising_Type = ADV_DIRECT_IND_HIGH_DUTY;//ADV_NONCONN_IND; //ADV_SCAN_IND;// ADV_DIRECT_IND_HIGH_DUTY; //ADV_IND;
+			Adv.Advertising_Type = ADV_IND;//ADV_NONCONN_IND; //ADV_SCAN_IND;// ADV_DIRECT_IND_HIGH_DUTY; //ADV_IND;
 			Adv.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RESOL_OR_RANDOM_ADDR; //OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RANDOM_DEV_ADDR; //OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RANDOM_DEV_ADDR; //OWN_PUBLIC_DEV_ADDR;
-			Adv.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE; //NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE;
+			Adv.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE;
 			Adv.Peer_Address_Type = PEER_RANDOM_DEV_ADDR; //PEER_PUBLIC_DEV_ADDR;
 			//memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
 			memcpy( &Adv.Peer_Address, &Id.Peer_Identity_Address.Address, sizeof(Adv.Peer_Address) );
