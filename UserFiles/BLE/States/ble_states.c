@@ -953,7 +953,7 @@ static void LE_Clear_Resolving_List_Complete_Adv( CONTROLLER_ERROR_CODES Status 
 /****************************************************************/
 static void LE_Set_Address_Resolution_Enable_Complete_Adv( CONTROLLER_ERROR_CODES Status )
 {
-	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? AdvConfig.Next : AdvConfig.Prev;
+	AdvConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? AdvConfig.Next : AdvConfig.Prev;
 }
 
 
