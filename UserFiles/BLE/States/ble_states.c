@@ -40,7 +40,8 @@ typedef enum
 typedef enum
 {
 	DISABLE_ADVERTISING,
-	REMOVE_FROM_RESOLVING_LIST,
+	DISABLE_ADDRESS_RESOLUTION,
+	CLEAR_RESOLVING_LIST_ADV,
 	ADD_TO_RESOLVING_LIST,
 	VERIFY_ADDRESS,
 	WAIT_FOR_NEW_LOCAL_READ,
@@ -48,6 +49,7 @@ typedef enum
 	SET_RANDOM_ADDRESS,
 	SET_PEER_ADDRESS,
 	WAIT_FOR_NEW_PEER_READ,
+	ENABLE_ADDRESS_RESOLUTION,
 	SET_ADV_PARAMETERS,
 	LOAD_ADV_DATA,
 	READ_ADV_POWER,
@@ -81,7 +83,7 @@ static int8_t Advertising_Config( void );
 static ADV_CONFIG Update_Random_Address( void );
 static ADV_CONFIG Check_Local_IRK( RESOLVING_RECORD* ResolvingRecord, uint8_t RPAInController );
 static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
-static void LE_Remove_Device_From_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Clear_Resolving_List_Complete_Adv( CONTROLLER_ERROR_CODES Status );
 static void LE_Add_Device_To_Resolving_List_Complete_Adv( CONTROLLER_ERROR_CODES Status );
 static void Read_Peer_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Peer_Resolvable_Address );
 static void Advertising( void );
@@ -94,6 +96,7 @@ static void Vendor_Specific_Init_CallBack( void* ConfigData );
 static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
 static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Address_Resolution_Enable_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Set_Address_Resolution_Enable_Complete_Adv( CONTROLLER_ERROR_CODES Status );
 static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Read_Resolving_List_Size_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Resolving_List_Size );
 static void LE_Add_Device_To_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
@@ -326,6 +329,7 @@ uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar )
 			{
 				*AdvertisingParameters = *AdvPar;
 				AdvertisingParameters->Original_Own_Address_Type = AdvertisingParameters->Own_Address_Type;
+				AdvertisingParameters->Original_Own_Random_Address_Type = AdvertisingParameters->Own_Random_Address_Type;
 				AdvertisingParameters->Original_Peer_Address = AdvertisingParameters->Peer_Address;
 				Set_BLE_State( CONFIG_ADVERTISING );
 				return (TRUE);
@@ -551,19 +555,27 @@ static int8_t Advertising_Config( void )
 	switch( AdvConfig.Actual )
 	{
 	case DISABLE_ADVERTISING:
+		Ptr = NULL;
 		AdvertisingParameters->Own_Address_Type = AdvertisingParameters->Original_Own_Address_Type;
+		AdvertisingParameters->Own_Random_Address_Type = AdvertisingParameters->Original_Own_Random_Address_Type;
 		AdvertisingParameters->Peer_Address = AdvertisingParameters->Original_Peer_Address;
 		AdvConfigTimeout = 0;
 		AdvertisingParameters->Counter = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Enable )
 		{
-			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
-			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? REMOVE_FROM_RESOLVING_LIST : AdvConfig.Actual;
+			AdvConfig.Next = DISABLE_ADDRESS_RESOLUTION;
 			AdvConfig.Prev = DISABLE_ADVERTISING;
+			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
 		}
 		break;
 
-	case REMOVE_FROM_RESOLVING_LIST:
+	case DISABLE_ADDRESS_RESOLUTION:
+		AdvConfig.Next = CLEAR_RESOLVING_LIST_ADV;
+		AdvConfig.Prev = DISABLE_ADDRESS_RESOLUTION;
+		AdvConfig.Actual = HCI_LE_Set_Address_Resolution_Enable( FALSE, &LE_Set_Address_Resolution_Enable_Complete_Adv, NULL ) ? WAIT_OPERATION : DISABLE_ADDRESS_RESOLUTION;
+		break;
+
+	case CLEAR_RESOLVING_LIST_ADV:
 		if( ( AdvertisingParameters->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR ) || ( AdvertisingParameters->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) )
 		{
 			IDENTITY_ADDRESS PeerId;
@@ -573,9 +585,9 @@ static int8_t Advertising_Config( void )
 			Ptr = Get_Record_From_Peer_Identity( &PeerId );
 			if( Ptr != NULL )
 			{
-				/* This device is in the Host's list. Remove from the controller's list (it may or may not be there) */
-				AdvConfig.Actual = HCI_LE_Remove_Device_From_Resolving_List( Ptr->Peer.Peer_Identity_Address.Type, Ptr->Peer.Peer_Identity_Address.Address,
-						&LE_Remove_Device_From_Resolving_List_Complete, NULL ) ? WAIT_OPERATION : REMOVE_FROM_RESOLVING_LIST;
+				/* This device is in the Host's list. Clear the controller list to add all list again afterwards */
+				SM_Resolving_List_Index = 0;
+				AdvConfig.Actual = HCI_LE_Clear_Resolving_List( &LE_Clear_Resolving_List_Complete_Adv, NULL ) ? WAIT_OPERATION : CLEAR_RESOLVING_LIST_ADV;
 			}else
 			{
 				/* This peer device identity is not in the Host list */
@@ -588,9 +600,17 @@ static int8_t Advertising_Config( void )
 		break;
 
 	case ADD_TO_RESOLVING_LIST:
-		/* Here we add a device to the controller's resolving list if it exists in the Host's list */
-		AdvConfig.Actual = HCI_LE_Add_Device_To_Resolving_List( Ptr->Peer.Peer_Identity_Address.Type, Ptr->Peer.Peer_Identity_Address.Address,
-				&Ptr->Peer.Peer_IRK, &Ptr->Peer.Local_IRK, &LE_Add_Device_To_Resolving_List_Complete_Adv, NULL ) ? WAIT_OPERATION : ADD_TO_RESOLVING_LIST;
+		/* Check if we have bonded devices to add to the resolving list */
+		if ( SM_Resolving_List_Index < Get_Number_Of_Resolving_Records() )
+		{
+			DEVICE_IDENTITY* DevId = &( Get_Record_From_Index( SM_Resolving_List_Index )->Peer );
+			/* Here we add a device to the controller's resolving list if it exists in the Host's list */
+			AdvConfig.Actual = HCI_LE_Add_Device_To_Resolving_List( DevId->Peer_Identity_Address.Type, DevId->Peer_Identity_Address.Address,
+					&DevId->Peer_IRK, &DevId->Local_IRK, &LE_Add_Device_To_Resolving_List_Complete_Adv, NULL ) ? WAIT_OPERATION : ADD_TO_RESOLVING_LIST;
+		}else
+		{
+			AdvConfig.Actual = VERIFY_ADDRESS;
+		}
 		break;
 
 	case VERIFY_ADDRESS:
@@ -678,8 +698,8 @@ static int8_t Advertising_Config( void )
 		AdvConfigTimeout = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Random_Address )
 		{
+			AdvConfig.Next = SET_PEER_ADDRESS;
 			AdvConfig.Actual = HCI_LE_Set_Random_Address( RandomAddress, &LE_Set_Random_Address_Complete, NULL ) ? WAIT_OPERATION : SET_RANDOM_ADDRESS;
-			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_PEER_ADDRESS : AdvConfig.Actual;
 		}
 		break;
 
@@ -694,7 +714,7 @@ static int8_t Advertising_Config( void )
 			 * set to all zeros. According to Page 3023 Core_v5.2:
 			 * If the Host, when populating the resolving list, sets a peer IRK to all zeros, then the peer address used within an
 			 * advertising physical channel PDU shall use the peer’s Identity Address, which is provided by the Host. */
-			AdvConfig.Actual = SET_ADV_PARAMETERS;
+			AdvConfig.Actual = ENABLE_ADDRESS_RESOLUTION;
 		}else if( ( AdvertisingParameters->Advertising_Type == ADV_DIRECT_IND_HIGH_DUTY || AdvertisingParameters->Advertising_Type == ADV_DIRECT_IND_LOW_DUTY ) &&
 				( AdvertisingParameters->Original_Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR || AdvertisingParameters->Original_Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) )
 		{
@@ -710,11 +730,11 @@ static int8_t Advertising_Config( void )
 			}else
 			{
 				/* It is not on the list, so proceed with whatever peer address loaded */
-				AdvConfig.Actual = SET_ADV_PARAMETERS;
+				AdvConfig.Actual = ENABLE_ADDRESS_RESOLUTION;
 			}
 		}else
 		{
-			AdvConfig.Actual = SET_ADV_PARAMETERS;
+			AdvConfig.Actual = ENABLE_ADDRESS_RESOLUTION;
 		}
 		break;
 
@@ -725,14 +745,23 @@ static int8_t Advertising_Config( void )
 		}
 		break;
 
+	case ENABLE_ADDRESS_RESOLUTION:
+		if( ( Ptr != NULL ) && ( AdvertisingParameters->Privacy ) )
+		{
+			AdvConfig.Next = SET_ADV_PARAMETERS;
+			AdvConfig.Prev = ENABLE_ADDRESS_RESOLUTION;
+			AdvConfig.Actual = HCI_LE_Set_Address_Resolution_Enable( TRUE, &LE_Set_Address_Resolution_Enable_Complete_Adv, NULL ) ? WAIT_OPERATION : ENABLE_ADDRESS_RESOLUTION;
+		}
+		break;
+
 	case SET_ADV_PARAMETERS:
 		AdvConfigTimeout = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Parameters )
 		{
+			AdvConfig.Next = LOAD_ADV_DATA;
 			AdvConfig.Actual = HCI_LE_Set_Advertising_Parameters( AdvertisingParameters->Advertising_Interval_Min, AdvertisingParameters->Advertising_Interval_Max, AdvertisingParameters->Advertising_Type,
 					AdvertisingParameters->Own_Address_Type, AdvertisingParameters->Peer_Address_Type, AdvertisingParameters->Peer_Address,
 					AdvertisingParameters->Advertising_Channel_Map, AdvertisingParameters->Advertising_Filter_Policy, &LE_Set_Advertising_Parameters_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_PARAMETERS;
-			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? LOAD_ADV_DATA : AdvConfig.Actual;
 		}
 		break;
 
@@ -752,8 +781,8 @@ static int8_t Advertising_Config( void )
 		AdvConfigTimeout = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Read_Advertising_Physical_Channel_Tx_Power )
 		{
+			AdvConfig.Next = SET_ADV_POWER;
 			AdvConfig.Actual = HCI_LE_Read_Advertising_Physical_Channel_Tx_Power( &LE_Read_Advertising_Physical_Channel_Tx_Power_Complete, NULL ) ? WAIT_OPERATION : READ_ADV_POWER;
-			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_ADV_POWER : AdvConfig.Actual;
 		}else
 		{
 			AdvConfig.Actual = SET_ADV_DATA;
@@ -770,9 +799,9 @@ static int8_t Advertising_Config( void )
 		AdvConfigTimeout = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Data )
 		{
-			AdvConfig.Actual = HCI_LE_Set_Advertising_Data( AdvertisingParameters->HostData.Adv_Data_Length, AdvertisingParameters->HostData.Adv_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_DATA;
-			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? SET_SCAN_RSP_DATA : AdvConfig.Actual;
+			AdvConfig.Next = SET_SCAN_RSP_DATA;
 			AdvConfig.Prev = SET_ADV_DATA;
+			AdvConfig.Actual = HCI_LE_Set_Advertising_Data( AdvertisingParameters->HostData.Adv_Data_Length, AdvertisingParameters->HostData.Adv_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_DATA;
 		}
 		break;
 
@@ -780,9 +809,9 @@ static int8_t Advertising_Config( void )
 		AdvConfigTimeout = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Scan_Response_Data )
 		{
-			AdvConfig.Actual = HCI_LE_Set_Scan_Response_Data( AdvertisingParameters->HostData.ScanRsp_Data_Length, AdvertisingParameters->HostData.Scan_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_RSP_DATA;
-			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? ENABLE_ADVERTISING : AdvConfig.Actual;
+			AdvConfig.Next = ENABLE_ADVERTISING;
 			AdvConfig.Prev = SET_SCAN_RSP_DATA;
+			AdvConfig.Actual = HCI_LE_Set_Scan_Response_Data( AdvertisingParameters->HostData.ScanRsp_Data_Length, AdvertisingParameters->HostData.Scan_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_RSP_DATA;
 		}
 		break;
 
@@ -790,9 +819,9 @@ static int8_t Advertising_Config( void )
 		AdvConfigTimeout = 0;
 		if( HCI_Supported_Commands.Bits.HCI_LE_Set_Advertising_Enable )
 		{
-			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( TRUE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : ENABLE_ADVERTISING;
-			AdvConfig.Next = ( AdvConfig.Actual == WAIT_OPERATION ) ? END_ADV_CONFIG : AdvConfig.Actual;
+			AdvConfig.Next = END_ADV_CONFIG;
 			AdvConfig.Prev = ENABLE_ADVERTISING;
+			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( TRUE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : ENABLE_ADVERTISING;
 		}
 		break;
 
@@ -868,16 +897,8 @@ static ADV_CONFIG Update_Random_Address( void )
 static ADV_CONFIG Check_Local_IRK( RESOLVING_RECORD* ResolvingRecord, uint8_t RPAInController )
 {
 	ADV_CONFIG AdvStep;
-	uint8_t LocalIRKNull = TRUE; /* Consider null at first */
 
-	for ( uint8_t i = 0; i < sizeof(ResolvingRecord->Peer.Local_IRK); i++ )
-	{
-		if ( ResolvingRecord->Peer.Local_IRK.Bytes[i] != 0 )
-		{
-			LocalIRKNull = FALSE; /* The IRK is not null */
-			break;
-		}
-	}
+	uint8_t LocalIRKNull = Check_NULL_IRK( &ResolvingRecord->Peer.Local_IRK );
 
 	if ( LocalIRKNull )
 	{
@@ -913,14 +934,26 @@ static ADV_CONFIG Check_Local_IRK( RESOLVING_RECORD* ResolvingRecord, uint8_t RP
 
 
 /****************************************************************/
-/* LE_Remove_Device_From_Resolving_List_Complete()      		*/
+/* LE_Clear_Resolving_List_Complete_Adv()      					*/
 /* Location: 					 								*/
 /* Purpose: 													*/
 /* Description:													*/
 /****************************************************************/
-static void LE_Remove_Device_From_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status )
+static void LE_Clear_Resolving_List_Complete_Adv( CONTROLLER_ERROR_CODES Status )
 {
 	AdvConfig.Actual = ADD_TO_RESOLVING_LIST;
+}
+
+
+/****************************************************************/
+/* LE_Set_Address_Resolution_Enable_Complete_Adv()    			*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Set_Address_Resolution_Enable_Complete_Adv( CONTROLLER_ERROR_CODES Status )
+{
+	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? AdvConfig.Next : AdvConfig.Prev;
 }
 
 
@@ -932,7 +965,17 @@ static void LE_Remove_Device_From_Resolving_List_Complete( CONTROLLER_ERROR_CODE
 /****************************************************************/
 static void LE_Add_Device_To_Resolving_List_Complete_Adv( CONTROLLER_ERROR_CODES Status )
 {
-	AdvConfig.Actual = ( Status == COMMAND_SUCCESS ) ? VERIFY_ADDRESS : ADD_TO_RESOLVING_LIST;
+	if ( Status == COMMAND_SUCCESS )
+	{
+		AdvConfig.Actual = ADD_TO_RESOLVING_LIST;
+		SM_Resolving_List_Index++;
+	}else if( Status == MEM_CAPACITY_EXCEEDED )
+	{
+		AdvConfig.Actual = VERIFY_ADDRESS;
+	}else
+	{
+		AdvConfig.Actual = ADD_TO_RESOLVING_LIST;
+	}
 }
 
 
@@ -966,7 +1009,7 @@ static void Read_Peer_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status
 	if( Status == COMMAND_SUCCESS )
 	{
 		AdvertisingParameters->Peer_Address = *Peer_Resolvable_Address;
-		AdvConfig.Actual = SET_ADV_PARAMETERS;
+		AdvConfig.Actual = ENABLE_ADDRESS_RESOLUTION;
 	}else
 	{
 		AdvConfig.Actual = WAIT_FOR_NEW_PEER_READ;
@@ -988,7 +1031,14 @@ static void Advertising( void )
 	 * TGAP(private_addr_int). The Host shall generate a new resolvable
 	 * private address or non-resolvable private address when the timer
 	 * TGAP(private_addr_int) expires. */
-	if( AdvertisingParameters->Privacy )
+	/* If the Controller has address resolution and that is enabled, the RPA is
+	 * automatically generated given the timeout for the controller. However, in versions
+	 * lower that 4.1, this functionality does not exist so we need to generate again.
+	 * For non-resolvable private address (Broadcaster/non-connectable condition) we shall
+	 * generate since the controller will not do it. */
+	if( AdvertisingParameters->Privacy && ( ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) ||
+			( ( AdvertisingParameters->Original_Own_Address_Type == OWN_RANDOM_DEV_ADDR ) &&
+					( AdvertisingParameters->Original_Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE ) ) ) )
 	{
 		if( TimeBase_DelayMs( &AdvertisingParameters->Counter, TGAP_PRIVATE_ADDR_INT, TRUE ) )
 		{

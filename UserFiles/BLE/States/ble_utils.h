@@ -46,6 +46,7 @@ uint8_t Get_Max_Advertising_Data_Length( void );
 uint8_t Get_Max_Scan_Response_Data_Length( void );
 uint8_t Check_Advertising_Parameters( ADVERTISING_PARAMETERS* AdvPar );
 void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar );
+uint8_t Check_NULL_IRK( IRK_TYPE* IRKPtr );
 
 
 /****************************************************************/

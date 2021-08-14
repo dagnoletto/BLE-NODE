@@ -569,10 +569,25 @@ static uint8_t Check_Broadcaster_Parameters( ADVERTISING_PARAMETERS* AdvPar )
 		{
 			/* A Peripheral shall use non-resolvable or resolvable private addresses when in
 			   non-connectable mode as defined in Section 9.3.2. (Page 1387 Core_v5.2). */
-			if( ( AdvPar->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR ) || ( AdvPar->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) ||
-					( ( AdvPar->Own_Address_Type == OWN_RANDOM_DEV_ADDR ) && ( AdvPar->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE) ) )
+			if( ( AdvPar->Own_Address_Type == OWN_RANDOM_DEV_ADDR ) && ( AdvPar->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE) )
 			{
 				return (TRUE);
+			}else if( ( AdvPar->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR ) || ( AdvPar->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) )
+			{
+				IDENTITY_ADDRESS PeerId;
+				/* Check if this peer device is in the resolving list */
+				PeerId.Type = AdvPar->Peer_Address_Type;
+				PeerId.Address = AdvPar->Peer_Address;
+				RESOLVING_RECORD* RecordPtr = Get_Record_From_Peer_Identity( &PeerId );
+				if( RecordPtr != NULL )
+				{
+					/* The local IRK must be valid since local identity would be used instead of
+					 * Resolvable private address. */
+					if( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) )
+					{
+						return (TRUE);
+					}
+				}
 			}
 		}else
 		{
@@ -608,7 +623,20 @@ static uint8_t Check_Peripheral_Parameters( ADVERTISING_PARAMETERS* AdvPar )
 			advertiser's device address when in connectable mode (Page 1387 Core_v5.2). */
 			if( ( AdvPar->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR ) || ( AdvPar->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) )
 			{
-				return (TRUE);
+				IDENTITY_ADDRESS PeerId;
+				/* Check if this peer device is in the resolving list */
+				PeerId.Type = AdvPar->Peer_Address_Type;
+				PeerId.Address = AdvPar->Peer_Address;
+				RESOLVING_RECORD* RecordPtr = Get_Record_From_Peer_Identity( &PeerId );
+				if( RecordPtr != NULL )
+				{
+					/* The local IRK must be valid since local identity would be used instead of
+					 * Resolvable private address. */
+					if( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) )
+					{
+						return (TRUE);
+					}
+				}
 			}
 		}else
 		{
@@ -954,6 +982,29 @@ static void LE_Encrypt_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Encrypte
 
 		Encrypt_CallBack = NULL;
 	}
+}
+
+
+/****************************************************************/
+/* Check_NULL_IRK()        										*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Check_NULL_IRK( IRK_TYPE* IRKPtr )
+{
+	for ( uint8_t i = 0; i < sizeof(IRK_TYPE); i++ )
+	{
+		if ( IRKPtr->Bytes[i] != 0 )
+		{
+			return (FALSE); /* The IRK is not null */
+			break;
+		}
+	}
+
+	return (TRUE); /* The IRK is null */
 }
 
 

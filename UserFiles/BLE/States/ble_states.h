@@ -70,6 +70,7 @@ typedef struct
 	GAP_DISCOVERY_MODE DiscoveryMode;
 	ADV_SCAN_DATA HostData;
 	OWN_ADDR_TYPE Original_Own_Address_Type;
+	RANDOM_ADDRESS_TYPE Original_Own_Random_Address_Type;
 	BD_ADDR_TYPE Original_Peer_Address;
 }ADVERTISING_PARAMETERS;
 

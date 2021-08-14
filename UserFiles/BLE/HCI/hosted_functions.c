@@ -59,7 +59,6 @@ static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void );
 static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor( IDENTITY_ADDRESS* PtrId );
 static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
 static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
-static uint8_t Check_Peer_IRK( IRK_TYPE* Peer_IRK );
 
 
 /****************************************************************/
@@ -648,33 +647,6 @@ static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 
 
 /****************************************************************/
-/* Check_Peer_IRK()        	   									*/
-/* Location: Page 3023 Core_v5.2								*/
-/* Purpose: Test if the peer IRK is null.			 			*/
-/* parameters.													*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:	If the Host, when populating the resolving list,*/
-/* sets a peer IRK to all zeros, then the peer address used 	*/
-/* within an advertising physical channel PDU shall use the 	*/
-/* peer’s Identity Address, which is provided by the Host.		*/
-/****************************************************************/
-static uint8_t Check_Peer_IRK( IRK_TYPE* Peer_IRK )
-{
-	for ( uint8_t i = 0; i < sizeof(IRK_TYPE); i++ )
-	{
-		if ( Peer_IRK->Bytes[i] != 0 )
-		{
-			return (FALSE); /* The IRK is not null */
-			break;
-		}
-	}
-
-	return (TRUE); /* The IRK is null */
-}
-
-
-/****************************************************************/
 /* Hosted_Functions_Process()            		   	            */
 /* Purpose: Process hosted functions.							*/
 /* Parameters: none				         						*/
@@ -758,7 +730,7 @@ void Hosted_Functions_Process( void )
 				Desc->LocalAddrValid = TRUE;
 				CommandToProcess.ProcessSteps = 2;
 
-				if( Check_Peer_IRK(&Desc->Id.Peer_IRK) )
+				if( Check_NULL_IRK(&Desc->Id.Peer_IRK) )
 				{
 					/* The peer IRK is null, use the peer's identity for the address */
 					Desc->PeerAddr = Desc->Id.Peer_Identity_Address.Address;
@@ -797,7 +769,7 @@ void Hosted_Functions_Process( void )
 			Desc = Get_Resolvable_Descriptor( &Update_Device );
 			CommandToProcess.ProcessSteps = 1;
 
-			if( Check_Peer_IRK(&Desc->Id.Peer_IRK) )
+			if( Check_NULL_IRK(&Desc->Id.Peer_IRK) )
 			{
 				/* The peer IRK is null, use the peer's identity for the address */
 				Desc->PeerAddr = Desc->Id.Peer_Identity_Address.Address;;
