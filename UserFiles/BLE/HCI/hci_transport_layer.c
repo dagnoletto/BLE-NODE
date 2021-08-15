@@ -587,11 +587,7 @@ static void Command_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketP
 /****************************************************************/
 static void Read_Remote_Version_Information_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr )
 {
-	( (ReadRemoteVerInfoComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0],
-			( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1],
-			EventPacketPtr->Event_Parameter[3],
-			( EventPacketPtr->Event_Parameter[5] << 8 ) | EventPacketPtr->Event_Parameter[4],
-			( EventPacketPtr->Event_Parameter[7] << 8 ) | EventPacketPtr->Event_Parameter[6] );
+	( (ReadRemoteVerInfoComplete)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0], (REMOTE_VERSION_INFORMATION*)( &(EventPacketPtr->Event_Parameter[1]) ) );
 }
 
 
@@ -618,10 +614,7 @@ static void Read_Transmit_Power_Level_Complete( void* CmdCallBackFun, HCI_EVENT_
 /****************************************************************/
 static void Read_Local_Version_Information_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr )
 {
-	((ReadLocalVerInfoComplete)CmdCallBackFun)( EventPacketPtr->Event_Parameter[3], EventPacketPtr->Event_Parameter[4],
-			( EventPacketPtr->Event_Parameter[6]  << 8 ) | EventPacketPtr->Event_Parameter[5], EventPacketPtr->Event_Parameter[7],
-			( EventPacketPtr->Event_Parameter[9]  << 8 ) | EventPacketPtr->Event_Parameter[8],
-			( EventPacketPtr->Event_Parameter[11] << 8 ) | EventPacketPtr->Event_Parameter[10] );
+	((ReadLocalVerInfoComplete)CmdCallBackFun)( EventPacketPtr->Event_Parameter[3], (LOCAL_VERSION_INFORMATION*)( &(EventPacketPtr->Event_Parameter[4]) ) );
 }
 
 

@@ -6,6 +6,7 @@
 #include "vendor_specific.h"
 #include "TimeFunctions.h"
 #include "ble_states.h"
+#include "ble_utils.h"
 
 
 /****************************************************************/
@@ -56,6 +57,7 @@ static CONFIG_JOBS* Single_Job_List( uint8_t Offset, uint8_t* DataPtr, uint16_t 
 static void Default_VS_Config_CallBack(void* Data);
 static void Hal_Write_Config_Data_Event( CONTROLLER_ERROR_CODES Status );
 static void Hal_Read_Config_Data_Event( CONTROLLER_ERROR_CODES Status, uint8_t* DataPtr, uint8_t DataSize );
+static void Vendor_Specific_Init_CallBack( void* ConfigData );
 
 
 /****************************************************************/
@@ -64,6 +66,7 @@ static void Hal_Read_Config_Data_Event( CONTROLLER_ERROR_CODES Status, uint8_t* 
 static VS_STATE_MACHINE Config = { .Step = CONFIG_BLOCKED, .Jobs = NULL };
 static VS_Callback ConfigCallBack;
 static uint32_t ConfigTimeoutCounter;
+static BLE_STATUS VS_Init_Done_Flag;
 
 
 /****************************************************************/
@@ -524,6 +527,140 @@ BLE_STATUS Write_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallB
 	}
 
 	return (BLE_FALSE);
+}
+
+
+/****************************************************************/
+/* Vendor_Specific_Init()        	        					*/
+/* Location: 					 								*/
+/* Purpose: Await for vendor specific events and do vendor 		*/
+/* specific configuration.										*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Vendor_Specific_Init( void )
+{
+	typedef enum
+	{
+		WRITE_CONFIG_DATA  = 0x00,
+		VERIFY_CONFIG_DATA = 0x01,
+		WAIT_CONFIG_END	   = 0x02,
+		END_CONFIG_MODE	   = 0x03
+	}INIT_STEPS;
+
+	static uint8_t Result = FALSE;
+	static INIT_STEPS InitSteps = WRITE_CONFIG_DATA;
+	static CONFIG_DATA* ConfigDataPtr = NULL;
+
+	switch ( InitSteps )
+	{
+	case WRITE_CONFIG_DATA:
+
+		VS_Init_Done_Flag = BLE_FALSE;
+		if( ConfigDataPtr != NULL )
+		{
+			free( ConfigDataPtr );
+			ConfigDataPtr = NULL;
+		}
+		ConfigDataPtr = malloc( sizeof(CONFIG_DATA) );
+
+		if( ConfigDataPtr != NULL )
+		{
+			ConfigDataPtr->Public_address = *( Get_Public_Device_Address( ).Ptr );
+			ConfigDataPtr->LLWithoutHost = LL_ONLY;
+			ConfigDataPtr->Role = SLAVE_AND_MASTER_12KB;
+
+			if( Write_Config_Data( ConfigDataPtr, &Vendor_Specific_Init_CallBack ) == BLE_TRUE )
+			{
+				InitSteps = VERIFY_CONFIG_DATA;
+			}else
+			{
+				free( ConfigDataPtr );
+				ConfigDataPtr = NULL;
+			}
+		}
+		break;
+
+	case VERIFY_CONFIG_DATA:
+		if( VS_Init_Done_Flag != BLE_FALSE )
+		{
+			if( VS_Init_Done_Flag == BLE_TRUE )
+			{
+				VS_Init_Done_Flag = BLE_FALSE;
+				memset( ConfigDataPtr, 0, sizeof(CONFIG_DATA) ); /* Clear bytes */
+				if( Read_Config_Data( ConfigDataPtr, &Vendor_Specific_Init_CallBack ) == BLE_TRUE )
+				{
+					InitSteps = WAIT_CONFIG_END;
+				}else
+				{
+					if( ConfigDataPtr != NULL )
+					{
+						free( ConfigDataPtr );
+						ConfigDataPtr = NULL;
+					}
+					InitSteps = WRITE_CONFIG_DATA;
+				}
+			}else
+			{
+				if( ConfigDataPtr != NULL )
+				{
+					free( ConfigDataPtr );
+					ConfigDataPtr = NULL;
+				}
+				InitSteps = WRITE_CONFIG_DATA;
+			}
+		}
+		break;
+
+	case WAIT_CONFIG_END:
+		if( VS_Init_Done_Flag != BLE_FALSE )
+		{
+			Result = FALSE;
+			if( ConfigDataPtr != NULL )
+			{
+				if( memcmp( &ConfigDataPtr->Public_address, Get_Public_Device_Address( ).Ptr, sizeof(BD_ADDR_TYPE) ) == 0 )
+				{
+					/* TODO: If the public address was updated, we assume all other fields were updated as well */
+					Result = TRUE;
+				}
+				free( ConfigDataPtr );
+				ConfigDataPtr = NULL;
+			}
+			InitSteps = END_CONFIG_MODE;
+		}
+		break;
+
+	case END_CONFIG_MODE:
+		if ( Get_Config_Step() == CONFIG_FREE )
+		{
+			InitSteps = WRITE_CONFIG_DATA;
+			return ( Result );
+		}
+		break;
+	}
+
+	return ( FALSE );
+}
+
+
+/****************************************************************/
+/* Vendor_Specific_Init_CallBack()        	       				*/
+/* Location: 					 								*/
+/* Purpose: Called to indicate the status of configuration.		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Vendor_Specific_Init_CallBack( void* ConfigData )
+{
+	if( ConfigData != NULL )
+	{
+		VS_Init_Done_Flag = BLE_TRUE;
+	}else
+	{
+		VS_Init_Done_Flag = BLE_ERROR;
+	}
 }
 
 

@@ -67,6 +67,7 @@ BLE_STATUS Write_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallB
 
 CONFIG_STEPS Get_Config_Step( void );
 void Set_Config_Step( CONFIG_STEPS Step );
+uint8_t Vendor_Specific_Init( void );
 void Vendor_Specific_Process( void );
 
 

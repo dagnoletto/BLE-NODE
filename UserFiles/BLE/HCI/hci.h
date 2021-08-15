@@ -273,6 +273,25 @@ typedef enum
 }HCI_VERSION;
 
 
+typedef struct
+{
+	uint16_t Connection_Handle;
+	HCI_VERSION Version :8; /* It is not guaranteed the enum HCI_VERSION will be uint8_t, so we forced it using size field */
+	uint16_t Manufacturer_Name;
+	uint16_t Subversion;
+}__attribute__((packed)) REMOTE_VERSION_INFORMATION;
+
+
+typedef struct
+{
+	HCI_VERSION HCI_Version :8; /* It is not guaranteed the enum HCI_VERSION will be uint8_t, so we forced it using size field */
+	uint16_t HCI_Revision;
+	uint8_t LMP_PAL_Version;
+	uint16_t Manufacturer_Name;
+	uint16_t LMP_PAL_Subversion;
+}__attribute__((packed)) LOCAL_VERSION_INFORMATION;
+
+
 typedef union
 {
 	struct Event_Mask_Bits
@@ -1157,11 +1176,9 @@ typedef enum /* Return codes for function calls */
 /*----------------------- CALLBACKS FOR COMMANDS ------------------------------*/
 typedef void (*DefCmdComplete)( CONTROLLER_ERROR_CODES Status ); /* Default Command Complete CallBack */
 typedef void (*DefCmdStatus)( CONTROLLER_ERROR_CODES Status );	 /* Default Command Status CallBack */
-typedef void (*ReadRemoteVerInfoComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, HCI_VERSION Version,
-		uint16_t Manufacturer_Name, uint16_t Subversion );
+typedef void (*ReadRemoteVerInfoComplete)( CONTROLLER_ERROR_CODES Status, REMOTE_VERSION_INFORMATION* Remote_Version_Information );
 typedef void (*TxPwrLvlComplete)( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, int8_t TX_Power_Level );
-typedef void (*ReadLocalVerInfoComplete)( CONTROLLER_ERROR_CODES Status, HCI_VERSION HCI_Version, uint16_t HCI_Revision,
-		uint8_t LMP_PAL_Version, uint16_t Manufacturer_Name, uint16_t LMP_PAL_Subversion );
+typedef void (*ReadLocalVerInfoComplete)( CONTROLLER_ERROR_CODES Status, LOCAL_VERSION_INFORMATION* Local_Version_Information );
 typedef void (*ReadLocalSupCmdsComplete)( CONTROLLER_ERROR_CODES Status, SUPPORTED_COMMANDS* Supported_Commands );
 typedef void (*ReadLocalSupFeaturesComplete)( CONTROLLER_ERROR_CODES Status, SUPPORTED_FEATURES* LMP_Features );
 typedef void (*ReadBDADDRComplete)( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* BD_ADDR );
