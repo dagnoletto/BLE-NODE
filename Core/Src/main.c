@@ -115,7 +115,7 @@ int main(void)
 
 		if( TimeBase_DelayMs( &Timer, Period, TRUE )  )
 		{
-			ADVERTISING_PARAMETERS Adv;
+			//ADVERTISING_PARAMETERS Adv;
 
 			DEVICE_IDENTITY Id;
 			Id.Peer_Identity_Address.Type = PEER_RANDOM_DEV_ADDR;
@@ -134,24 +134,28 @@ int main(void)
 			Add_Record_To_Resolving_List( &Record );
 
 
-			Adv.Advertising_Interval_Min = 160;
-			Adv.Advertising_Interval_Max = 320;
-			Adv.Advertising_Type = ADV_IND;//ADV_NONCONN_IND; //ADV_SCAN_IND;// ADV_DIRECT_IND_HIGH_DUTY; //ADV_IND;
-			Adv.Own_Address_Type = OWN_RESOL_OR_RANDOM_ADDR; //OWN_RESOL_OR_RANDOM_ADDR; //OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RANDOM_DEV_ADDR; //OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RANDOM_DEV_ADDR; //OWN_PUBLIC_DEV_ADDR;
-			Adv.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE;
-			Adv.Peer_Address_Type = PEER_RANDOM_DEV_ADDR; //PEER_PUBLIC_DEV_ADDR;
-			//memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
-			memcpy( &Adv.Peer_Address, &Id.Peer_Identity_Address.Address, sizeof(Adv.Peer_Address) );
-			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
-			Adv.Advertising_Filter_Policy = 0;
-			Adv.connIntervalmin = NO_SPECIFIC_MINIMUM;
-			Adv.connIntervalmax = NO_SPECIFIC_MAXIMUM;
-			Adv.Privacy = TRUE;
-			Adv.Role = PERIPHERAL;
-			Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
+//			Adv.Advertising_Interval_Min = 160;
+//			Adv.Advertising_Interval_Max = 320;
+//			Adv.Advertising_Type = ADV_IND;//ADV_NONCONN_IND; //ADV_SCAN_IND;// ADV_DIRECT_IND_HIGH_DUTY; //ADV_IND;
+//			Adv.Own_Address_Type = OWN_RESOL_OR_RANDOM_ADDR; //OWN_RESOL_OR_RANDOM_ADDR; //OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RANDOM_DEV_ADDR; //OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RANDOM_DEV_ADDR; //OWN_PUBLIC_DEV_ADDR;
+//			Adv.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE;
+//			Adv.Peer_Address_Type = PEER_RANDOM_DEV_ADDR; //PEER_PUBLIC_DEV_ADDR;
+//			//memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
+//			memcpy( &Adv.Peer_Address, &Id.Peer_Identity_Address.Address, sizeof(Adv.Peer_Address) );
+//			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
+//			Adv.Advertising_Filter_Policy = 0;
+//			Adv.connIntervalmin = NO_SPECIFIC_MINIMUM;
+//			Adv.connIntervalmax = NO_SPECIFIC_MAXIMUM;
+//			Adv.Privacy = TRUE;
+//			Adv.Role = PERIPHERAL;
+//			Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
+//
+//			Enter_Advertising_Mode( &Adv );
 
-			Enter_Advertising_Mode( &Adv );
 
+			SCANNING_PARAMETERS Scan;
+
+			Enter_Scanning_Mode( &Scan );
 
 //			DEVICE_IDENTITY Id;
 //			Id.Peer_Identity_Address.Type = PEER_RANDOM_DEV_ADDR;

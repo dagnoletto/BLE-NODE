@@ -97,8 +97,7 @@ static uint16_t SM_Resolving_List_Index;
 /****************************************************************/
 /* Enter_Advertising_Mode()        	 							*/
 /* Location: 					 								*/
-/* Purpose: Put the controller in advertising mode or update	*/
-/* parameters if already in advertising.						*/
+/* Purpose: Put the controller in advertising mode. 			*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/

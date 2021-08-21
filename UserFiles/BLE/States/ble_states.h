@@ -12,6 +12,7 @@
 #include "link_layer.h"
 #include "gap.h"
 #include "ble_advertising.h"
+#include "ble_scanning.h"
 
 
 /****************************************************************/
@@ -25,6 +26,7 @@ typedef enum
 	STANDBY_STATE,
 	CONFIG_ADVERTISING,
 	ADVERTISING_STATE,
+	CONFIG_SCANNING,
 	SCANNING_STATE,
 	INITIATING_STATE,
 	CONNECTION_STATE,
@@ -43,6 +45,7 @@ SUPPORTED_FEATURES* Get_Supported_Features( void );
 LOCAL_VERSION_INFORMATION* Get_Local_Version_Information( void );
 uint8_t Enter_StandBy_Mode( void );
 uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar );
+uint8_t Enter_Scanning_Mode( SCANNING_PARAMETERS* ScanPar );
 
 
 #endif /* BLE_STATES_H_ */
