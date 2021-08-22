@@ -17,26 +17,26 @@
 typedef enum
 {
 	DISABLE_SCANNING,
-//	DISABLE_ADDRESS_RESOLUTION,
-//	CLEAR_RESOLVING_LIST,
-//	ADD_TO_RESOLVING_LIST,
-//	VERIFY_ADDRESS,
-//	WAIT_FOR_NEW_LOCAL_READ,
-//	GENERATE_NON_RESOLVABLE_ADDRESS,
-//	SET_RANDOM_ADDRESS,
-//	SET_PEER_ADDRESS,
-//	WAIT_FOR_NEW_PEER_READ,
-//	ENABLE_ADDRESS_RESOLUTION,
-//	SET_ADV_PARAMETERS,
-//	LOAD_ADV_DATA,
-//	READ_ADV_POWER,
-//	SET_ADV_POWER,
-//	SET_ADV_DATA,
-//	SET_SCAN_RSP_DATA,
-//	ENABLE_ADVERTISING,
-//	END_ADV_CONFIG,
-//	FAILED_ADV_CONFIG,
-//	WAIT_OPERATION,
+	//	DISABLE_ADDRESS_RESOLUTION,
+	//	CLEAR_RESOLVING_LIST,
+	//	ADD_TO_RESOLVING_LIST,
+	//	VERIFY_ADDRESS,
+	//	WAIT_FOR_NEW_LOCAL_READ,
+	//	GENERATE_NON_RESOLVABLE_ADDRESS,
+	//	SET_RANDOM_ADDRESS,
+	//	SET_PEER_ADDRESS,
+	//	WAIT_FOR_NEW_PEER_READ,
+	//	ENABLE_ADDRESS_RESOLUTION,
+	//	SET_ADV_PARAMETERS,
+	//	LOAD_ADV_DATA,
+	//	READ_ADV_POWER,
+	//	SET_ADV_POWER,
+	//	SET_ADV_DATA,
+	//	SET_SCAN_RSP_DATA,
+	//	ENABLE_ADVERTISING,
+	//	END_ADV_CONFIG,
+	//	FAILED_ADV_CONFIG,
+	//	WAIT_OPERATION,
 }SCAN_CONFIG_STEPS;
 
 
@@ -89,7 +89,7 @@ extern void Set_BLE_State( BLE_STATES NewBLEState );
 /* Local variables definition                                   */
 /****************************************************************/
 static SCANNING_PARAMETERS* ScanningParameters = NULL;
-static SCAN_CONFIG ScanConfig; //= { DISABLE_ADVERTISING, DISABLE_ADVERTISING, DISABLE_ADVERTISING };//TODO
+static SCAN_CONFIG ScanConfig = { DISABLE_SCANNING, DISABLE_SCANNING, DISABLE_SCANNING };
 static BD_ADDR_TYPE RandomAddress;
 //static uint16_t SM_Resolving_List_Index;
 
@@ -149,7 +149,7 @@ int8_t Scanning_Config( void )
 /****************************************************************/
 /* Update_Random_Address()        	   							*/
 /* Location: 					 								*/
-/* Purpose: Update random address based on advertising 			*/
+/* Purpose: Update random address based on scanning 			*/
 /* parameters.													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
@@ -158,21 +158,21 @@ int8_t Scanning_Config( void )
 static SCAN_CONFIG Update_Random_Address( void )
 {
 	//TODO
-//	SCAN_CONFIG ScanStep;
-//
-//	if( ScanningParameters->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE )
-//	{
-//		ScanStep.Actual = GENERATE_NON_RESOLVABLE_ADDRESS;
-//	}else if( ScanningParameters->Own_Random_Address_Type == STATIC_DEVICE_ADDRESS )
-//	{
-//		RandomAddress = *( Get_Static_Random_Device_Address( ).Ptr );
-//		ScanStep.Actual = SET_RANDOM_ADDRESS;
-//	}else
-//	{
-//		ScanStep.Actual = FAILED_ADV_CONFIG;
-//	}
-//
-//	return ( ScanStep );
+	//	SCAN_CONFIG ScanStep;
+	//
+	//	if( ScanningParameters->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE )
+	//	{
+	//		ScanStep.Actual = GENERATE_NON_RESOLVABLE_ADDRESS;
+	//	}else if( ScanningParameters->Own_Random_Address_Type == STATIC_DEVICE_ADDRESS )
+	//	{
+	//		RandomAddress = *( Get_Static_Random_Device_Address( ).Ptr );
+	//		ScanStep.Actual = SET_RANDOM_ADDRESS;
+	//	}else
+	//	{
+	//		ScanStep.Actual = FAILED_ADV_CONFIG;
+	//	}
+	//
+	//	return ( ScanStep );
 }
 
 
@@ -197,11 +197,11 @@ void Scanning( void )
 	 * generate since the controller will not do it. */
 
 	//TODO
-//	if( ScanningParameters->Privacy && ( ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) ||
-//			( ( ScanningParameters->Original_Own_Address_Type == OWN_RANDOM_DEV_ADDR ) &&
-//					( ScanningParameters->Original_Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE ) ) ) )
+	//	if( ScanningParameters->Privacy && ( ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) ||
+	//			( ( ScanningParameters->Original_Own_Address_Type == OWN_RANDOM_DEV_ADDR ) &&
+	//					( ScanningParameters->Original_Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE ) ) ) )
 	{
-//		if( TimeBase_DelayMs( &ScanningParameters->Counter, TGAP_PRIVATE_ADDR_INT, TRUE ) )
+		//		if( TimeBase_DelayMs( &ScanningParameters->Counter, TGAP_PRIVATE_ADDR_INT, TRUE ) )
 		{
 			Set_BLE_State( CONFIG_SCANNING );
 		}
@@ -222,6 +222,10 @@ uint8_t Check_Scanning_Parameters( SCANNING_PARAMETERS* ScanPar )
 	if ( ( ScanPar->Own_Address_Type == OWN_RANDOM_DEV_ADDR ) && ( ScanPar->Own_Random_Address_Type == RESOLVABLE_PRIVATE ) )
 	{
 		/* We should only configure random as non-resolvable or static random address */
+		return (FALSE);
+	}else if( ( ScanPar->LE_Scan_Window ) > ( ScanPar->LE_Scan_Interval ) )
+	{
+		/* LE_Scan_Window shall be less than or equal to LE_Scan_Interval */
 		return (FALSE);
 	}
 
@@ -255,7 +259,7 @@ uint8_t Check_Scanning_Parameters( SCANNING_PARAMETERS* ScanPar )
 /****************************************************************/
 static uint8_t Check_Observer_Parameters( SCANNING_PARAMETERS* ScanPar )
 {
-
+	return (TRUE);
 }
 
 
@@ -269,7 +273,7 @@ static uint8_t Check_Observer_Parameters( SCANNING_PARAMETERS* ScanPar )
 /****************************************************************/
 static uint8_t Check_Central_Parameters( SCANNING_PARAMETERS* ScanPar )
 {
-
+	return (TRUE);
 }
 
 

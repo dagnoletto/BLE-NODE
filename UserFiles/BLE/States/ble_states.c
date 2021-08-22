@@ -69,6 +69,8 @@ static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status );
 /****************************************************************/
 extern int8_t Advertising_Config( void );
 extern void Advertising( void );
+extern int8_t Scanning_Config( void );
+extern void Scanning( void );
 
 
 /****************************************************************/
@@ -107,7 +109,7 @@ static uint8_t ControllerResolvingListSize;
 /****************************************************************/
 void Run_BLE( void )
 {
-	int8_t AdvConfigStatus;
+	int8_t ConfigStatus;
 
 	switch( Get_BLE_State() )
 	{
@@ -144,11 +146,11 @@ void Run_BLE( void )
 		break;
 
 	case CONFIG_ADVERTISING:
-		AdvConfigStatus = Advertising_Config(  );
-		if( AdvConfigStatus == TRUE )
+		ConfigStatus = Advertising_Config(  );
+		if( ConfigStatus == TRUE )
 		{
 			Set_BLE_State( ADVERTISING_STATE );
-		}else if( AdvConfigStatus < 0 )
+		}else if( ConfigStatus < 0 )
 		{
 			Standby_Flag = BLE_FALSE;
 			Set_BLE_State( STANDBY_STATE );
@@ -159,7 +161,20 @@ void Run_BLE( void )
 		Advertising(  );
 		break;
 
+	case CONFIG_SCANNING:
+		ConfigStatus = Scanning_Config(  );
+		if( ConfigStatus == TRUE )
+		{
+			Set_BLE_State( SCANNING_STATE );
+		}else if( ConfigStatus < 0 )
+		{
+			Standby_Flag = BLE_FALSE;
+			Set_BLE_State( STANDBY_STATE );
+		}
+		break;
+
 	case SCANNING_STATE:
+		Scanning(  );
 		break;
 
 	case INITIATING_STATE:
