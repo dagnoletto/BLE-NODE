@@ -624,11 +624,18 @@ void Advertising( void )
 	 * TGAP(private_addr_int). The Host shall generate a new resolvable
 	 * private address or non-resolvable private address when the timer
 	 * TGAP(private_addr_int) expires. */
+
 	/* If the Controller has address resolution and that is enabled, the RPA is
 	 * automatically generated given the timeout for the controller. However, in versions
 	 * lower that 4.1, this functionality does not exist so we need to generate again.
 	 * For non-resolvable private address (Broadcaster/non-connectable condition) we shall
 	 * generate since the controller will not do it. */
+
+	/* TODO: Here we consider the address resolution is always enabled in advertising.
+	 * Even for versions higher than 4.1, this function shall be called if address resolution
+	 * is disabled. We lay on the fact address resolution is always enabled in the controller
+	 * for versions above 4.1. */
+
 	if( AdvertisingParameters->Privacy && ( ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) ||
 			( ( AdvertisingParameters->Original_Own_Address_Type == OWN_RANDOM_DEV_ADDR ) &&
 					( AdvertisingParameters->Original_Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE ) ) ) )

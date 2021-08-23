@@ -119,6 +119,8 @@ uint8_t Enter_Scanning_Mode( SCANNING_PARAMETERS* ScanPar )
 			if( ScanningParameters != NULL )
 			{
 				*ScanningParameters = *ScanPar;
+				ScanningParameters->Original_Own_Address_Type = ScanningParameters->Own_Address_Type;
+				ScanningParameters->Original_Own_Random_Address_Type = ScanningParameters->Own_Random_Address_Type;
 				Set_BLE_State( CONFIG_SCANNING );
 				return (TRUE);
 			}
@@ -141,6 +143,17 @@ int8_t Scanning_Config( void )
 {
 	static uint32_t ScanConfigTimeout = 0;
 	static RESOLVING_RECORD* Ptr;
+
+	switch( ScanConfig.Actual )
+	{
+	case DISABLE_SCANNING:
+		ScanningParameters->Own_Address_Type = ScanningParameters->Original_Own_Address_Type;
+		ScanningParameters->Own_Random_Address_Type = ScanningParameters->Original_Own_Random_Address_Type;
+		break;
+
+	default:
+		break;
+	}
 
 	return (FALSE);
 }
@@ -186,22 +199,44 @@ static SCAN_CONFIG Update_Random_Address( void )
 /****************************************************************/
 void Scanning( void )
 {
-	/* In privacy-enabled Peripheral, the Host shall set a timer equal to
-	 * TGAP(private_addr_int). The Host shall generate a new resolvable
-	 * private address or non-resolvable private address when the timer
-	 * TGAP(private_addr_int) expires. */
+	/* Privacy feature in a Central with Host-based privacy: The Host shall generate a resolvable
+	 * private address using the ‘resolvable private address generation procedure’ as defined in
+	 * Section 10.8.2.2 or non-resolvable private address procedure as defined in Section 10.8.2.1.
+	 * The Host shall set a timer equal to TGAP(private_addr_int). The Host shall generate a
+	 * new resolvable private address or non-resolvable private address when the
+	 * timer TGAP(private_addr_int) expires. Note: TGAP(private_addr_int) timer need not be run
+	 * if a Central is not scanning or connected. (Page 1389 Core_v5.2).
+	 * During active scanning, a privacy enabled Central shall use a non-resolvable
+	 * or resolvable private address. */
+
+	/* Privacy feature in an Observer: During active scanning, a privacy enabled Observer shall use
+	 * either a resolvable private address or non-resolvable private address.
+	 * If Address Resolution is not supported or disabled in the Controller, the
+	 * following applies to the Host: The Host shall generate a resolvable private
+	 * address using the ‘resolvable private address generation procedure’ as defined
+	 * in Section 10.8.2.2 or non-resolvable private address procedure as defined in
+	 * Section 10.8.2.1. The Host shall set a timer equal to TGAP(private_addr_int).
+	 * The Host shall generate a new resolvable private address or non-resolvable
+	 * private address when the timer TGAP(private_addr_int) expires. The value of
+	 * TGAP(private_addr_int) shall not be greater than 1 hour. Note: TGAP(private_addr_int)
+	 * timer need not be run if an Observer is not scanning. (Page 1389 Core_v5.2). */
+
 	/* If the Controller has address resolution and that is enabled, the RPA is
 	 * automatically generated given the timeout for the controller. However, in versions
 	 * lower that 4.1, this functionality does not exist so we need to generate again.
-	 * For non-resolvable private address (Broadcaster/non-connectable condition) we shall
-	 * generate since the controller will not do it. */
+	 * For non-resolvable private address we shall generate since the controller will not do it. */
 
-	//TODO
-	//	if( ScanningParameters->Privacy && ( ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) ||
-	//			( ( ScanningParameters->Original_Own_Address_Type == OWN_RANDOM_DEV_ADDR ) &&
-	//					( ScanningParameters->Original_Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE ) ) ) )
+	/* TODO: Here we consider the address resolution is always enabled in scanning.
+	 * Even for versions higher than 4.1, this function should be called if address resolution
+	 * is disabled. We lay on the fact address resolution is always enabled in the controller
+	 * for versions above 4.1. */
+
+	if( ScanningParameters->Privacy && ( ScanningParameters->LE_Scan_Type == ACTIVE_SCANNING ) &&
+			( ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) ||
+					( ( ScanningParameters->Original_Own_Address_Type == OWN_RANDOM_DEV_ADDR ) &&
+							( ScanningParameters->Original_Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE ) ) ) )
 	{
-		//		if( TimeBase_DelayMs( &ScanningParameters->Counter, TGAP_PRIVATE_ADDR_INT, TRUE ) )
+		if( TimeBase_DelayMs( &ScanningParameters->Counter, TGAP_PRIVATE_ADDR_INT, TRUE ) )
 		{
 			Set_BLE_State( CONFIG_SCANNING );
 		}
@@ -227,6 +262,16 @@ uint8_t Check_Scanning_Parameters( SCANNING_PARAMETERS* ScanPar )
 	{
 		/* LE_Scan_Window shall be less than or equal to LE_Scan_Interval */
 		return (FALSE);
+	}else if( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 )
+	{
+		//TODO: verificar
+		/* For Core version 4.1 and lower, the concept of resolving private addresses in the
+		 * controller is not present so the controller can not resolve the private addresses
+		 * in the controller, making these configuration unavailable */
+		if( ( ScanPar->Own_Address_Type > OWN_RANDOM_DEV_ADDR) || ( ScanPar->Scanning_Filter_Policy > 1 ) )
+		{
+			return (FALSE);
+		}
 	}
 
 	switch( ScanPar->Role )

@@ -26,6 +26,8 @@ typedef struct
 	uint8_t Privacy; /* TRUE / FALSE for peripheral privacy */
 	uint32_t Counter;
 	GAP_LE_ROLE Role;
+	OWN_ADDR_TYPE Original_Own_Address_Type;
+	RANDOM_ADDRESS_TYPE Original_Own_Random_Address_Type;
 }SCANNING_PARAMETERS;
 
 
