@@ -344,6 +344,9 @@ int8_t Advertising_Config( void )
 			AdvConfig.Next = SET_ADV_PARAMETERS;
 			AdvConfig.Prev = ENABLE_ADDRESS_RESOLUTION;
 			AdvConfig.Actual = HCI_LE_Set_Address_Resolution_Enable( TRUE, &LE_Set_Address_Resolution_Enable_Complete, NULL ) ? WAIT_OPERATION : ENABLE_ADDRESS_RESOLUTION;
+		}else
+		{
+			AdvConfig.Actual = SET_ADV_PARAMETERS;
 		}
 		break;
 
