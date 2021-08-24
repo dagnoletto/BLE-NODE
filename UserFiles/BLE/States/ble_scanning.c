@@ -7,7 +7,6 @@
 #include "TimeFunctions.h"
 #include "ble_utils.h"
 #include "hosted_functions.h"
-#include "security_manager.h"
 #include "ble_scanning.h"
 
 
@@ -65,8 +64,9 @@ void Scanning( void );
 //static void LE_Read_Advertising_Physical_Channel_Tx_Power_Complete( CONTROLLER_ERROR_CODES Status, int8_t TX_Power_Level );
 //static void LE_Set_Data_Complete( CONTROLLER_ERROR_CODES Status );
 //static void LE_Set_Address_Resolution_Enable_Complete( CONTROLLER_ERROR_CODES Status );
-static uint8_t Check_Observer_Parameters( SCANNING_PARAMETERS* ScanPar );
-static uint8_t Check_Central_Parameters( SCANNING_PARAMETERS* ScanPar );
+static uint8_t Check_Scanner_Parameters( SCANNING_PARAMETERS* ScanPar );
+static uint8_t Check_Random_Address_For_Scanning( SCANNING_PARAMETERS* ScanPar );
+static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Identity_Address );
 
 
 /****************************************************************/
@@ -119,8 +119,6 @@ uint8_t Enter_Scanning_Mode( SCANNING_PARAMETERS* ScanPar )
 			if( ScanningParameters != NULL )
 			{
 				*ScanningParameters = *ScanPar;
-				ScanningParameters->Original_Own_Address_Type = ScanningParameters->Own_Address_Type;
-				ScanningParameters->Original_Own_Random_Address_Type = ScanningParameters->Own_Random_Address_Type;
 				Set_BLE_State( CONFIG_SCANNING );
 				return (TRUE);
 			}
@@ -147,8 +145,6 @@ int8_t Scanning_Config( void )
 	switch( ScanConfig.Actual )
 	{
 	case DISABLE_SCANNING:
-		ScanningParameters->Own_Address_Type = ScanningParameters->Original_Own_Address_Type;
-		ScanningParameters->Own_Random_Address_Type = ScanningParameters->Original_Own_Random_Address_Type;
 		break;
 
 	default:
@@ -232,9 +228,8 @@ void Scanning( void )
 	 * for versions above 4.1. */
 
 	if( ScanningParameters->Privacy && ( ScanningParameters->LE_Scan_Type == ACTIVE_SCANNING ) &&
-			( ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) ||
-					( ( ScanningParameters->Original_Own_Address_Type == OWN_RANDOM_DEV_ADDR ) &&
-							( ScanningParameters->Original_Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE ) ) ) )
+			( ( ScanningParameters->Own_Address_Type == OWN_RANDOM_DEV_ADDR || ScanningParameters->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) &&
+					( ScanningParameters->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE || ScanningParameters->Own_Random_Address_Type == RESOLVABLE_PRIVATE ) ) )
 	{
 		if( TimeBase_DelayMs( &ScanningParameters->Counter, TGAP_PRIVATE_ADDR_INT, TRUE ) )
 		{
@@ -254,20 +249,19 @@ void Scanning( void )
 /****************************************************************/
 uint8_t Check_Scanning_Parameters( SCANNING_PARAMETERS* ScanPar )
 {
-	if ( ( ScanPar->Own_Address_Type == OWN_RANDOM_DEV_ADDR ) && ( ScanPar->Own_Random_Address_Type == RESOLVABLE_PRIVATE ) )
-	{
-		/* We should only configure random as non-resolvable or static random address */
-		return (FALSE);
-	}else if( ( ScanPar->LE_Scan_Window ) > ( ScanPar->LE_Scan_Interval ) )
+	if( ScanPar->LE_Scan_Window > ScanPar->LE_Scan_Interval )
 	{
 		/* LE_Scan_Window shall be less than or equal to LE_Scan_Interval */
 		return (FALSE);
 	}else if( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 )
 	{
-		//TODO: verificar
 		/* For Core version 4.1 and lower, the concept of resolving private addresses in the
 		 * controller is not present so the controller can not resolve the private addresses
-		 * in the controller, making these configuration unavailable */
+		 * in the controller, making this configuration unavailable. That means if the controller
+		 * receives an advertising address that matches the resolving list, the controller will not
+		 * generate its own RPA to request the scan to the advertiser. Although this configuration only
+		 * matters for active scanning, we avoid going further if the device does not support the
+		 * parameter range. */
 		if( ( ScanPar->Own_Address_Type > OWN_RANDOM_DEV_ADDR) || ( ScanPar->Scanning_Filter_Policy > 1 ) )
 		{
 			return (FALSE);
@@ -278,11 +272,8 @@ uint8_t Check_Scanning_Parameters( SCANNING_PARAMETERS* ScanPar )
 	{
 
 	case OBSERVER:
-		return( Check_Observer_Parameters( ScanPar ) );
-		break;
-
 	case CENTRAL:
-		return( Check_Central_Parameters( ScanPar ) );
+		return( Check_Scanner_Parameters( ScanPar ) );
 		break;
 
 		/* Other roles are not allowed in scanning */
@@ -295,30 +286,108 @@ uint8_t Check_Scanning_Parameters( SCANNING_PARAMETERS* ScanPar )
 
 
 /****************************************************************/
-/* Check_Observer_Parameters()      							*/
+/* Check_Scanner_Parameters()      								*/
 /* Location: 													*/
-/* Purpose: Verify scanning parameters for observer role.		*/
+/* Purpose: Verify scanning parameters for scanner.				*/
 /* Parameters: none				         						*/
 /* Return:														*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Check_Observer_Parameters( SCANNING_PARAMETERS* ScanPar )
+static uint8_t Check_Scanner_Parameters( SCANNING_PARAMETERS* ScanPar )
 {
-	return (TRUE);
+	switch( ScanPar->Own_Address_Type )
+	{
+	case OWN_PUBLIC_DEV_ADDR:
+		/* During active scanning, a privacy enabled Central shall use a non-resolvable
+		or resolvable private address. */
+		return ( ( ( ScanPar->LE_Scan_Type == ACTIVE_SCANNING ) && ScanPar->Privacy ) ? FALSE : TRUE );
+		break;
+
+	case OWN_RANDOM_DEV_ADDR:
+		return ( Check_Random_Address_For_Scanning( ScanPar ) );
+		break;
+
+	case OWN_RESOL_OR_PUBLIC_ADDR:
+		/* Due to the fact the public address may be used for active scanning, no privacy is
+		 * guaranteed under this condition. */
+		return ( ( ( ScanPar->LE_Scan_Type == ACTIVE_SCANNING ) && ScanPar->Privacy ) ? FALSE : TRUE );
+		break;
+
+	case OWN_RESOL_OR_RANDOM_ADDR:
+		/* If we are scanning actively with privacy, the privacy depends pretty much of how
+		 * random part is configured. */
+		if( ( ScanPar->LE_Scan_Type == ACTIVE_SCANNING ) && ScanPar->Privacy )
+		{
+			/* Check random part */
+			return ( Check_Random_Address_For_Scanning( ScanPar ) );
+		}else if( ScanPar->Own_Random_Address_Type == RESOLVABLE_PRIVATE )
+		{
+			/* Check resolvable private address is possible to generate */
+			return ( Check_Local_Resolvable_Private_Address( &ScanPar->PeerId ) );
+		}else
+		{
+			return (TRUE);
+		}
+		break;
+	}
+	return (FALSE);
 }
 
 
 /****************************************************************/
-/* Check_Central_Parameters()      								*/
+/* Check_Random_Address_For_Scanning()   						*/
 /* Location: 													*/
-/* Purpose: Verify scanning parameters for central role.		*/
+/* Purpose: Check if random address for scanning.				*/
 /* Parameters: none				         						*/
 /* Return:														*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Check_Central_Parameters( SCANNING_PARAMETERS* ScanPar )
+static uint8_t Check_Random_Address_For_Scanning( SCANNING_PARAMETERS* ScanPar )
 {
-	return (TRUE);
+	switch( ScanPar->Own_Random_Address_Type )
+	{
+	case STATIC_DEVICE_ADDRESS:
+		/* During active scanning, a privacy enabled Central shall use a non-resolvable
+		or resolvable private address. */
+		return ( ( ( ScanPar->LE_Scan_Type == ACTIVE_SCANNING ) && ScanPar->Privacy ) ? FALSE : TRUE );
+		break;
+
+	case RESOLVABLE_PRIVATE:
+		/* Permitted in privacy mode */
+		/* But we need to know if we have record for the peer identity. */
+		return ( Check_Local_Resolvable_Private_Address( &ScanPar->PeerId ) );
+		break;
+
+	case NON_RESOLVABLE_PRIVATE:
+		/* Permitted in privacy mode */
+		return (TRUE);
+		break;
+	}
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Check_Local_Resolvable_Private_Address()   					*/
+/* Location: 													*/
+/* Purpose: Check if local RPA can be generated.				*/
+/* Parameters: none				         						*/
+/* Return:														*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Identity_Address )
+{
+	RESOLVING_RECORD* RecordPtr = Get_Record_From_Peer_Identity( Peer_Identity_Address );
+	if( RecordPtr != NULL )
+	{
+		/* The local IRK must be valid since local identity would be used instead of
+		 * Resolvable private address. */
+		if( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) )
+		{
+			return (TRUE);
+		}
+	}
+	return (FALSE);
 }
 
 
