@@ -154,12 +154,9 @@ int8_t Advertising_Config( void )
 		AdvertisingParameters->Peer_Address = AdvertisingParameters->Original_Peer_Address;
 		AdvConfigTimeout = 0;
 		AdvertisingParameters->Counter = 0;
-		if( Get_Supported_Commands()->Bits.HCI_LE_Set_Advertising_Enable )
-		{
-			AdvConfig.Next = DISABLE_ADDRESS_RESOLUTION;
-			AdvConfig.Prev = DISABLE_ADVERTISING;
-			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
-		}
+		AdvConfig.Next = DISABLE_ADDRESS_RESOLUTION;
+		AdvConfig.Prev = DISABLE_ADVERTISING;
+		AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
 		break;
 
 	case DISABLE_ADDRESS_RESOLUTION:
@@ -289,11 +286,8 @@ int8_t Advertising_Config( void )
 
 	case SET_RANDOM_ADDRESS:
 		AdvConfigTimeout = 0;
-		if( Get_Supported_Commands()->Bits.HCI_LE_Set_Random_Address )
-		{
-			AdvConfig.Next = SET_PEER_ADDRESS;
-			AdvConfig.Actual = HCI_LE_Set_Random_Address( RandomAddress, &LE_Set_Random_Address_Complete, NULL ) ? WAIT_OPERATION : SET_RANDOM_ADDRESS;
-		}
+		AdvConfig.Next = SET_PEER_ADDRESS;
+		AdvConfig.Actual = HCI_LE_Set_Random_Address( RandomAddress, &LE_Set_Random_Address_Complete, NULL ) ? WAIT_OPERATION : SET_RANDOM_ADDRESS;
 		break;
 
 	case SET_PEER_ADDRESS:
@@ -352,13 +346,10 @@ int8_t Advertising_Config( void )
 
 	case SET_ADV_PARAMETERS:
 		AdvConfigTimeout = 0;
-		if( Get_Supported_Commands()->Bits.HCI_LE_Set_Advertising_Parameters )
-		{
-			AdvConfig.Next = LOAD_ADV_DATA;
-			AdvConfig.Actual = HCI_LE_Set_Advertising_Parameters( AdvertisingParameters->Advertising_Interval_Min, AdvertisingParameters->Advertising_Interval_Max, AdvertisingParameters->Advertising_Type,
-					AdvertisingParameters->Own_Address_Type, AdvertisingParameters->Peer_Address_Type, AdvertisingParameters->Peer_Address,
-					AdvertisingParameters->Advertising_Channel_Map, AdvertisingParameters->Advertising_Filter_Policy, &LE_Set_Advertising_Parameters_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_PARAMETERS;
-		}
+		AdvConfig.Next = LOAD_ADV_DATA;
+		AdvConfig.Actual = HCI_LE_Set_Advertising_Parameters( AdvertisingParameters->Advertising_Interval_Min, AdvertisingParameters->Advertising_Interval_Max, AdvertisingParameters->Advertising_Type,
+				AdvertisingParameters->Own_Address_Type, AdvertisingParameters->Peer_Address_Type, AdvertisingParameters->Peer_Address,
+				AdvertisingParameters->Advertising_Channel_Map, AdvertisingParameters->Advertising_Filter_Policy, &LE_Set_Advertising_Parameters_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_PARAMETERS;
 		break;
 
 	case LOAD_ADV_DATA:
@@ -393,32 +384,23 @@ int8_t Advertising_Config( void )
 
 	case SET_ADV_DATA:
 		AdvConfigTimeout = 0;
-		if( Get_Supported_Commands()->Bits.HCI_LE_Set_Advertising_Data )
-		{
-			AdvConfig.Next = SET_SCAN_RSP_DATA;
-			AdvConfig.Prev = SET_ADV_DATA;
-			AdvConfig.Actual = HCI_LE_Set_Advertising_Data( AdvertisingParameters->HostData.Adv_Data_Length, AdvertisingParameters->HostData.Adv_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_DATA;
-		}
+		AdvConfig.Next = SET_SCAN_RSP_DATA;
+		AdvConfig.Prev = SET_ADV_DATA;
+		AdvConfig.Actual = HCI_LE_Set_Advertising_Data( AdvertisingParameters->HostData.Adv_Data_Length, AdvertisingParameters->HostData.Adv_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_ADV_DATA;
 		break;
 
 	case SET_SCAN_RSP_DATA:
 		AdvConfigTimeout = 0;
-		if( Get_Supported_Commands()->Bits.HCI_LE_Set_Scan_Response_Data )
-		{
-			AdvConfig.Next = ENABLE_ADVERTISING;
-			AdvConfig.Prev = SET_SCAN_RSP_DATA;
-			AdvConfig.Actual = HCI_LE_Set_Scan_Response_Data( AdvertisingParameters->HostData.ScanRsp_Data_Length, AdvertisingParameters->HostData.Scan_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_RSP_DATA;
-		}
+		AdvConfig.Next = ENABLE_ADVERTISING;
+		AdvConfig.Prev = SET_SCAN_RSP_DATA;
+		AdvConfig.Actual = HCI_LE_Set_Scan_Response_Data( AdvertisingParameters->HostData.ScanRsp_Data_Length, AdvertisingParameters->HostData.Scan_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_RSP_DATA;
 		break;
 
 	case ENABLE_ADVERTISING:
 		AdvConfigTimeout = 0;
-		if( Get_Supported_Commands()->Bits.HCI_LE_Set_Advertising_Enable )
-		{
-			AdvConfig.Next = END_ADV_CONFIG;
-			AdvConfig.Prev = ENABLE_ADVERTISING;
-			AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( TRUE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : ENABLE_ADVERTISING;
-		}
+		AdvConfig.Next = END_ADV_CONFIG;
+		AdvConfig.Prev = ENABLE_ADVERTISING;
+		AdvConfig.Actual = HCI_LE_Set_Advertising_Enable( TRUE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : ENABLE_ADVERTISING;
 		break;
 
 	case END_ADV_CONFIG:

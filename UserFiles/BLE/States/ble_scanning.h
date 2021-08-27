@@ -25,6 +25,7 @@ typedef struct
 	RANDOM_ADDRESS_TYPE Own_Random_Address_Type; /* Type of random address when Own_Address_Type == OWN_RANDOM_DEV_ADDR */
 	IDENTITY_ADDRESS PeerId; /* For when Own_Address_Type == OWN_RANDOM_DEV_ADDR and Own_Random_Address_Type == RESOLVABLE_PRIVATE */
 	uint8_t Scanning_Filter_Policy;
+	uint8_t Filter_Duplicates;
 	uint8_t Privacy; /* TRUE / FALSE for peripheral privacy */
 	uint32_t Counter;
 	GAP_LE_ROLE Role;
