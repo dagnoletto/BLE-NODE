@@ -740,8 +740,9 @@ uint8_t Enter_StandBy_Mode( void )
 	case ISOCHRONOUS_BROADCASTING_STATE:
 		/* TODO: algumas funções tem máquinas de estado para transição, ou seja, estas funções
 		 * devem ir do início ao fim, caso contrário a próxima chamada de função vai "zoar" com a mesma
-		 * Por isso, evaliar quais são as funções e esperar as mesmas terminarem ou prover uma maneira
+		 * Por isso, avaliar quais são as funções e esperar as mesmas terminarem ou prover uma maneira
 		 * de resetar estas funções por aqui antes de colocar o sistema em stand-by. */
+		/* TODO: liberar memória alocada das funções de advertisement, scanning e etc? */
 		Standby_Flag = BLE_FALSE;
 		Set_BLE_State( STANDBY_STATE );
 		return (TRUE);
