@@ -19,13 +19,14 @@ typedef enum
 	DISABLE_ADDRESS_RESOLUTION,
 	CLEAR_RESOLVING_LIST,
 	ADD_TO_RESOLVING_LIST,
-	VERIFY_ADDRESS,
+	VERIFY_OWN_ADDRESS,
+	GENERATE_RANDOM_ADDRESS,
 	//	WAIT_FOR_NEW_LOCAL_READ,
 	//	GENERATE_NON_RESOLVABLE_ADDRESS,
 	//	SET_RANDOM_ADDRESS,
 	//	SET_PEER_ADDRESS,
 	//	WAIT_FOR_NEW_PEER_READ,
-	//	ENABLE_ADDRESS_RESOLUTION,
+	ENABLE_ADDRESS_RESOLUTION,
 	//	SET_ADV_PARAMETERS,
 	//	LOAD_ADV_DATA,
 	//	READ_ADV_POWER,
@@ -56,7 +57,7 @@ void Scanning( void );
 //static ADV_CONFIG Check_Local_IRK( RESOLVING_RECORD* ResolvingRecord, uint8_t RPAInController );
 //static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
 static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
-//static void LE_Add_Device_To_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Add_Device_To_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 //static void Read_Peer_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Peer_Resolvable_Address );
 static void LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 //static void LE_Set_Advertising_Parameters_Complete( CONTROLLER_ERROR_CODES Status );
@@ -171,12 +172,57 @@ int8_t Scanning_Config( void )
 			ScanConfig.Actual = HCI_LE_Clear_Resolving_List( &LE_Clear_Resolving_List_Complete, NULL ) ? WAIT_OPERATION : CLEAR_RESOLVING_LIST;
 		}else
 		{
-			ScanConfig.Actual = VERIFY_ADDRESS;
+			ScanConfig.Actual = VERIFY_OWN_ADDRESS;
 		}
 		break;
 
-	default:
+	case ADD_TO_RESOLVING_LIST:
+		/* Check if we have bonded devices to add to the resolving list */
+		if ( SM_Resolving_List_Index < Get_Number_Of_Resolving_Records() )
+		{
+			DEVICE_IDENTITY* DevId = &( Get_Record_From_Index( SM_Resolving_List_Index )->Peer );
+			/* Here we add a device to the controller's resolving list if it exists in the Host's list */
+			ScanConfig.Actual = HCI_LE_Add_Device_To_Resolving_List( DevId->Peer_Identity_Address.Type, DevId->Peer_Identity_Address.Address,
+					&DevId->Peer_IRK, &DevId->Local_IRK, &LE_Add_Device_To_Resolving_List_Complete, NULL ) ? WAIT_OPERATION : ADD_TO_RESOLVING_LIST;
+		}else
+		{
+			ScanConfig.Actual = VERIFY_OWN_ADDRESS;
+		}
 		break;
+
+	case VERIFY_OWN_ADDRESS:
+		switch( ScanningParameters->Own_Address_Type )
+		{
+		case OWN_PUBLIC_DEV_ADDR:
+		case OWN_RESOL_OR_PUBLIC_ADDR:
+			ScanConfig.Actual = ENABLE_ADDRESS_RESOLUTION;
+			break;
+
+			/* For random address options, we shall populate the random address before setting scanning parameters */
+		case OWN_RANDOM_DEV_ADDR:
+		case OWN_RESOL_OR_RANDOM_ADDR:
+		default:
+			ScanConfig.Actual = GENERATE_RANDOM_ADDRESS;
+			break;
+		}
+		break;
+
+		case GENERATE_RANDOM_ADDRESS:
+			break;
+
+		case ENABLE_ADDRESS_RESOLUTION:
+			break;
+
+		case WAIT_OPERATION:
+			if( TimeBase_DelayMs( &ScanConfigTimeout, 500, TRUE ) )
+			{
+				ScanConfig.Actual = DISABLE_SCANNING;
+				ScanConfig.Next = DISABLE_SCANNING;
+			}
+			break;
+
+		default:
+			break;
 	}
 
 	return (FALSE);
@@ -237,12 +283,13 @@ int8_t Scanning_Config( void )
 //			break;
 	 */
 
+	/*
 	//		case ADD_TO_RESOLVING_LIST:
-	//			/* Check if we have bonded devices to add to the resolving list */
+	//
 	//			if ( SM_Resolving_List_Index < Get_Number_Of_Resolving_Records() )
 	//			{
 	//				DEVICE_IDENTITY* DevId = &( Get_Record_From_Index( SM_Resolving_List_Index )->Peer );
-	//				/* Here we add a device to the controller's resolving list if it exists in the Host's list */
+	//
 	//				AdvConfig.Actual = HCI_LE_Add_Device_To_Resolving_List( DevId->Peer_Identity_Address.Type, DevId->Peer_Identity_Address.Address,
 	//						&DevId->Peer_IRK, &DevId->Local_IRK, &LE_Add_Device_To_Resolving_List_Complete, NULL ) ? WAIT_OPERATION : ADD_TO_RESOLVING_LIST;
 	//			}else
@@ -250,6 +297,8 @@ int8_t Scanning_Config( void )
 	//				AdvConfig.Actual = VERIFY_ADDRESS;
 	//			}
 	//			break;
+	 */
+
 	//
 	//		case VERIFY_ADDRESS:
 	//		{
@@ -463,6 +512,8 @@ int8_t Scanning_Config( void )
 	//			return (-1); /* Failed condition */
 	//			break;
 	//
+
+	/*
 	//		case WAIT_OPERATION:
 	//			if( TimeBase_DelayMs( &AdvConfigTimeout, 500, TRUE ) )
 	//			{
@@ -470,6 +521,9 @@ int8_t Scanning_Config( void )
 	//				AdvConfig.Next = DISABLE_ADVERTISING;
 	//			}
 	//			break;
+	 *
+	 */
+
 	//
 	//		default:
 	//			break;
@@ -514,6 +568,28 @@ static void LE_Set_Address_Resolution_Enable_Complete( CONTROLLER_ERROR_CODES St
 static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	ScanConfig.Actual = ADD_TO_RESOLVING_LIST;
+}
+
+
+/****************************************************************/
+/* LE_Add_Device_To_Resolving_List_Complete()	      			*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Add_Device_To_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	if ( Status == COMMAND_SUCCESS )
+	{
+		ScanConfig.Actual = ADD_TO_RESOLVING_LIST;
+		SM_Resolving_List_Index++;
+	}else if( Status == MEM_CAPACITY_EXCEEDED )
+	{
+		ScanConfig.Actual = VERIFY_OWN_ADDRESS;
+	}else
+	{
+		ScanConfig.Actual = ADD_TO_RESOLVING_LIST;
+	}
 }
 
 
