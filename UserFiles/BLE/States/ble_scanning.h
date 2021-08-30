@@ -32,6 +32,17 @@ typedef struct
 }SCANNING_PARAMETERS;
 
 
+typedef struct
+{
+	uint8_t Event_Type;
+	ADDRESS_TYPE Address_Type;
+	BD_ADDR_TYPE Address;
+	uint8_t Data_Length;
+	uint8_t* DataPtr;
+	int8_t RSSI;
+}ADVERTISING_REPORT;
+
+
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/

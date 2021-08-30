@@ -2420,29 +2420,10 @@ __attribute__((weak)) void HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES St
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-__attribute__((weak)) void HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], ADDRESS_TYPE Address_Type[], BD_ADDR_TYPE Address[],
+__attribute__((weak)) void 	HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint8_t Event_Type[], ADDRESS_TYPE Address_Type[], BD_ADDR_TYPE Address[],
 		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
 {
 	/* The user should implement at higher layers since it is weak. */
-
-	/* The code below fills a buffer with the pointers for each data report */
-	uint16_t Number_Of_Data_Bytes = 0;
-	uint8_t* DataPtr[MAX_ADVERTISING_NUM_REPORTS];
-
-	memset( &DataPtr[0], 0, sizeof(DataPtr) );
-
-	for( uint8_t i = 0; i < Num_Reports; i++ )
-	{
-		if( Data_Length[i] != 0 )
-		{
-			DataPtr[i] = (uint8_t*)( &( Data[Number_Of_Data_Bytes] ) );
-		}
-		Number_Of_Data_Bytes += Data_Length[i];
-	}
-
-	static uint8_t AdvData[40];
-
-	memcpy( &AdvData[0], DataPtr[0], Data_Length[0] );
 }
 
 

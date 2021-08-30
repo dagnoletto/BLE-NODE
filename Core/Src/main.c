@@ -155,7 +155,7 @@ int main(void)
 
 			SCANNING_PARAMETERS Scan;
 
-			Scan.LE_Scan_Type = ACTIVE_SCANNING;
+			Scan.LE_Scan_Type = PASSIVE_SCANNING;
 			Scan.LE_Scan_Interval = 320;
 			Scan.LE_Scan_Window = 320;
 			Scan.Own_Address_Type = OWN_PUBLIC_DEV_ADDR;

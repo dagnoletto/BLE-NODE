@@ -1004,6 +1004,7 @@ void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBac
 /****************************************************************/
 static void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr )
 {
+	uint8_t Subevent_Code = EventPacketPtr->Event_Parameter[0];
 	uint8_t Num_Reports = EventPacketPtr->Event_Parameter[1];
 	uint16_t Data_Length_OffSet = ( Num_Reports * 8 ) + 2;
 	uint16_t Number_Of_Data_Bytes = 0;
@@ -1013,9 +1014,8 @@ static void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr )
 		Number_Of_Data_Bytes += EventPacketPtr->Event_Parameter[Data_Length_OffSet + i];
 	}
 
-	HCI_LE_Advertising_Report( Num_Reports, &(EventPacketPtr->Event_Parameter[2]), &(EventPacketPtr->Event_Parameter[Num_Reports + 2]), (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[ ( Num_Reports * 2 ) + 2 ]) ),
+	HCI_LE_Advertising_Report( Subevent_Code, Num_Reports, &(EventPacketPtr->Event_Parameter[2]), &(EventPacketPtr->Event_Parameter[Num_Reports + 2]), (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[ ( Num_Reports * 2 ) + 2 ]) ),
 			&(EventPacketPtr->Event_Parameter[Data_Length_OffSet]), &( EventPacketPtr->Event_Parameter[Data_Length_OffSet + Num_Reports] ), (int8_t*)(&(EventPacketPtr->Event_Parameter[( Num_Reports * 9 ) + Number_Of_Data_Bytes + 2])) );
-
 }
 
 
