@@ -229,6 +229,7 @@ void Vendor_Specific_Process( void )
 		{
 			uint8_t* DataPtr = Config.Jobs->JobList[0].DataPtr;
 			free( Config.Jobs ); /* free allocated memory */
+			Config.Jobs = NULL;
 			ConfigCallBack = ( Config.CallBack == NULL ) ? &Default_VS_Config_CallBack : Config.CallBack;
 			ConfigCallBack( DataPtr ); /* Return the first job data pointer */
 			Config.Step = CONFIG_FREE;
@@ -240,6 +241,7 @@ void Vendor_Specific_Process( void )
 
 	case CONFIG_FAILURE:
 		free( Config.Jobs ); /* free allocated memory */
+		Config.Jobs = NULL;
 		ConfigCallBack = ( Config.CallBack == NULL ) ? &Default_VS_Config_CallBack : Config.CallBack;
 		ConfigCallBack( NULL ); /* If pointer passed is NULL, that means operation was not OK */
 		Config.Step = CONFIG_FREE;
