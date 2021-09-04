@@ -413,7 +413,14 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 			case LE_ADVERTISING_REPORT:
 				RETURN_ON_FAULT(Status);
-				LE_Advertising_Report_Handler( EventPacketPtr );
+				if( Hosted_Address_Resolution_Status( ) )
+				{
+					OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
+					Delegate_Function_To_Host( OpCode, NULL/*CmdCallBack*/, EventPacketPtr );//TODO: continuar a partir daqui
+				}else
+				{
+					LE_Advertising_Report_Handler( EventPacketPtr );
+				}
 				break;
 
 			case LE_CONNECTION_UPDATE_COMPLETE:

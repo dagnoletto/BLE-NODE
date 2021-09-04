@@ -219,6 +219,19 @@ uint8_t Hosted_LE_Set_Resolvable_Private_Address_Timeout(void* DataPtr, uint16_t
 
 
 /****************************************************************/
+/* Hosted_Address_Resolution_Status()         		   	        */
+/* Purpose: Check if resolution is enabled.						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Hosted_Address_Resolution_Status( void )
+{
+	return ( ( Address_Resol_Controller ) && ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) );
+}
+
+
+/****************************************************************/
 /* Delegate_Function_To_Host()            		   	            */
 /* Purpose: Check which functions can be delegated to host.		*/
 /* Parameters: none				         						*/
@@ -235,6 +248,10 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 	/* We must transform a status event packet to a command event packet */
 	switch ( OpCode.Val )
 	{
+	case HCI_LE_SET_SCAN_ENABLE:
+		/* This command is "faked" and is used to check the advertising report. */
+		break;
+
 	case HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST:
 		EventPacketPtr->Parameter_Total_Length = 4;
 		Transform_Status_To_Command_Event( EventPacketPtr );

@@ -158,12 +158,12 @@ int main(void)
 			Scan.LE_Scan_Type = PASSIVE_SCANNING;
 			Scan.LE_Scan_Interval = 320;
 			Scan.LE_Scan_Window = 320;
-			Scan.Own_Address_Type = OWN_RANDOM_DEV_ADDR;
-			Scan.Own_Random_Address_Type = RESOLVABLE_PRIVATE;
+			Scan.Own_Address_Type = OWN_PUBLIC_DEV_ADDR;
+			Scan.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
 			Scan.PeerId = Record.Peer.Peer_Identity_Address;
 			Scan.Scanning_Filter_Policy = 0;
 			Scan.Filter_Duplicates = 0;
-			Scan.Privacy = TRUE; //FALSE;
+			Scan.Privacy = FALSE;
 			Scan.Role = OBSERVER;
 
 			Enter_Scanning_Mode( &Scan );
