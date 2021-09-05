@@ -59,7 +59,6 @@ static void Hal_LE_Tx_Test_Packet_Number_Complete( void* CmdCallBackFun, HCI_EVE
 static void Hal_Get_Link_Status_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr );
 static void Hal_Get_Anchor_Period_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr );
 
-static void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr );
 static void Fault_Data_Event_Handler( HCI_EVENT_PCKT* EventPacketPtr );
 
 
@@ -416,7 +415,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				if( Hosted_Address_Resolution_Status( ) )
 				{
 					OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
-					Delegate_Function_To_Host( OpCode, NULL/*CmdCallBack*/, EventPacketPtr );//TODO: continuar a partir daqui
+					Delegate_Function_To_Host( OpCode, NULL, EventPacketPtr );
 				}else
 				{
 					LE_Advertising_Report_Handler( EventPacketPtr );
@@ -1009,7 +1008,7 @@ void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBac
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr )
+void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr )
 {
 	uint8_t Subevent_Code = EventPacketPtr->Event_Parameter[0];
 	uint8_t Num_Reports = EventPacketPtr->Event_Parameter[1];

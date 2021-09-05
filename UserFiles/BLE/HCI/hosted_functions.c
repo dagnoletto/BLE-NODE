@@ -36,6 +36,8 @@ typedef struct
 }HOSTED_RESOLVING_LIST;
 
 
+#define EVENT_BYTES_SIZE ( sizeof(((HCI_EVENT_PCKT*)NULL)->Event_Code) + \
+		sizeof(((HCI_EVENT_PCKT*)NULL)->Parameter_Total_Length) + UINT8_MAX )
 typedef struct
 {
 	HCI_COMMAND_OPCODE OpCode;
@@ -44,9 +46,8 @@ typedef struct
 	/*  The Host shall be able to accept HCI Event
 	  packets with up to 255 octets of data excluding the HCI Event packet header. The
 	  The HCI Event packet header is the first 2 octets of the packet. So, this
-	  EventBytes[257] should be the ideal. However, 52 bytes is enough for the commands
-	  being simulated here. */
-	uint8_t EventBytes[52];
+	  EventBytes[257] should be the ideal. */
+	uint8_t EventBytes[EVENT_BYTES_SIZE];
 }ASYNC_COMMAND;
 
 
@@ -250,6 +251,13 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 	{
 	case HCI_LE_SET_SCAN_ENABLE:
 		/* This command is "faked" and is used to check the advertising report. */
+		if( !CommandToProcess.OpCode.Val ) /* Make sure any processing is happening on the list right now */
+		{
+			/* No callback is needed */
+			CommandToProcess.OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
+			CommandToProcess.ProcessSteps = 0;
+			memcpy( &CommandToProcess.EventBytes[0], &EventPacketPtr->Event_Code, (uint16_t)( EventPacketPtr->Parameter_Total_Length + 2 ) );
+		}
 		break;
 
 	case HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST:
@@ -728,6 +736,14 @@ void Hosted_Functions_Process( void )
 	/* Terminate commands that need more processing */
 	switch( CommandToProcess.OpCode.Val )
 	{
+
+	case HCI_LE_SET_SCAN_ENABLE:
+	{
+		//TODO: verificar se endereços podem ser resolvíveis
+		LE_Advertising_Report_Handler( (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
+		CommandToProcess.OpCode.Val = 0;
+	}
+	break;
 
 	case TRUE:
 	case HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST:

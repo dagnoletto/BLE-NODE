@@ -114,6 +114,7 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		TRANSFER_CALL_BACK_MODE CallBackMode,
 		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack);
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
+void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr );
 void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
 		HCI_EVENT_PCKT* EventPacketPtr );
 void Command_Complete_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
