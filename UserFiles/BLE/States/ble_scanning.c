@@ -628,7 +628,7 @@ static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Id
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint8_t Event_Type[], ADDRESS_TYPE Address_Type[], BD_ADDR_TYPE Address[],
+void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
 		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
 {
 	/* Sub event code for the HCI_LE_Advertising_Report event: page 2382 Core_v5.2 */

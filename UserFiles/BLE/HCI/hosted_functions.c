@@ -368,10 +368,13 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		if( ( Address_Resol_Controller ) && ( ( state == ADVERTISING_STATE ) || ( state == SCANNING_STATE ) ) )
 		{
 			EventPacketPtr->Event_Parameter[3] = COMMAND_DISALLOWED;
-		}else
+		}else if( !CommandToProcess.OpCode.Val )
 		{
 			Hosted_Resolving_List.NumberOfEntries = 0;
 			EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
+		}else
+		{
+			EventPacketPtr->Event_Parameter[3] = CONTROLLER_BUSY;
 		}
 		Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
 
@@ -381,8 +384,18 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 
 		EventPacketPtr->Parameter_Total_Length = 5;
 		Transform_Status_To_Command_Event( EventPacketPtr );
-		EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
-		EventPacketPtr->Event_Parameter[4] = HOSTED_RESOLVING_LIST_SIZE;
+		if( ( CommandToProcess.OpCode.Val != HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST ) &&
+				( CommandToProcess.OpCode.Val != HCI_LE_REMOVE_DEVICE_FROM_RESOLVING_LIST ) &&
+				( CommandToProcess.OpCode.Val != HCI_LE_CLEAR_RESOLVING_LIST ) )
+		{
+			EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
+			EventPacketPtr->Event_Parameter[4] = HOSTED_RESOLVING_LIST_SIZE;
+		}else
+		{
+			/* There is a command that possibly changes the size, so first wait for it to finish */
+			EventPacketPtr->Event_Parameter[3] = CONTROLLER_BUSY;
+			EventPacketPtr->Event_Parameter[4] = 0;
+		}
 		Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
 
 		break;
@@ -491,10 +504,13 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		}else if( Address_Resol_Controller_Cmd & 0xFE ) /* Check if parameter values are OK */
 		{
 			EventPacketPtr->Event_Parameter[3] = INVALID_HCI_COMMAND_PARAMETERS;
-		}else
+		}else if( !CommandToProcess.OpCode.Val )
 		{
 			Address_Resol_Controller = Address_Resol_Controller_Cmd;
 			EventPacketPtr->Event_Parameter[3] = COMMAND_SUCCESS;
+		}else
+		{
+			EventPacketPtr->Event_Parameter[3] = CONTROLLER_BUSY;
 		}
 		Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
 
@@ -684,6 +700,10 @@ void Hosted_Functions_Process( void )
 	static RESOLVABLE_DESCRIPTOR* Desc;
 	static uint8_t RenewRPAs = FALSE;
 	static uint8_t EntriesCounter = 0;
+	static uint8_t Num_Reports;
+	static uint8_t* Address_Type_Ptr;
+	static uint8_t* Event_Type_Ptr;
+	static BD_ADDR_TYPE* Address_Ptr;
 	BD_ADDR_TYPE* Addr;
 
 	/* Generates/resolve device addresses */
@@ -739,6 +759,63 @@ void Hosted_Functions_Process( void )
 
 	case HCI_LE_SET_SCAN_ENABLE:
 	{
+		switch( CommandToProcess.ProcessSteps )
+		{
+		case 0:
+			Num_Reports = CommandToProcess.EventBytes[1];
+			Event_Type_Ptr = &CommandToProcess.EventBytes[2];
+			Address_Type_Ptr = &(CommandToProcess.EventBytes[Num_Reports + 2]);
+			Address_Ptr = (BD_ADDR_TYPE*)(&(CommandToProcess.EventBytes[ ( Num_Reports * 2 ) + 2 ]) );
+			CommandToProcess.ProcessSteps = 1;
+			break;
+
+		case 1:
+			if( Num_Reports > 0 )
+			{
+				uint8_t Index = Num_Reports - 1;
+				if( ( (ADDRESS_TYPE)( Address_Type_Ptr[Index] ) ) == RANDOM_DEV_ADDR )
+				{
+					/* Only RANDOM_DEV_ADDR may be resolved */
+					if( ( Address_Ptr[Index].Bytes[sizeof(BD_ADDR_TYPE) - 1] & 0xC0 ) == 0x40 )
+					{
+						/* This is a resolvable private address, we should try to resolve it */
+						CommandToProcess.ProcessSteps = 2;
+					}else
+					{
+						/* This is not RPA, so we will not try to resolve it */
+						//TODO: decrement num report
+					}
+				}else
+				{
+					/* This address is already resolved, we don't need to do anything about it */
+					//TODO: decrement num report
+				}
+			}else
+			{
+				//TODO: terminate
+			}
+			break;
+
+		case 2:
+			switch( Event_Type_Ptr[Num_Reports - 1] )
+			{
+			case ADV_IND_EVT:
+			case ADV_SCAN_IND_EVT:
+			case ADV_NONCONN_IND_EVT:
+			case SCAN_RSP_EVT:
+				/* These shall use peer IRK values */
+				break;
+
+			case ADV_DIRECT_IND_EVT:
+				/* This should use local IRK, although a directed RPA should never get here since it would have been blocked
+				 * because TargetA is different from this device. */
+				break;
+			}
+			//TODO: somente resolve se for diferente do record identity e se o peer IRK for não nulo
+			//TODO: tem que saber se evento foi global ou directed para usar o IRK local ou peer.
+			break;
+
+		}
 		//TODO: verificar se endereços podem ser resolvíveis
 		LE_Advertising_Report_Handler( (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
 		CommandToProcess.OpCode.Val = 0;
