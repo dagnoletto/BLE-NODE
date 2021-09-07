@@ -58,6 +58,7 @@ static void Transform_Status_To_Command_Event( HCI_EVENT_PCKT* EventPacketPtr );
 static CONTROLLER_ERROR_CODES Add_To_Resolving_List( void );
 static CONTROLLER_ERROR_CODES Remove_From_Resolving_List( void );
 static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor( IDENTITY_ADDRESS* PtrId );
+static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor_From_Index( uint8_t Index );
 static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
 static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
 
@@ -642,6 +643,25 @@ static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor( IDENTITY_ADDRESS* PtrId
 
 
 /****************************************************************/
+/* Get_Resolvable_Descriptor_From_Index()         	 	        */
+/* Purpose: Return the descriptor from the list based on passed */
+/* index.														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor_From_Index( uint8_t Index )
+{
+	if ( Index < Hosted_Resolving_List.NumberOfEntries )
+	{
+		return ( &Hosted_Resolving_List.Entry[Index] );
+	}
+
+	return (NULL);
+}
+
+
+/****************************************************************/
 /* Get_Peer_Resolvable_Address()             	   		        */
 /* Purpose: Return peer device from resolving list.				*/
 /* Parameters: none				         						*/
@@ -701,6 +721,7 @@ void Hosted_Functions_Process( void )
 	static uint8_t RenewRPAs = FALSE;
 	static uint8_t EntriesCounter = 0;
 	static uint8_t Num_Reports;
+	static uint8_t RecordCounter;
 	static uint8_t* Address_Type_Ptr;
 	static uint8_t* Event_Type_Ptr;
 	static BD_ADDR_TYPE* Address_Ptr;
@@ -772,53 +793,99 @@ void Hosted_Functions_Process( void )
 		case 1:
 			if( Num_Reports > 0 )
 			{
-				uint8_t Index = Num_Reports - 1;
-				if( ( (ADDRESS_TYPE)( Address_Type_Ptr[Index] ) ) == RANDOM_DEV_ADDR )
+				/* Only RANDOM_DEV_ADDR may be resolved */
+				if( ( (ADDRESS_TYPE)( Address_Type_Ptr[Num_Reports - 1] ) ) == RANDOM_DEV_ADDR )
 				{
-					/* Only RANDOM_DEV_ADDR may be resolved */
-					if( ( Address_Ptr[Index].Bytes[sizeof(BD_ADDR_TYPE) - 1] & 0xC0 ) == 0x40 )
+					if( ( Address_Ptr[Num_Reports - 1].Bytes[sizeof(BD_ADDR_TYPE) - 1] & 0xC0 ) == 0x40 )
 					{
 						/* This is a resolvable private address, we should try to resolve it */
+						RecordCounter = 0;
 						CommandToProcess.ProcessSteps = 2;
 					}else
 					{
 						/* This is not RPA, so we will not try to resolve it */
-						//TODO: decrement num report
+						Num_Reports--;
 					}
 				}else
 				{
-					/* This address is already resolved, we don't need to do anything about it */
-					//TODO: decrement num report
+					/* This address is not random, we don't need to do anything about it */
+					Num_Reports--;
 				}
 			}else
 			{
-				//TODO: terminate
+				LE_Advertising_Report_Handler( (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
+				CommandToProcess.OpCode.Val = 0;
 			}
 			break;
 
 		case 2:
-			switch( Event_Type_Ptr[Num_Reports - 1] )
+			Desc = Get_Resolvable_Descriptor_From_Index( RecordCounter );
+			if( Desc != NULL )
 			{
-			case ADV_IND_EVT:
-			case ADV_SCAN_IND_EVT:
-			case ADV_NONCONN_IND_EVT:
-			case SCAN_RSP_EVT:
-				/* These shall use peer IRK values */
-				break;
-
-			case ADV_DIRECT_IND_EVT:
-				/* This should use local IRK, although a directed RPA should never get here since it would have been blocked
-				 * because TargetA is different from this device. */
-				break;
+				RecordCounter++;
+				if( memcmp( &Address_Ptr[Num_Reports - 1].Bytes[0], &Desc->Id.Peer_Identity_Address.Address.Bytes[0], sizeof(BD_ADDR_TYPE) ) != 0 )
+				{
+					/* Check if IRK values are NULL */
+					if( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT )
+					{
+						/* This should use local IRK, although a directed RPA should never get here since it would have been blocked
+						 * because TargetA is different from this device address. */
+						if( !Check_NULL_IRK(&Desc->Id.Local_IRK)  )
+						{
+							CommandToProcess.ProcessSteps = 3;
+						}else
+						{
+							/* The local IRK is null, so no address resolution is possible
+							 * Load the next address from the advertising report */
+							Num_Reports--;
+							CommandToProcess.ProcessSteps = 1;
+						}
+					}else if( !Check_NULL_IRK(&Desc->Id.Peer_IRK) )
+					{
+						/* These shall use peer IRK values */
+						CommandToProcess.ProcessSteps = 3;
+					}else
+					{
+						/* The peer IRK is null, so no address resolution is possible
+						 * Load the next address from the advertising report */
+						Num_Reports--;
+						CommandToProcess.ProcessSteps = 1;
+					}
+				}else
+				{
+					/* The address is equal to the resolving list entry. There is no need to resolve anything.
+					 * Load the next address from the advertising report */
+					Num_Reports--;
+					CommandToProcess.ProcessSteps = 1;
+				}
+			}else
+			{
+				/* Resolving list ended: Load the next address from the advertising report */
+				Num_Reports--;
+				CommandToProcess.ProcessSteps = 1;
 			}
-			//TODO: somente resolve se for diferente do record identity e se o peer IRK for não nulo
-			//TODO: tem que saber se evento foi global ou directed para usar o IRK local ou peer.
 			break;
 
+		case 3:
+			//TODO: add timeout if address cannot be resolved
+			if( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT )
+			{
+				/* This should use local IRK, although a directed RPA should never get here since it would have been blocked
+				 * because TargetA is different from this device. */
+				//TODO: add token to Resolve_Private_Address function
+				//TODO: add callback to Resolve_Private_Address function
+				Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], &Desc->Id.Local_IRK, NULL );
+			}else
+			{
+				/* ADV_IND_EVT */
+				/* ADV_SCAN_IND_EVT */
+				/* ADV_NONCONN_IND_EVT */
+				/* SCAN_RSP_EVT */
+				/* These shall use peer IRK values */
+				Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], &Desc->Id.Peer_IRK, NULL );
+			}
+			break;
 		}
-		//TODO: verificar se endereços podem ser resolvíveis
-		LE_Advertising_Report_Handler( (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
-		CommandToProcess.OpCode.Val = 0;
 	}
 	break;
 
