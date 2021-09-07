@@ -61,6 +61,7 @@ static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor( IDENTITY_ADDRESS* PtrId
 static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor_From_Index( uint8_t Index );
 static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
 static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
+static void Check_Private_Addr(uint8_t status);
 
 
 /****************************************************************/
@@ -708,6 +709,20 @@ static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 
 
 /****************************************************************/
+/* Check_Private_Addr()      									*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Check_Private_Addr(uint8_t status)
+{
+	CommandToProcess.ProcessSteps = status ? 5 : 6; /* 5: status  is true / 6: status is false */
+}
+
+
+/****************************************************************/
 /* Hosted_Functions_Process()            		   	            */
 /* Purpose: Process hosted functions.							*/
 /* Parameters: none				         						*/
@@ -872,9 +887,10 @@ void Hosted_Functions_Process( void )
 			{
 				/* This should use local IRK, although a directed RPA should never get here since it would have been blocked
 				 * because TargetA is different from this device. */
-				//TODO: add token to Resolve_Private_Address function
-				//TODO: add callback to Resolve_Private_Address function
-				Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], &Desc->Id.Local_IRK, NULL );
+				if( Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], &Desc->Id.Local_IRK, 1, &Check_Private_Addr ) )
+				{
+					CommandToProcess.ProcessSteps = 4;
+				}
 			}else
 			{
 				/* ADV_IND_EVT */
@@ -882,8 +898,20 @@ void Hosted_Functions_Process( void )
 				/* ADV_NONCONN_IND_EVT */
 				/* SCAN_RSP_EVT */
 				/* These shall use peer IRK values */
-				Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], &Desc->Id.Peer_IRK, NULL );
+				if( Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], &Desc->Id.Peer_IRK, 2, &Check_Private_Addr ) )
+				{
+					CommandToProcess.ProcessSteps = 4;
+				}
 			}
+			break;
+
+		case 4: /* Wait for address resolution to end */
+			break;
+
+		case 5: /* Successful address resolution */
+			break;
+
+		case 6: /* Failed resolvable address, that is, the address does not "match" with the resolving record */
 			break;
 		}
 	}

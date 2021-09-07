@@ -221,7 +221,7 @@ BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_A
 
 		case VERIFY_RESOLVABLE_ADDRESS:
 			TimeoutCounter = 0;
-			BD_Config = Resolve_Private_Address( HCI_Sup_Cmd, &RANDOM_ADDRESS, IRK, &Confirm_Private_Addr ) ? WAIT_OPERATION_A : VERIFY_RESOLVABLE_ADDRESS;
+			BD_Config = Resolve_Private_Address( HCI_Sup_Cmd, &RANDOM_ADDRESS, IRK, 0, &Confirm_Private_Addr ) ? WAIT_OPERATION_A : VERIFY_RESOLVABLE_ADDRESS;
 			break;
 
 		case END_ADDRESSES_CONFIG:
@@ -282,9 +282,23 @@ uint8_t AES_128_Encrypt( SUPPORTED_COMMANDS* HCI_Sup_Cmd, uint8_t Key[16], uint8
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* PrivateAddress, IRK_TYPE* IRK, StatusCallBack CallBack )
+uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* PrivateAddress, IRK_TYPE* IRK, uint8_t Token, StatusCallBack CallBack )
 {
+	static volatile uint8_t Acquire = 0; /* This function can be called by more than one process at same time */
 	uint8_t* DataPtr;
+
+	EnterCritical(); /* Critical section enter */
+
+	if( ( Acquire != 0 ) && ( Acquire != Token ) )
+	{
+		/* Another process is holding this function */
+		ExitCritical(); /* Critical section exit */
+		return (FALSE);
+	}
+
+	Acquire = Token;
+
+	ExitCritical(); /* Critical section exit */
 
 	if( Encrypt_CallBack == NULL ) /* The encrypt operation is free */
 	{
@@ -304,11 +318,20 @@ uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* 
 			if ( AES_128_Encrypt( HCI_Sup_Cmd, &IRK->Bytes[0], DataPtr, &Resolve_Private_Address_CallBack ) )
 			{
 				free( DataPtr );
+
+				EnterCritical(); /* Critical section enter */
+				Acquire = 0;
+				ExitCritical(); /* Critical section exit */
+
 				return (TRUE);
 			}
 			free( DataPtr );
 		}
 	}
+
+	EnterCritical(); /* Critical section enter */
+	Acquire = 0;
+	ExitCritical(); /* Critical section exit */
 
 	return (FALSE);
 }
