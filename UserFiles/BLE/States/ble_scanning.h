@@ -34,7 +34,7 @@ typedef struct
 
 typedef struct
 {
-	uint8_t Event_Type;
+	ADV_REPORT_EVENT Event_Type;
 	ADDRESS_TYPE Address_Type;
 	BD_ADDR_TYPE Address;
 	uint8_t Data_Length;

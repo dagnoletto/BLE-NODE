@@ -47,7 +47,11 @@ typedef struct
 	  packets with up to 255 octets of data excluding the HCI Event packet header. The
 	  The HCI Event packet header is the first 2 octets of the packet. So, this
 	  EventBytes[257] should be the ideal. */
-	uint8_t EventBytes[EVENT_BYTES_SIZE];
+	union
+	{
+		HCI_EVENT_PCKT EventPacket;
+		uint8_t EventBytes[EVENT_BYTES_SIZE];
+	}__attribute__((packed));
 }ASYNC_COMMAND;
 
 
@@ -258,7 +262,7 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 			/* No callback is needed */
 			CommandToProcess.OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
 			CommandToProcess.ProcessSteps = 0;
-			memcpy( &CommandToProcess.EventBytes[0], &EventPacketPtr->Event_Code, (uint16_t)( EventPacketPtr->Parameter_Total_Length + 2 ) );
+			memcpy( &CommandToProcess.EventPacket.Event_Code, &EventPacketPtr->Event_Code, (uint16_t)( EventPacketPtr->Parameter_Total_Length + 2 ) );
 		}
 		break;
 
@@ -306,7 +310,7 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 			CommandToProcess.CmdCallBack = CmdCallBack;
 			CommandToProcess.ProcessSteps = 0;
 			Update_Device = Add_Device.Peer_Identity_Address;
-			memcpy( &CommandToProcess.EventBytes[0], &EventPacketPtr->Event_Code, (uint16_t)( EventPacketPtr->Parameter_Total_Length + 2 ) );
+			memcpy( &CommandToProcess.EventPacket.Event_Code, &EventPacketPtr->Event_Code, (uint16_t)( EventPacketPtr->Parameter_Total_Length + 2 ) );
 		}else
 		{
 			Command_Complete_Handler( OpCode, CmdCallBack, EventPacketPtr );
@@ -718,7 +722,7 @@ static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 /****************************************************************/
 static void Check_Private_Addr(uint8_t status)
 {
-	CommandToProcess.ProcessSteps = status ? 5 : 6; /* 5: status  is true / 6: status is false */
+	CommandToProcess.ProcessSteps = status ? 5 : 6; /* 5: status is true / 6: status is false */
 }
 
 
@@ -732,6 +736,7 @@ static void Check_Private_Addr(uint8_t status)
 void Hosted_Functions_Process( void )
 {
 	static uint32_t DelayCounter = 0;
+	static uint32_t TimeCounter = 0;
 	static RESOLVABLE_DESCRIPTOR* Desc;
 	static uint8_t RenewRPAs = FALSE;
 	static uint8_t EntriesCounter = 0;
@@ -798,10 +803,10 @@ void Hosted_Functions_Process( void )
 		switch( CommandToProcess.ProcessSteps )
 		{
 		case 0:
-			Num_Reports = CommandToProcess.EventBytes[1];
-			Event_Type_Ptr = &CommandToProcess.EventBytes[2];
-			Address_Type_Ptr = &(CommandToProcess.EventBytes[Num_Reports + 2]);
-			Address_Ptr = (BD_ADDR_TYPE*)(&(CommandToProcess.EventBytes[ ( Num_Reports * 2 ) + 2 ]) );
+			Num_Reports = CommandToProcess.EventPacket.Event_Parameter[1];
+			Event_Type_Ptr = &CommandToProcess.EventPacket.Event_Parameter[2];
+			Address_Type_Ptr = &(CommandToProcess.EventPacket.Event_Parameter[Num_Reports + 2]);
+			Address_Ptr = (BD_ADDR_TYPE*)(&(CommandToProcess.EventPacket.Event_Parameter[ ( Num_Reports * 2 ) + 2 ]) );
 			CommandToProcess.ProcessSteps = 1;
 			break;
 
@@ -828,7 +833,7 @@ void Hosted_Functions_Process( void )
 				}
 			}else
 			{
-				LE_Advertising_Report_Handler( (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
+				LE_Advertising_Report_Handler( &CommandToProcess.EventPacket );
 				CommandToProcess.OpCode.Val = 0;
 			}
 			break;
@@ -847,6 +852,7 @@ void Hosted_Functions_Process( void )
 						 * because TargetA is different from this device address. */
 						if( !Check_NULL_IRK(&Desc->Id.Local_IRK)  )
 						{
+							TimeCounter = 0;
 							CommandToProcess.ProcessSteps = 3;
 						}else
 						{
@@ -858,6 +864,7 @@ void Hosted_Functions_Process( void )
 					}else if( !Check_NULL_IRK(&Desc->Id.Peer_IRK) )
 					{
 						/* These shall use peer IRK values */
+						TimeCounter = 0;
 						CommandToProcess.ProcessSteps = 3;
 					}else
 					{
@@ -882,36 +889,50 @@ void Hosted_Functions_Process( void )
 			break;
 
 		case 3:
-			//TODO: add timeout if address cannot be resolved
-			if( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT )
+		{
+			/* ADV_DIRECT_IND_EVT should use local IRK, although a directed RPA should never get here since it would have been blocked
+			 * because TargetA is different from this device. */
+			/* These shall use peer IRK values: */
+			/* ADV_IND_EVT */
+			/* ADV_SCAN_IND_EVT */
+			/* ADV_NONCONN_IND_EVT */
+			/* SCAN_RSP_EVT */
+			IRK_TYPE* Local_IRK_Ptr = ( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT ) ? &Desc->Id.Local_IRK : &Desc->Id.Peer_IRK;
+
+			if( Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], Local_IRK_Ptr, 1, &Check_Private_Addr ) )
 			{
-				/* This should use local IRK, although a directed RPA should never get here since it would have been blocked
-				 * because TargetA is different from this device. */
-				if( Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], &Desc->Id.Local_IRK, 1, &Check_Private_Addr ) )
-				{
-					CommandToProcess.ProcessSteps = 4;
-				}
-			}else
+				TimeCounter = 0;
+				CommandToProcess.ProcessSteps = 4;
+			}else if( TimeBase_DelayMs( &TimeCounter, 100, TRUE ) )
 			{
-				/* ADV_IND_EVT */
-				/* ADV_SCAN_IND_EVT */
-				/* ADV_NONCONN_IND_EVT */
-				/* SCAN_RSP_EVT */
-				/* These shall use peer IRK values */
-				if( Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], &Desc->Id.Peer_IRK, 2, &Check_Private_Addr ) )
-				{
-					CommandToProcess.ProcessSteps = 4;
-				}
+				/* End resolution for this address */
+				CommandToProcess.ProcessSteps = 2;
+			}
+		}
+		break;
+
+		case 4: /* Wait for address resolution to end */
+			if( TimeBase_DelayMs( &TimeCounter, 100, TRUE ) )
+			{
+				/* End resolution for this resolving record */
+				CommandToProcess.ProcessSteps = 2;
 			}
 			break;
 
-		case 4: /* Wait for address resolution to end */
-			break;
-
 		case 5: /* Successful address resolution */
+			/* Load the type of identity just resolved */
+			Address_Type_Ptr[Num_Reports - 1] = ( Desc->Id.Peer_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR ) ? PUBLIC_IDENTITY_ADDR : RANDOM_IDENTITY_ADDR;
+			/* Load the identity into the address itself since we have resolved it */
+			Address_Ptr[Num_Reports - 1] = Desc->Id.Peer_Identity_Address.Address;
+			/* Load the next address from the advertising report */
+			Num_Reports--;
+			CommandToProcess.ProcessSteps = 1;
 			break;
 
 		case 6: /* Failed resolvable address, that is, the address does not "match" with the resolving record */
+			/* Simply go to the next resolving record */
+			/* End resolution for this resolving record */
+			CommandToProcess.ProcessSteps = 2;
 			break;
 		}
 	}
@@ -942,7 +963,7 @@ void Hosted_Functions_Process( void )
 					Desc->PeerAddrValid = TRUE;
 					if( CommandToProcess.OpCode.Val == HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST )
 					{
-						Command_Complete_Handler( CommandToProcess.OpCode, CommandToProcess.CmdCallBack, (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
+						Command_Complete_Handler( CommandToProcess.OpCode, CommandToProcess.CmdCallBack, &CommandToProcess.EventPacket );
 					}
 					CommandToProcess.OpCode.Val = 0;
 				}
@@ -957,7 +978,7 @@ void Hosted_Functions_Process( void )
 				Desc->PeerAddrValid = TRUE;
 				if( CommandToProcess.OpCode.Val == HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST )
 				{
-					Command_Complete_Handler( CommandToProcess.OpCode, CommandToProcess.CmdCallBack, (HCI_EVENT_PCKT*)( &CommandToProcess.EventBytes[0] ) );
+					Command_Complete_Handler( CommandToProcess.OpCode, CommandToProcess.CmdCallBack, &CommandToProcess.EventPacket );
 				}
 				CommandToProcess.OpCode.Val = 0;
 			}
