@@ -638,6 +638,8 @@ void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint
 		uint16_t Number_Of_Data_Bytes = 0;
 		static uint8_t AdvData[40];
 
+		HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );//TODO: teste de recebimento de advertisments
+
 		for( uint8_t i = 0; i < Num_Reports; i++ )
 		{
 			Report.Event_Type = Event_Type[i];

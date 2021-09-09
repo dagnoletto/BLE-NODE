@@ -1011,6 +1011,9 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 						/* Call application to check what to do with the data */
 						Bluenrg_CallBack_Config( &(TransferDescPtr->CallBackMode), (HCI_PACKET_TYPE)(*TransferDescPtr->DataPtr), (TransferDescPtr->DataPtr + 1) );
 
+						/* Check if we have more data to read from the device */
+						ReleaseSPI = Slave_Header_CallBack( TransferDescPtr, BufferManager.BufferHead->TransferMode, BufferManager.BufferHead->TransferStatus );
+
 						/* The SPI read enqueues the multiplexer function */
 						if( TransferDescPtr->CallBackMode == CALL_BACK_AFTER_TRANSFER )
 						{
