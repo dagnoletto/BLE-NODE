@@ -118,18 +118,26 @@ int main(void)
 			//ADVERTISING_PARAMETERS Adv;
 
 			DEVICE_IDENTITY Id;
-			Id.Peer_Identity_Address.Type = PEER_RANDOM_DEV_ADDR;
-			Id.Peer_Identity_Address.Address.Bytes[0] = 50;
-			Id.Peer_Identity_Address.Address.Bytes[5] = 70;
+
+			Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
+			Id.Peer_Identity_Address.Address.Bytes[0] = 0;
+			Id.Peer_Identity_Address.Address.Bytes[1] = 1;
+			Id.Peer_Identity_Address.Address.Bytes[2] = 2;
+			Id.Peer_Identity_Address.Address.Bytes[3] = 3;
+			Id.Peer_Identity_Address.Address.Bytes[4] = 4;
+			Id.Peer_Identity_Address.Address.Bytes[5] = 5;
+
+			memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
 			Id.Local_IRK.Bytes[0] = 0;
 			Id.Local_IRK.Bytes[15] = 15;
-			//memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
+
+			memset( &Id.Peer_IRK.Bytes[0], 0, sizeof(Id.Peer_IRK) );
 			Id.Peer_IRK.Bytes[0] = 5;
 			Id.Peer_IRK.Bytes[15] = 51;
-			//memset( &Id.Peer_IRK.Bytes[0], 0, sizeof(Id.Peer_IRK) );
+
 			RESOLVING_RECORD Record;
 			Record.Peer = Id;
-			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR /*PEER_RANDOM_DEV_ADDR*/ );
+			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
 
 			Add_Record_To_Resolving_List( &Record );
 
@@ -155,15 +163,15 @@ int main(void)
 
 			SCANNING_PARAMETERS Scan;
 
-			Scan.LE_Scan_Type = PASSIVE_SCANNING;
+			Scan.LE_Scan_Type = ACTIVE_SCANNING;
 			Scan.LE_Scan_Interval = 320;
 			Scan.LE_Scan_Window = 320;
 			Scan.Own_Address_Type = OWN_RANDOM_DEV_ADDR;
-			Scan.Own_Random_Address_Type = STATIC_DEVICE_ADDRESS;
+			Scan.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
 			Scan.PeerId = Record.Peer.Peer_Identity_Address;
 			Scan.Scanning_Filter_Policy = 0;
 			Scan.Filter_Duplicates = 0;
-			Scan.Privacy = FALSE;
+			Scan.Privacy = TRUE;
 			Scan.Role = OBSERVER;
 
 			Enter_Scanning_Mode( &Scan );
