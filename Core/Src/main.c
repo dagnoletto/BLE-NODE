@@ -115,17 +115,15 @@ int main(void)
 
 		if( TimeBase_DelayMs( &Timer, Period, TRUE )  )
 		{
-			//ADVERTISING_PARAMETERS Adv;
-
 			DEVICE_IDENTITY Id;
 
 			Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
 			Id.Peer_Identity_Address.Address.Bytes[0] = 0;
-			Id.Peer_Identity_Address.Address.Bytes[1] = 1;
-			Id.Peer_Identity_Address.Address.Bytes[2] = 2;
-			Id.Peer_Identity_Address.Address.Bytes[3] = 3;
-			Id.Peer_Identity_Address.Address.Bytes[4] = 4;
-			Id.Peer_Identity_Address.Address.Bytes[5] = 5;
+			Id.Peer_Identity_Address.Address.Bytes[1] = 10;
+			Id.Peer_Identity_Address.Address.Bytes[2] = 20;
+			Id.Peer_Identity_Address.Address.Bytes[3] = 30;
+			Id.Peer_Identity_Address.Address.Bytes[4] = 40;
+			Id.Peer_Identity_Address.Address.Bytes[5] = 50;
 
 			memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
 			Id.Local_IRK.Bytes[0] = 0;
@@ -142,99 +140,51 @@ int main(void)
 			Add_Record_To_Resolving_List( &Record );
 
 
-//			Adv.Advertising_Interval_Min = 160;
-//			Adv.Advertising_Interval_Max = 320;
-//			Adv.Advertising_Type = ADV_IND;//ADV_NONCONN_IND; //ADV_SCAN_IND;// ADV_DIRECT_IND_HIGH_DUTY; //ADV_IND;
-//			Adv.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RESOL_OR_RANDOM_ADDR; //OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RANDOM_DEV_ADDR; //OWN_RESOL_OR_PUBLIC_ADDR; //OWN_RANDOM_DEV_ADDR; //OWN_PUBLIC_DEV_ADDR;
-//			Adv.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE; //STATIC_DEVICE_ADDRESS; //NON_RESOLVABLE_PRIVATE;
-//			Adv.Peer_Address_Type = PEER_RANDOM_DEV_ADDR; //PEER_PUBLIC_DEV_ADDR;
-//			//memset( &Adv.Peer_Address, 0, sizeof(Adv.Peer_Address) );
-//			memcpy( &Adv.Peer_Address, &Id.Peer_Identity_Address.Address, sizeof(Adv.Peer_Address) );
-//			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
-//			Adv.Advertising_Filter_Policy = 0;
-//			Adv.connIntervalmin = NO_SPECIFIC_MINIMUM;
-//			Adv.connIntervalmax = NO_SPECIFIC_MAXIMUM;
-//			Adv.Privacy = FALSE;
-//			Adv.Role = PERIPHERAL;
-//			Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
+
+
+			/* ADVERTISING */
+			ADVERTISING_PARAMETERS Adv;
+
+			Adv.Advertising_Interval_Min = 160;
+			Adv.Advertising_Interval_Max = 320;
+			Adv.Advertising_Type = ADV_IND;
+			Adv.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR;
+			Adv.Own_Random_Address_Type = STATIC_DEVICE_ADDRESS;
+			Adv.Peer_Address_Type = PEER_PUBLIC_DEV_ADDR;
+			memcpy( &Adv.Peer_Address, &Id.Peer_Identity_Address.Address, sizeof(Adv.Peer_Address) );
+			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
+			Adv.Advertising_Filter_Policy = 0;
+			Adv.connIntervalmin = NO_SPECIFIC_MINIMUM;
+			Adv.connIntervalmax = NO_SPECIFIC_MAXIMUM;
+			Adv.Privacy = FALSE;
+			Adv.Role = PERIPHERAL;
+			Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
+
+			Enter_Advertising_Mode( &Adv );
+
+			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+
+
+
+			/* SCANNING */
+//			SCANNING_PARAMETERS Scan;
 //
-//			Enter_Advertising_Mode( &Adv );
-
-
-			SCANNING_PARAMETERS Scan;
-
-			Scan.LE_Scan_Type = ACTIVE_SCANNING;
-			Scan.LE_Scan_Interval = 320;
-			Scan.LE_Scan_Window = 320;
-			Scan.Own_Address_Type = OWN_RANDOM_DEV_ADDR;
-			Scan.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
-			Scan.PeerId = Record.Peer.Peer_Identity_Address;
-			Scan.Scanning_Filter_Policy = 0;
-			Scan.Filter_Duplicates = 0;
-			Scan.Privacy = TRUE;
-			Scan.Role = OBSERVER;
-
-			Enter_Scanning_Mode( &Scan );
-
-//			DEVICE_IDENTITY Id;
-//			Id.Peer_Identity_Address.Type = PEER_RANDOM_DEV_ADDR;
-//			Id.Peer_Identity_Address.Address.Bytes[0] = 50;
-//			Id.Peer_Identity_Address.Address.Bytes[5] = 70;
-//			Id.Local_IRK.Bytes[0] = 0;
-//			Id.Local_IRK.Bytes[15] = 15;
-//			Id.Peer_IRK.Bytes[0] = 5;
-//			Id.Peer_IRK.Bytes[15] = 51;
-//			RESOLVING_RECORD Record;
-//			Record.Peer = Id;
-//			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
-
-//			Add_Record_To_Resolving_List( &Record );
-
-//			volatile RESOLVING_RECORD* Ptr = Get_Record_From_Peer_Identity( &Id.Peer_Identity_Address );
-
-//			Remove_Record_From_Resolving_List( &Id.Peer_Identity_Address );
-//			Clear_Resolving_List();
-
-//			static uint16_t index = 0;
-//			Id = *Get_Device_Identity_From_Resolving_List( index++ );
-
-//			static uint8_t altr = 0;
-//			BD_ADDR_TYPE Peer_Identity_Address = { { 0,1,2,3,4,5 } };
+//			Scan.LE_Scan_Type = ACTIVE_SCANNING;
+//			Scan.LE_Scan_Interval = 320;
+//			Scan.LE_Scan_Window = 320;
+//			Scan.Own_Address_Type = OWN_RANDOM_DEV_ADDR;
+//			Scan.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
+//			Scan.PeerId = Record.Peer.Peer_Identity_Address;
+//			Scan.Scanning_Filter_Policy = 0;
+//			Scan.Filter_Duplicates = 0;
+//			Scan.Privacy = TRUE;
+//			Scan.Role = OBSERVER;
 //
-//			if(altr){HCI_LE_Add_Device_To_Resolving_List( PEER_RANDOM_DEV_ADDR, Peer_Identity_Address, &Id.Peer_IRK, &Id.Local_IRK, NULL, NULL );
-//			}else{
-//
-//			//HCI_LE_Read_Peer_Resolvable_Address( PEER_RANDOM_DEV_ADDR, Peer_Identity_Address, NULL, NULL );
-//			//HCI_LE_Read_Local_Resolvable_Address( PEER_RANDOM_DEV_ADDR, Peer_Identity_Address, NULL, NULL );
-//			//HCI_LE_Remove_Device_From_Resolving_List( PEER_RANDOM_DEV_ADDR, Peer_Identity_Address, NULL, NULL );
-//			//HCI_LE_Set_Resolvable_Private_Address_Timeout( 250, NULL, NULL );
-//			}
-//
-//			altr = !altr;
+//			Enter_Scanning_Mode( &Scan );
 
-//			HCI_LE_Clear_Resolving_List( NULL, NULL );
 
-//			HCI_LE_Read_Resolving_List_Size( NULL, NULL );
 
-//			HCI_LE_Read_Peer_Resolvable_Address( PEER_PUBLIC_DEV_ADDR, Peer_Identity_Address, NULL, NULL );
 
-//			HCI_LE_Read_Local_Resolvable_Address( PEER_PUBLIC_DEV_ADDR, Peer_Identity_Address, NULL, NULL );
-
-//			HCI_LE_Set_Address_Resolution_Enable( TRUE, NULL, NULL );
-
-//			HCI_LE_Set_Resolvable_Private_Address_Timeout( 10, NULL, NULL );
-
-			//			uint8_t Bytes[] = { 1,2,3,4,5 };
-			//
-			//			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
-			//			ACLDataPacketHeader.Data_Total_Length = sizeof(Bytes);
-			//			ACLDataPacketHeader.BC_Flag = 0;
-			//			ACLDataPacketHeader.PB_Flag = 0;
-			//			ACLDataPacketHeader.Handle = 0;
-			//
-			//			HCI_Host_ACL_Data( ACLDataPacketHeader, &Bytes[0] );
-
-			//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
 
 //		if( Get_Bluenrg_IRQ_Pin() )
