@@ -95,6 +95,7 @@ typedef struct
 {
 	int8_t EnqueuedAtIndex; /* If negative, means that frame was not enqueued */
 	int8_t NumberOfEnqueuedFrames;
+	uint8_t RequestTransmission; /* If TRUE, the higher layers can request transmission of newly enqueued frame */
 }FRAME_ENQUEUE_STATUS;
 
 

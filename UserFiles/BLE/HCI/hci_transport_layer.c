@@ -281,7 +281,7 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		}
 
 		/* This is the first successfully enqueued write message, so, request transmission */
-		if( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) )
+		if( ( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) ) || ( Status.RequestTransmission ) )
 		{
 			/* Request transmission */
 			Request_Frame();
@@ -290,6 +290,11 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		return (TRUE);
 	}else
 	{
+		if( Status.RequestTransmission )
+		{
+			/* Request transmission */
+			Request_Frame();
+		}
 		return (FALSE);
 	}
 }

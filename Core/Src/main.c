@@ -177,7 +177,7 @@ int main(void)
 //			Scan.PeerId = Record.Peer.Peer_Identity_Address;
 //			Scan.Scanning_Filter_Policy = 0;
 //			Scan.Filter_Duplicates = 0;
-//			Scan.Privacy = TRUE;
+//			Scan.Privacy = FALSE;
 //			Scan.Role = OBSERVER;
 //
 //			Enter_Scanning_Mode( &Scan );

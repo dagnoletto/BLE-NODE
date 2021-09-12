@@ -469,6 +469,7 @@ FRAME_ENQUEUE_STATUS Bluenrg_Add_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int
 	{
 		Status.EnqueuedAtIndex = -1; /* Memory could'nt be allocated */
 		Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
+		Status.RequestTransmission = FALSE;
 
 		Bluenrg_Error( NO_MEMORY_AVAILABLE );
 	}
@@ -584,6 +585,7 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 
 	Status.EnqueuedAtIndex = -1; /* Could not enqueue the frame */
 	Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
+	Status.RequestTransmission = FALSE;
 
 	EnterCritical(); /* Critical section enter */
 
@@ -765,7 +767,7 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 			{
 				ExitCritical();
 				Release_Frame();
-				Request_Frame();
+				Status.RequestTransmission = TRUE;
 			}
 			EnterCritical();
 
@@ -1324,6 +1326,7 @@ static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 	{
 		Status.EnqueuedAtIndex = -1; /* Memory could'nt be allocated */
 		Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
+		Status.RequestTransmission = FALSE;
 
 		Bluenrg_Error( NO_MEMORY_AVAILABLE );
 	}
