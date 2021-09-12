@@ -372,8 +372,6 @@ static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr)
 /****************************************************************/
 void Bluenrg_IRQ(void)
 {
-	/* There is something to read, so enqueue a Slave_Header Request to see how many bytes to read */
-	Request_Slave_Header( SPI_HEADER_READ, 1 );
 	Request_Frame();
 }
 
@@ -946,6 +944,13 @@ void Request_Frame(void)
 			{
 				Release_Bluenrg();
 			}
+		}else if( ( BufferManager.BufferHead->Status == BUFFER_FREE ) && ( Get_Bluenrg_IRQ_Pin() ) ) /* Check if the IRQ pin is set */
+		{
+			/* Enqueue a new slave header read to check if device is ready */
+			if( Request_Slave_Header( SPI_HEADER_READ, 1 ) )
+			{
+				goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
+			}
 		}
 	}
 
@@ -1012,9 +1017,6 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 					{
 						/* Call application to check what to do with the data */
 						Bluenrg_CallBack_Config( &(TransferDescPtr->CallBackMode), (HCI_PACKET_TYPE)(*TransferDescPtr->DataPtr), (TransferDescPtr->DataPtr + 1) );
-
-						/* Check if we have more data to read from the device */
-						ReleaseSPI = Slave_Header_CallBack( TransferDescPtr, BufferManager.BufferHead->TransferMode, BufferManager.BufferHead->TransferStatus );
 
 						/* The SPI read enqueues the multiplexer function */
 						if( TransferDescPtr->CallBackMode == CALL_BACK_AFTER_TRANSFER )
@@ -1199,12 +1201,6 @@ static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_T
 		{
 			NoAllowedWriteCounter = 0;
 
-			if( Get_Bluenrg_IRQ_Pin() ) /* Check if the IRQ pin is set */
-			{
-				/* Enqueue a new slave header read to check if device has bytes to read */
-				Request_Slave_Header( SPI_HEADER_READ, 1 );
-			}
-
 			ErroneousResponseCounter++;
 			if( ErroneousResponseCounter >= ERRONEOUS_RESPONSE_THRESHOLD )
 			{
@@ -1224,12 +1220,6 @@ static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_T
 
 		BufferManager.AllowedWriteSize = 0;
 		BufferManager.SizeToRead = 0;
-
-		if( Get_Bluenrg_IRQ_Pin() ) /* Check if the IRQ pin is set */
-		{
-			/* Enqueue a new slave header read to check if device is ready */
-			Request_Slave_Header( SPI_HEADER_READ, 1 );
-		}
 
 		DeviceNotReadyCounter++;
 		if( DeviceNotReadyCounter >= DEVICE_NOT_READY_THRESHOLD )
