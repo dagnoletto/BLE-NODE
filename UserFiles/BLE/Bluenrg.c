@@ -53,9 +53,9 @@ typedef enum
 
 typedef struct
 {
-	uint8_t Status; /* It indicates the BUFFER_STATUS */
-	uint8_t TransferMode; /* It indicates the SPI_TRANSFER_MODE */
-	uint8_t TransferStatus; /* It indicates the TRANSFER_STATUS */
+	BUFFER_STATUS Status: 8; /* It indicates the BUFFER_STATUS */
+	SPI_TRANSFER_MODE TransferMode: 8; /* It indicates the SPI_TRANSFER_MODE */
+	TRANSFER_STATUS TransferStatus: 8; /* It indicates the TRANSFER_STATUS */
 	uint8_t* TxPtr;
 	uint8_t* RxPtr;
 	uint16_t RemainingBytes;
@@ -106,7 +106,7 @@ typedef enum
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_TRANSFER_MODE HeaderMode, TRANSFER_STATUS Status);
+static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_TRANSFER_MODE HeaderMode);
 static uint8_t Transmitter_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS Status);
 static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS Status);
 static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priority);
@@ -998,7 +998,7 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 				{
 					if( ( BufferManager.BufferHead->TransferMode == SPI_HEADER_READ ) || ( BufferManager.BufferHead->TransferMode == SPI_HEADER_WRITE ) )
 					{
-						ReleaseSPI = Slave_Header_CallBack( TransferDescPtr, BufferManager.BufferHead->TransferMode, BufferManager.BufferHead->TransferStatus );
+						ReleaseSPI = Slave_Header_CallBack( TransferDescPtr, BufferManager.BufferHead->TransferMode );
 
 						/* The SPI_HEADER_READ must not be deallocated since its memory is not dynamic. Just "lies" that memory is freed. */
 						TransferDescPtr->DataPtr = NULL;
@@ -1151,7 +1151,7 @@ static BUFFER_DESC* Search_For_Free_Frame(void)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_TRANSFER_MODE HeaderMode, TRANSFER_STATUS Status)
+static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_TRANSFER_MODE HeaderMode)
 {
 	uint8_t static DeviceNotReadyCounter = 0;
 	uint8_t static NoAllowedWriteCounter = 0;
@@ -1166,36 +1166,34 @@ static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_T
 		BufferManager.AllowedWriteSize = Header->WBUF;
 		BufferManager.SizeToRead = Header->RBUF;
 
-		/* Read operation has higher priority: it can pause an uncompleted write transaction to read available bytes in the module */
-		/* If the ongoing write should be finished first before the read, we should simply enqueue a read here and in the
-		   Request_Frame function we should make sure to enqueue a header read request before the reading. */
-		if( BufferManager.SizeToRead != 0 )
+		if( ( HeaderMode == SPI_HEADER_WRITE ) && ( BufferManager.AllowedWriteSize != 0 ) )
 		{
+
+			/* The write has higher priority because is is done using a sequence of SPI_HEADER_WRITE and SPI_WRITE */
 			ErroneousResponseCounter = 0;
 			NoAllowedWriteCounter = 0;
-			BufferManager.AllowedWriteSize = 0; /* Just to make sure that an ongoing write transaction will request the header before restart */
+			return (DO_NOT_RELEASE_SPI); /* For the write operation, keeps device asserted to send payload bytes */
+
+		}else if( BufferManager.SizeToRead != 0 )
+		{
+
+			ErroneousResponseCounter = 0;
+			NoAllowedWriteCounter = 0;
+			//TODO: verificar se deixar comentado tem algum efeito colateral BufferManager.AllowedWriteSize = 0; /* Just to make sure that an ongoing write transaction will request the header before restart */
 
 			/* Enqueue a read command at the second buffer position (index == 1) and do not release the SPI */
 			Add_Rx_Frame( BufferManager.SizeToRead, 1 );
 
 			return (DO_NOT_RELEASE_SPI); /* For the read operation, keeps device asserted and send dummy bytes MOSI */
 
-		}else if( HeaderMode == SPI_HEADER_WRITE )
+		}else if( ( HeaderMode == SPI_HEADER_WRITE ) && ( BufferManager.AllowedWriteSize == 0 ) )
 		{
 			ErroneousResponseCounter = 0;
-
-			if( BufferManager.AllowedWriteSize != 0 )
+			NoAllowedWriteCounter++;
+			if( NoAllowedWriteCounter >= NO_ALLOWED_WRITE_THRESHOLD )
 			{
-				NoAllowedWriteCounter = 0;
-				return (DO_NOT_RELEASE_SPI); /* For the write operation, keeps device asserted to send payload bytes */
-			}else
-			{
-				NoAllowedWriteCounter++;
-				if( NoAllowedWriteCounter >= NO_ALLOWED_WRITE_THRESHOLD )
-				{
-					BufferManager.HoldTime = DEVICE_HOLD_TIME; /* hold time */
-					BufferManager.HoldCounter = 0;	/* From now */
-				}
+				BufferManager.HoldTime = DEVICE_HOLD_TIME; /* hold time */
+				BufferManager.HoldCounter = 0;	/* From now */
 			}
 		}else
 		{

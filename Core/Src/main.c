@@ -143,44 +143,44 @@ int main(void)
 
 
 			/* ADVERTISING */
-			ADVERTISING_PARAMETERS Adv;
-
-			Adv.Advertising_Interval_Min = 160;
-			Adv.Advertising_Interval_Max = 320;
-			Adv.Advertising_Type = ADV_IND;
-			Adv.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR;
-			Adv.Own_Random_Address_Type = STATIC_DEVICE_ADDRESS;
-			Adv.Peer_Address_Type = PEER_PUBLIC_DEV_ADDR;
-			memcpy( &Adv.Peer_Address, &Id.Peer_Identity_Address.Address, sizeof(Adv.Peer_Address) );
-			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
-			Adv.Advertising_Filter_Policy = 0;
-			Adv.connIntervalmin = NO_SPECIFIC_MINIMUM;
-			Adv.connIntervalmax = NO_SPECIFIC_MAXIMUM;
-			Adv.Privacy = FALSE;
-			Adv.Role = PERIPHERAL;
-			Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
-
-			Enter_Advertising_Mode( &Adv );
-
-			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+//			ADVERTISING_PARAMETERS Adv;
+//
+//			Adv.Advertising_Interval_Min = 160;
+//			Adv.Advertising_Interval_Max = 320;
+//			Adv.Advertising_Type = ADV_IND;
+//			Adv.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR;
+//			Adv.Own_Random_Address_Type = STATIC_DEVICE_ADDRESS;
+//			Adv.Peer_Address_Type = PEER_PUBLIC_DEV_ADDR;
+//			memcpy( &Adv.Peer_Address, &Id.Peer_Identity_Address.Address, sizeof(Adv.Peer_Address) );
+//			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
+//			Adv.Advertising_Filter_Policy = 0;
+//			Adv.connIntervalmin = NO_SPECIFIC_MINIMUM;
+//			Adv.connIntervalmax = NO_SPECIFIC_MAXIMUM;
+//			Adv.Privacy = FALSE;
+//			Adv.Role = PERIPHERAL;
+//			Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
+//
+//			Enter_Advertising_Mode( &Adv );
+//
+//			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 
 
 
 			/* SCANNING */
-//			SCANNING_PARAMETERS Scan;
-//
-//			Scan.LE_Scan_Type = ACTIVE_SCANNING;
-//			Scan.LE_Scan_Interval = 320;
-//			Scan.LE_Scan_Window = 320;
-//			Scan.Own_Address_Type = OWN_RANDOM_DEV_ADDR;
-//			Scan.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
-//			Scan.PeerId = Record.Peer.Peer_Identity_Address;
-//			Scan.Scanning_Filter_Policy = 0;
-//			Scan.Filter_Duplicates = 0;
-//			Scan.Privacy = FALSE;
-//			Scan.Role = OBSERVER;
-//
-//			Enter_Scanning_Mode( &Scan );
+			SCANNING_PARAMETERS Scan;
+
+			Scan.LE_Scan_Type = ACTIVE_SCANNING;
+			Scan.LE_Scan_Interval = 320;
+			Scan.LE_Scan_Window = 320;
+			Scan.Own_Address_Type = OWN_RANDOM_DEV_ADDR;
+			Scan.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
+			Scan.PeerId = Record.Peer.Peer_Identity_Address;
+			Scan.Scanning_Filter_Policy = 0;
+			Scan.Filter_Duplicates = 0;
+			Scan.Privacy = TRUE;
+			Scan.Role = OBSERVER;
+
+			Enter_Scanning_Mode( &Scan );
 
 
 

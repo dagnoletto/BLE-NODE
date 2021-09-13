@@ -50,10 +50,11 @@ static uint8_t Create_Static_Address( uint8_t Random_Bytes[6] );
 static uint8_t Create_Private_Address( uint8_t Random_Bytes[6] );
 static uint8_t Create_Private_Resolvable_Address( uint8_t prand[3] );
 static uint8_t Check_Bit_Presence( uint8_t Random_Part[], uint8_t Size_In_Bytes );
-static void Hash_CallBack_Function(uint8_t EncryptedData[16], uint8_t status);
-static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t status);
-static void Confirm_Private_Addr(uint8_t status);
+static void Hash_CallBack_Function(uint8_t EncryptedData[16], CONTROLLER_ERROR_CODES status);
+static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], CONTROLLER_ERROR_CODES status);
+static void Confirm_Private_Addr(uint8_t resolvingstatus, CONTROLLER_ERROR_CODES status);
 static void LE_Encrypt_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Encrypted_Data[16] );
+static void LE_Encrypt_Status( CONTROLLER_ERROR_CODES Status );
 static void LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Number[8] );
 static uint8_t Set_Static_Random_Device_Address( BD_ADDR_TYPE* StaticAddress );
 extern uint8_t LE_Write_Address( LE_BD_ADDR_TYPE* Address );
@@ -262,7 +263,7 @@ uint8_t AES_128_Encrypt( SUPPORTED_COMMANDS* HCI_Sup_Cmd, uint8_t Key[16], uint8
 	{
 		if( HCI_Sup_Cmd->Bits.HCI_LE_Encrypt ) /* The module supports encryption. */
 		{
-			Encrypt_CallBack = HCI_LE_Encrypt( &Key[0], &Plaintext_Data[0], &LE_Encrypt_Complete, NULL ) ? CallBack : NULL;
+			Encrypt_CallBack = HCI_LE_Encrypt( &Key[0], &Plaintext_Data[0], &LE_Encrypt_Complete, &LE_Encrypt_Status ) ? CallBack : NULL;
 			return ( ( Encrypt_CallBack == NULL ) ? FALSE : TRUE );
 		}else
 		{
@@ -334,6 +335,21 @@ uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* 
 	ExitCritical(); /* Critical section exit */
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Cancel_Private_Address_Resolution()        					*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Cancel_Private_Address_Resolution( void )
+{
+	Encrypt_CallBack = NULL;
+	//TODO: increment available command and free comand complete and status callbacks
 }
 
 
@@ -628,11 +644,11 @@ static uint8_t Check_Bit_Presence( uint8_t Random_Part[], uint8_t Size_In_Bytes 
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Hash_CallBack_Function(uint8_t EncryptedData[16], uint8_t status)
+static void Hash_CallBack_Function(uint8_t EncryptedData[16], CONTROLLER_ERROR_CODES status)
 {
 	/* The most significant octet of the Encrypted_Data corresponds to
 	Encrypted_Data[0] using the notation specified in FIPS 197. */
-	if( status )
+	if( status == COMMAND_SUCCESS )
 	{
 		for( int8_t i = 0; i < sizeof(hash); i++ )
 		{
@@ -654,13 +670,13 @@ static void Hash_CallBack_Function(uint8_t EncryptedData[16], uint8_t status)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t status)
+static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], CONTROLLER_ERROR_CODES status)
 {
 	uint8_t comparisonStatus = TRUE;
 
 	/* The most significant octet of the Encrypted_Data corresponds to
 	Encrypted_Data[0] using the notation specified in FIPS 197. */
-	if( status )
+	if( status == COMMAND_SUCCESS )
 	{
 		for( int8_t i = 0; i < sizeof(ResolveStruct.hash); i++ )
 		{
@@ -678,7 +694,7 @@ static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t 
 
 	if( ResolveStruct.CallBack != NULL )
 	{
-		ResolveStruct.CallBack(comparisonStatus);
+		ResolveStruct.CallBack(comparisonStatus, status);
 	}
 }
 
@@ -691,9 +707,9 @@ static void Resolve_Private_Address_CallBack(uint8_t EncryptedData[16], uint8_t 
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Confirm_Private_Addr(uint8_t status)
+static void Confirm_Private_Addr(uint8_t resolvingstatus, CONTROLLER_ERROR_CODES status)
 {
-	BD_Config = status ? END_ADDRESSES_CONFIG : VERIFY_RESOLVABLE_ADDRESS;
+	BD_Config = resolvingstatus ? END_ADDRESSES_CONFIG : VERIFY_RESOLVABLE_ADDRESS;
 }
 
 
@@ -743,11 +759,30 @@ static void LE_Encrypt_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Encrypte
 	{
 		if( Status == COMMAND_SUCCESS )
 		{
-			Encrypt_CallBack( &Encrypted_Data[0], TRUE );
+			Encrypt_CallBack( &Encrypted_Data[0], Status );
 		}else
 		{
-			Encrypt_CallBack( NULL, FALSE );
+			Encrypt_CallBack( NULL, Status );
 		}
+
+		Encrypt_CallBack = NULL;
+	}
+}
+
+
+/****************************************************************/
+/* LE_Encrypt_Status()        									*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Encrypt_Status( CONTROLLER_ERROR_CODES Status )
+{
+	if( Encrypt_CallBack != NULL )
+	{
+		Encrypt_CallBack( NULL, Status );
 
 		Encrypt_CallBack = NULL;
 	}

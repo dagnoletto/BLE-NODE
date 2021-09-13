@@ -23,8 +23,8 @@
 /****************************************************************/
 /* Type Defines 					                            */
 /****************************************************************/
-typedef void (*EncryptCallBack)(uint8_t EncryptedData[16], uint8_t status);
-typedef void (*StatusCallBack)(uint8_t status);
+typedef void (*EncryptCallBack)(uint8_t EncryptedData[16], CONTROLLER_ERROR_CODES status);
+typedef void (*StatusCallBack)(uint8_t comparisonStatus, CONTROLLER_ERROR_CODES status);
 typedef struct
 {
 	uint8_t Status;
@@ -37,6 +37,7 @@ typedef struct
 /****************************************************************/
 BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_ADDRESS_TYPE AddrType, IRK_TYPE* IRK, uint8_t Token );
 uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* PrivateAddress, IRK_TYPE* IRK, uint8_t Token, StatusCallBack CallBack );
+void Cancel_Private_Address_Resolution( void );
 uint8_t AES_128_Encrypt( SUPPORTED_COMMANDS* HCI_Sup_Cmd, uint8_t Key[16], uint8_t Plaintext_Data[16], EncryptCallBack CallBack );
 GET_BD_ADDR Get_Public_Device_Address( void );
 GET_BD_ADDR Get_Static_Random_Device_Address( void );

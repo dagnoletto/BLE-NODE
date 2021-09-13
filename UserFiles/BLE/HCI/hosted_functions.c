@@ -65,7 +65,7 @@ static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor( IDENTITY_ADDRESS* PtrId
 static RESOLVABLE_DESCRIPTOR* Get_Resolvable_Descriptor_From_Index( uint8_t Index );
 static BD_ADDR_TYPE* Get_Peer_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
 static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId );
-static void Check_Private_Addr(uint8_t status);
+static void Check_Private_Addr(uint8_t resolvstatus, CONTROLLER_ERROR_CODES status);
 
 
 /****************************************************************/
@@ -82,6 +82,7 @@ static IDENTITY_ADDRESS Update_Device;
 static uint16_t RPA_Timeout_Cmd;
 static uint16_t RPA_Timeout = 900; /* Default value is 900 seconds (15 minutes) */
 static ASYNC_COMMAND CommandToProcess;
+static uint32_t TimeCounter = 0;
 
 
 /****************************************************************/
@@ -720,9 +721,19 @@ static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Check_Private_Addr(uint8_t status)
+static void Check_Private_Addr(uint8_t resolvstatus, CONTROLLER_ERROR_CODES status)
 {
-	CommandToProcess.ProcessSteps = status ? 5 : 6; /* 5: status is true / 6: status is false */
+	if( CommandToProcess.ProcessSteps == 4 )
+	{
+		TimeCounter = 0;
+		if( status == COMMAND_SUCCESS )
+		{
+			CommandToProcess.ProcessSteps = resolvstatus ? 5 : 6; /* 5: status is true / 6: status is false */
+		}else
+		{
+			CommandToProcess.ProcessSteps = 6; /* Could not be resolved due to controller failure */
+		}
+	}
 }
 
 
@@ -736,7 +747,6 @@ static void Check_Private_Addr(uint8_t status)
 void Hosted_Functions_Process( void )
 {
 	static uint32_t DelayCounter = 0;
-	static uint32_t TimeCounter = 0;
 	static RESOLVABLE_DESCRIPTOR* Desc;
 	static uint8_t RenewRPAs = FALSE;
 	static uint8_t EntriesCounter = 0;
@@ -899,12 +909,13 @@ void Hosted_Functions_Process( void )
 			/* SCAN_RSP_EVT */
 			IRK_TYPE* Local_IRK_Ptr = ( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT ) ? &Desc->Id.Local_IRK : &Desc->Id.Peer_IRK;
 
+			CommandToProcess.ProcessSteps = 4;
 			if( Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], Local_IRK_Ptr, 1, &Check_Private_Addr ) )
 			{
 				TimeCounter = 0;
-				CommandToProcess.ProcessSteps = 4;
-			}else if( TimeBase_DelayMs( &TimeCounter, 100, TRUE ) )
+			}else
 			{
+				Cancel_Private_Address_Resolution();
 				/* End resolution for this address */
 				CommandToProcess.ProcessSteps = 2;
 			}
@@ -912,8 +923,9 @@ void Hosted_Functions_Process( void )
 		break;
 
 		case 4: /* Wait for address resolution to end */
-			if( TimeBase_DelayMs( &TimeCounter, 100, TRUE ) )
+			if( TimeBase_DelayMs( &TimeCounter, 150, TRUE ) )
 			{
+				Cancel_Private_Address_Resolution();
 				/* End resolution for this resolving record */
 				CommandToProcess.ProcessSteps = 2;
 			}
