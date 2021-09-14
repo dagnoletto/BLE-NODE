@@ -923,7 +923,7 @@ void Hosted_Functions_Process( void )
 		break;
 
 		case 4: /* Wait for address resolution to end */
-			if( TimeBase_DelayMs( &TimeCounter, 150, TRUE ) )
+			if( TimeBase_DelayMs( &TimeCounter, 250, TRUE ) )
 			{
 				Cancel_Private_Address_Resolution();
 				/* End resolution for this resolving record */
