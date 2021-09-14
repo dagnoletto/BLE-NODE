@@ -27,6 +27,7 @@ static CMD_CALLBACK* LE_CONTROLLER_CMD_HANDLER(HCI_COMMAND_OPCODE OpCode);
 static void Set_Number_Of_HCI_Command_Packets( uint8_t Num_HCI_Cmd_Packets );
 static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
+static void Increment_HCI_Command_Packets( void );
 
 static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr );
 static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr );
@@ -214,6 +215,27 @@ static void Decrement_HCI_Command_Packets( void )
 
 
 /****************************************************************/
+/* Increment_HCI_Command_Packets()         						*/
+/* Location: 					 								*/
+/* Purpose: Increment available HCI packets.					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Increment_HCI_Command_Packets( void )
+{
+	EnterCritical();
+
+	if ( Num_HCI_Command_Packets != 0xFF )
+	{
+		Num_HCI_Command_Packets++;
+	}
+
+	ExitCritical();
+}
+
+
+/****************************************************************/
 /* HCI_Transmit()                      				            */
 /* Purpose: Higher layers put messages to transmit calling		*/
 /* this function. This function enqueue messages in the 		*/
@@ -274,9 +296,9 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 
 			if( CallBackPtr != NULL )
 			{
-				CallBackPtr->Status = TRUE;
 				CallBackPtr->CmdCompleteCallBack = CmdCallBack->CmdCompleteCallBack;
 				CallBackPtr->CmdStatusCallBack = CmdCallBack->CmdStatusCallBack;
+				CallBackPtr->Status = BUSY;
 			}
 		}
 
@@ -504,9 +526,9 @@ static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, H
 	}else if( CmdCallBack != NULL )
 	{
 		/* Message reception failed: clear callback functions */
-		CmdCallBack->Status = FALSE;
 		CmdCallBack->CmdCompleteCallBack = NULL;
 		CmdCallBack->CmdStatusCallBack = NULL;
+		CmdCallBack->Status = FREE;
 		return;
 	}else
 	{
@@ -533,16 +555,29 @@ void Command_Complete_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallB
 	{
 		/* clear the callback variable */
 		CmdCallBackFun = CmdCallBack->CmdCompleteCallBack;
-		CmdCallBack->Status = FALSE;
 		CmdCallBack->CmdCompleteCallBack = NULL;
 		CmdCallBack->CmdStatusCallBack = NULL;
-		if( CmdCallBackFun != NULL ) /* We have handler at application side? */
+
+		EnterCritical();
+
+		if( CmdCallBack->Status )
 		{
-			if( CmdCallBack->CmdCompleteHandler != NULL ) /* We have local handler? */
+			CmdCallBack->Status = ON_GOING;
+
+			ExitCritical();
+
+			if( CmdCallBackFun != NULL ) /* We have handler at application side? */
 			{
-				CmdCallBack->CmdCompleteHandler( CmdCallBackFun, EventPacketPtr );
+				if( CmdCallBack->CmdCompleteHandler != NULL ) /* We have local handler? */
+				{
+					CmdCallBack->CmdCompleteHandler( CmdCallBackFun, EventPacketPtr );
+				}
 			}
+		}else
+		{
+			ExitCritical();
 		}
+		CmdCallBack->Status = FREE;
 	}else
 	{
 		/* Treat unknown command */
@@ -981,6 +1016,33 @@ static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HC
 
 
 /****************************************************************/
+/* Clear_Command_CallBack()       	   			  		        */
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode )
+{
+	CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
+
+	if ( CmdCallBack != NULL )
+	{
+		EnterCritical();
+
+		if( CmdCallBack->Status != ON_GOING )
+		{
+			CmdCallBack->Status = FREE;
+		}
+
+		ExitCritical();
+	}
+
+	Increment_HCI_Command_Packets( );
+}
+
+
+/****************************************************************/
 /* Command_Status_Handler()       	             		        */
 /* Purpose: 													*/
 /* Parameters: none				         						*/
@@ -993,15 +1055,28 @@ void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBac
 
 	if( CmdCallBackFun != NULL ) /* Do we have application handler? */
 	{
-		CmdCallBack->Status = FALSE;
-		( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
+		EnterCritical();
+
+		if( CmdCallBack->Status )
+		{
+			CmdCallBack->Status = ON_GOING;
+
+			ExitCritical();
+
+			( (DefCmdStatus)CmdCallBackFun )( EventPacketPtr->Event_Parameter[0] );
+		}else
+		{
+			ExitCritical();
+		}
+
+		CmdCallBack->Status = FREE;
 	}else if( CmdCallBack == NULL )
 	{
 		/* Call unknown OpMode */
 		HCI_Command_Status( EventPacketPtr->Event_Parameter[0], EventPacketPtr->Event_Parameter[1], OpCode );
 	}else
 	{
-		CmdCallBack->Status = FALSE;
+		CmdCallBack->Status = FREE;
 	}
 }
 

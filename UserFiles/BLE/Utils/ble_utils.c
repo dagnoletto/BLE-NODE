@@ -5,6 +5,7 @@
 /****************************************************************/
 #include "ble_utils.h"
 #include "TimeFunctions.h"
+#include "hci_transport_layer.h"
 
 
 /****************************************************************/
@@ -349,7 +350,8 @@ uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* 
 void Cancel_Private_Address_Resolution( void )
 {
 	Encrypt_CallBack = NULL;
-	//TODO: increment available command and free comand complete and status callbacks
+	HCI_COMMAND_OPCODE OpCode = { .Val = HCI_LE_ENCRYPT };
+	Clear_Command_CallBack( OpCode );
 }
 
 

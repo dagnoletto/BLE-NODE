@@ -99,9 +99,17 @@ typedef struct
 }FRAME_ENQUEUE_STATUS;
 
 
+typedef enum
+{
+	FREE 	 = 0,
+	BUSY	 = 1,
+	ON_GOING = 2
+}CMD_CB_STATUS;
+
+
 typedef struct
 {
-	uint8_t Status; /* BUSY/FREE */
+	CMD_CB_STATUS Status: 8; /* CB_FREE/CB_BUSY/CB_ON_GOING */
 	void* CmdCompleteCallBack; /* Function pointer */
 	void* CmdStatusCallBack; /* Function pointer */
 	void (*CmdCompleteHandler)(void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr); /* Function pointer */
@@ -116,6 +124,7 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack);
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
 void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr );
+void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode );
 void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
 		HCI_EVENT_PCKT* EventPacketPtr );
 void Command_Complete_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
