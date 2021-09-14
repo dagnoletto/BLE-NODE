@@ -349,9 +349,12 @@ uint8_t Resolve_Private_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, BD_ADDR_TYPE* 
 /****************************************************************/
 void Cancel_Private_Address_Resolution( void )
 {
-	Encrypt_CallBack = NULL;
-	HCI_COMMAND_OPCODE OpCode = { .Val = HCI_LE_ENCRYPT };
-	Clear_Command_CallBack( OpCode );
+	if( Encrypt_CallBack != NULL )
+	{
+		HCI_COMMAND_OPCODE OpCode = { .Val = HCI_LE_ENCRYPT };
+		Clear_Command_CallBack( OpCode );
+		Encrypt_CallBack = NULL;
+	}
 }
 
 
