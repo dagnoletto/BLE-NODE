@@ -745,7 +745,7 @@ void Hosted_Functions_Process( void )
 	BD_ADDR_TYPE* Addr;
 
 	/* Generates/resolve device addresses */
-	if( Hosted_Resolving_List.NumberOfEntries )
+	if( ( Hosted_Resolving_List.NumberOfEntries ) && ( Get_BLE_State() > STANDBY_STATE ) )
 	{
 		if( !RenewRPAs )
 		{
