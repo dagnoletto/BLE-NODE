@@ -941,6 +941,7 @@ void Hosted_Functions_Process( void )
 		}else
 		{
 			CommandToProcess.OpCode.Val = 0;
+			Cancel_Private_Address_Resolution();
 		}
 	}
 	break;
