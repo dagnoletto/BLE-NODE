@@ -135,16 +135,6 @@ void Run_BLE( void )
 		}
 		break;
 
-	case STANDBY_STATE:
-		if( Standby_Flag != BLE_TRUE )
-		{
-			if( ACI_Hal_Device_Standby( &Hal_Device_Standby_Event, NULL ) )
-			{
-				Standby_Flag = BLE_TRUE;
-			}
-		}
-		break;
-
 	case CONFIG_ADVERTISING:
 		ConfigStatus = Advertising_Config(  );
 		if( ConfigStatus == TRUE )
@@ -157,10 +147,6 @@ void Run_BLE( void )
 		}
 		break;
 
-	case ADVERTISING_STATE:
-		Advertising(  );
-		break;
-
 	case CONFIG_SCANNING:
 		ConfigStatus = Scanning_Config(  );
 		if( ConfigStatus == TRUE )
@@ -171,6 +157,20 @@ void Run_BLE( void )
 			Standby_Flag = BLE_FALSE;
 			Set_BLE_State( STANDBY_STATE );
 		}
+		break;
+
+	case STANDBY_STATE:
+		if( Standby_Flag != BLE_TRUE )
+		{
+			if( ACI_Hal_Device_Standby( &Hal_Device_Standby_Event, NULL ) )
+			{
+				Standby_Flag = BLE_TRUE;
+			}
+		}
+		break;
+
+	case ADVERTISING_STATE:
+		Advertising(  );
 		break;
 
 	case SCANNING_STATE:

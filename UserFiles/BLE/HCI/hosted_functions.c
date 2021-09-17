@@ -245,7 +245,7 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 	{
 	case HCI_LE_SET_SCAN_ENABLE:
 		/* This command is "faked" and is used to check the advertising report. */
-		if( !CommandToProcess.OpCode.Val ) /* Make sure any processing is happening on the list right now */
+		if( ( !CommandToProcess.OpCode.Val ) && ( state == SCANNING_STATE ) ) /* Make sure any processing is happening on the list right now */
 		{
 			/* No callback is needed */
 			CommandToProcess.OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
@@ -744,8 +744,10 @@ void Hosted_Functions_Process( void )
 	static BD_ADDR_TYPE* Address_Ptr;
 	BD_ADDR_TYPE* Addr;
 
+	BLE_STATES state = Get_BLE_State();
+
 	/* Generates/resolve device addresses */
-	if( ( Hosted_Resolving_List.NumberOfEntries ) && ( Get_BLE_State() > STANDBY_STATE ) )
+	if( ( Hosted_Resolving_List.NumberOfEntries ) && ( state > STANDBY_STATE ) )
 	{
 		if( !RenewRPAs )
 		{
@@ -797,142 +799,148 @@ void Hosted_Functions_Process( void )
 
 	case HCI_LE_SET_SCAN_ENABLE:
 	{
-		switch( CommandToProcess.ProcessSteps )
+		if( state == SCANNING_STATE )
 		{
-		case 0:
-			Num_Reports = CommandToProcess.EventPacket.Event_Parameter[1];
-			Event_Type_Ptr = &CommandToProcess.EventPacket.Event_Parameter[2];
-			Address_Type_Ptr = &(CommandToProcess.EventPacket.Event_Parameter[Num_Reports + 2]);
-			Address_Ptr = (BD_ADDR_TYPE*)(&(CommandToProcess.EventPacket.Event_Parameter[ ( Num_Reports * 2 ) + 2 ]) );
-			CommandToProcess.ProcessSteps = 1;
-			break;
-
-		case 1:
-			if( Num_Reports > 0 )
+			switch( CommandToProcess.ProcessSteps )
 			{
-				/* Only RANDOM_DEV_ADDR may be resolved */
-				if( ( (ADDRESS_TYPE)( Address_Type_Ptr[Num_Reports - 1] ) ) == RANDOM_DEV_ADDR )
+			case 0:
+				Num_Reports = CommandToProcess.EventPacket.Event_Parameter[1];
+				Event_Type_Ptr = &CommandToProcess.EventPacket.Event_Parameter[2];
+				Address_Type_Ptr = &(CommandToProcess.EventPacket.Event_Parameter[Num_Reports + 2]);
+				Address_Ptr = (BD_ADDR_TYPE*)(&(CommandToProcess.EventPacket.Event_Parameter[ ( Num_Reports * 2 ) + 2 ]) );
+				CommandToProcess.ProcessSteps = 1;
+				break;
+
+			case 1:
+				if( Num_Reports > 0 )
 				{
-					if( ( Address_Ptr[Num_Reports - 1].Bytes[sizeof(BD_ADDR_TYPE) - 1] & 0xC0 ) == 0x40 )
+					/* Only RANDOM_DEV_ADDR may be resolved */
+					if( ( (ADDRESS_TYPE)( Address_Type_Ptr[Num_Reports - 1] ) ) == RANDOM_DEV_ADDR )
 					{
-						/* This is a resolvable private address, we should try to resolve it */
-						RecordCounter = 0;
-						CommandToProcess.ProcessSteps = 2;
+						if( ( Address_Ptr[Num_Reports - 1].Bytes[sizeof(BD_ADDR_TYPE) - 1] & 0xC0 ) == 0x40 )
+						{
+							/* This is a resolvable private address, we should try to resolve it */
+							RecordCounter = 0;
+							CommandToProcess.ProcessSteps = 2;
+						}else
+						{
+							/* This is not RPA, so we will not try to resolve it */
+							Num_Reports--;
+						}
 					}else
 					{
-						/* This is not RPA, so we will not try to resolve it */
+						/* This address is not random, we don't need to do anything about it */
 						Num_Reports--;
 					}
 				}else
 				{
-					/* This address is not random, we don't need to do anything about it */
-					Num_Reports--;
+					LE_Advertising_Report_Handler( &CommandToProcess.EventPacket );
+					CommandToProcess.OpCode.Val = 0;
 				}
-			}else
-			{
-				LE_Advertising_Report_Handler( &CommandToProcess.EventPacket );
-				CommandToProcess.OpCode.Val = 0;
-			}
-			break;
+				break;
 
-		case 2:
-			Desc = Get_Resolvable_Descriptor_From_Index( RecordCounter );
-			if( Desc != NULL )
-			{
-				RecordCounter++;
-				if( memcmp( &Address_Ptr[Num_Reports - 1].Bytes[0], &Desc->Id.Peer_Identity_Address.Address.Bytes[0], sizeof(BD_ADDR_TYPE) ) != 0 )
+			case 2:
+				Desc = Get_Resolvable_Descriptor_From_Index( RecordCounter );
+				if( Desc != NULL )
 				{
-					/* Check if IRK values are NULL */
-					if( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT )
+					RecordCounter++;
+					if( memcmp( &Address_Ptr[Num_Reports - 1].Bytes[0], &Desc->Id.Peer_Identity_Address.Address.Bytes[0], sizeof(BD_ADDR_TYPE) ) != 0 )
 					{
-						/* This should use local IRK, although a directed RPA should never get here since it would have been blocked
-						 * because TargetA is different from this device address. */
-						if( !Check_NULL_IRK(&Desc->Id.Local_IRK)  )
+						/* Check if IRK values are NULL */
+						if( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT )
 						{
+							/* This should use local IRK, although a directed RPA should never get here since it would have been blocked
+							 * because TargetA is different from this device address. */
+							if( !Check_NULL_IRK(&Desc->Id.Local_IRK)  )
+							{
+								TimeCounter = 0;
+								CommandToProcess.ProcessSteps = 3;
+							}else
+							{
+								/* The local IRK is null, so no address resolution is possible
+								 * Load the next address from the advertising report */
+								Num_Reports--;
+								CommandToProcess.ProcessSteps = 1;
+							}
+						}else if( !Check_NULL_IRK(&Desc->Id.Peer_IRK) )
+						{
+							/* These shall use peer IRK values */
 							TimeCounter = 0;
 							CommandToProcess.ProcessSteps = 3;
 						}else
 						{
-							/* The local IRK is null, so no address resolution is possible
+							/* The peer IRK is null, so no address resolution is possible
 							 * Load the next address from the advertising report */
 							Num_Reports--;
 							CommandToProcess.ProcessSteps = 1;
 						}
-					}else if( !Check_NULL_IRK(&Desc->Id.Peer_IRK) )
-					{
-						/* These shall use peer IRK values */
-						TimeCounter = 0;
-						CommandToProcess.ProcessSteps = 3;
 					}else
 					{
-						/* The peer IRK is null, so no address resolution is possible
+						/* The address is equal to the resolving list entry. There is no need to resolve anything.
 						 * Load the next address from the advertising report */
 						Num_Reports--;
 						CommandToProcess.ProcessSteps = 1;
 					}
 				}else
 				{
-					/* The address is equal to the resolving list entry. There is no need to resolve anything.
-					 * Load the next address from the advertising report */
+					/* Resolving list ended: Load the next address from the advertising report */
 					Num_Reports--;
 					CommandToProcess.ProcessSteps = 1;
 				}
-			}else
+				break;
+
+			case 3:
 			{
-				/* Resolving list ended: Load the next address from the advertising report */
+				/* ADV_DIRECT_IND_EVT should use local IRK, although a directed RPA should never get here since it would have been blocked
+				 * because TargetA is different from this device. */
+				/* These shall use peer IRK values: */
+				/* ADV_IND_EVT */
+				/* ADV_SCAN_IND_EVT */
+				/* ADV_NONCONN_IND_EVT */
+				/* SCAN_RSP_EVT */
+				IRK_TYPE* Local_IRK_Ptr = ( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT ) ? &Desc->Id.Local_IRK : &Desc->Id.Peer_IRK;
+
+				CommandToProcess.ProcessSteps = 4;
+				if( Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], Local_IRK_Ptr, 1, &Check_Private_Addr ) )
+				{
+					TimeCounter = 0;
+				}else
+				{
+					Cancel_Private_Address_Resolution();
+					/* End resolution for this address */
+					CommandToProcess.ProcessSteps = 2;
+				}
+			}
+			break;
+
+			case 4: /* Wait for address resolution to end */
+				if( TimeBase_DelayMs( &TimeCounter, 250, TRUE ) )
+				{
+					Cancel_Private_Address_Resolution();
+					/* End resolution for this resolving record */
+					CommandToProcess.ProcessSteps = 2;
+				}
+				break;
+
+			case 5: /* Successful address resolution */
+				/* Load the type of identity just resolved */
+				Address_Type_Ptr[Num_Reports - 1] = ( Desc->Id.Peer_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR ) ? PUBLIC_IDENTITY_ADDR : RANDOM_IDENTITY_ADDR;
+				/* Load the identity into the address itself since we have resolved it */
+				Address_Ptr[Num_Reports - 1] = Desc->Id.Peer_Identity_Address.Address;
+				/* Load the next address from the advertising report */
 				Num_Reports--;
 				CommandToProcess.ProcessSteps = 1;
-			}
-			break;
+				break;
 
-		case 3:
-		{
-			/* ADV_DIRECT_IND_EVT should use local IRK, although a directed RPA should never get here since it would have been blocked
-			 * because TargetA is different from this device. */
-			/* These shall use peer IRK values: */
-			/* ADV_IND_EVT */
-			/* ADV_SCAN_IND_EVT */
-			/* ADV_NONCONN_IND_EVT */
-			/* SCAN_RSP_EVT */
-			IRK_TYPE* Local_IRK_Ptr = ( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT ) ? &Desc->Id.Local_IRK : &Desc->Id.Peer_IRK;
-
-			CommandToProcess.ProcessSteps = 4;
-			if( Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], Local_IRK_Ptr, 1, &Check_Private_Addr ) )
-			{
-				TimeCounter = 0;
-			}else
-			{
-				Cancel_Private_Address_Resolution();
-				/* End resolution for this address */
-				CommandToProcess.ProcessSteps = 2;
-			}
-		}
-		break;
-
-		case 4: /* Wait for address resolution to end */
-			if( TimeBase_DelayMs( &TimeCounter, 250, TRUE ) )
-			{
-				Cancel_Private_Address_Resolution();
+			case 6: /* Failed resolvable address, that is, the address does not "match" with the resolving record */
+				/* Simply go to the next resolving record */
 				/* End resolution for this resolving record */
 				CommandToProcess.ProcessSteps = 2;
+				break;
 			}
-			break;
-
-		case 5: /* Successful address resolution */
-			/* Load the type of identity just resolved */
-			Address_Type_Ptr[Num_Reports - 1] = ( Desc->Id.Peer_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR ) ? PUBLIC_IDENTITY_ADDR : RANDOM_IDENTITY_ADDR;
-			/* Load the identity into the address itself since we have resolved it */
-			Address_Ptr[Num_Reports - 1] = Desc->Id.Peer_Identity_Address.Address;
-			/* Load the next address from the advertising report */
-			Num_Reports--;
-			CommandToProcess.ProcessSteps = 1;
-			break;
-
-		case 6: /* Failed resolvable address, that is, the address does not "match" with the resolving record */
-			/* Simply go to the next resolving record */
-			/* End resolution for this resolving record */
-			CommandToProcess.ProcessSteps = 2;
-			break;
+		}else
+		{
+			CommandToProcess.OpCode.Val = 0;
 		}
 	}
 	break;
