@@ -226,9 +226,9 @@ static void Increment_HCI_Command_Packets( void )
 {
 	EnterCritical();
 
-	if ( Num_HCI_Command_Packets != 0xFF )
+	if ( !Num_HCI_Command_Packets )
 	{
-		Num_HCI_Command_Packets++;
+		Num_HCI_Command_Packets = 1;
 	}
 
 	ExitCritical();

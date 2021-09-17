@@ -25,7 +25,7 @@ typedef union
 		uint16_t OGF : 6; /* OpCode Group Field   */
 	};
 	uint16_t Val;
-}HCI_COMMAND_OPCODE;
+}__attribute__((packed)) HCI_COMMAND_OPCODE;
 
 
 typedef struct

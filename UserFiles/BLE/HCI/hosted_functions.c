@@ -227,19 +227,6 @@ uint8_t Hosted_LE_Set_Resolvable_Private_Address_Timeout(void* DataPtr, uint16_t
 
 
 /****************************************************************/
-/* Hosted_Address_Resolution_Status()         		   	        */
-/* Purpose: Check if resolution is enabled.						*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-uint8_t Hosted_Address_Resolution_Status( void )
-{
-	return ( ( Address_Resol_Controller ) && ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) );
-}
-
-
-/****************************************************************/
 /* Delegate_Function_To_Host()            		   	            */
 /* Purpose: Check which functions can be delegated to host.		*/
 /* Parameters: none				         						*/
@@ -723,7 +710,7 @@ static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 /****************************************************************/
 static void Check_Private_Addr(uint8_t resolvstatus, CONTROLLER_ERROR_CODES status)
 {
-	if( CommandToProcess.ProcessSteps == 4 )
+	if( ( CommandToProcess.ProcessSteps == 4 ) && ( CommandToProcess.OpCode.Val == HCI_LE_SET_SCAN_ENABLE ) )
 	{
 		TimeCounter = 0;
 		if( status == COMMAND_SUCCESS )
@@ -1056,6 +1043,34 @@ void Hosted_Functions_Process( void )
 		CommandToProcess.OpCode.Val = 0;
 		break;
 	}
+}
+
+
+/****************************************************************/
+/* Hosted_Functions_Enter_Standby()            		            */
+/* Purpose: Put hosted functions into stand-by mode.			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Hosted_Functions_Enter_Standby( void )
+{
+	CommandToProcess.OpCode.Val = 0;
+	CommandToProcess.ProcessSteps = 0;
+	Cancel_Device_Address_Generation();
+}
+
+
+/****************************************************************/
+/* Hosted_Address_Resolution_Status()         		   	        */
+/* Purpose: Check if resolution is enabled.						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Hosted_Address_Resolution_Status( void )
+{
+	return ( ( Address_Resol_Controller ) && ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) );
 }
 
 

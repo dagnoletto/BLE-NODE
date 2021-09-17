@@ -712,6 +712,8 @@ static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status )
 {
 	if( Status == COMMAND_SUCCESS )
 	{
+		/* Cancels any ongoing controller's function shared by the host */
+		Hosted_Functions_Enter_Standby( );
 		Standby_Flag = BLE_TRUE;
 	}else
 	{

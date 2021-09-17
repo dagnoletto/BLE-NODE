@@ -251,6 +251,23 @@ BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_A
 
 
 /****************************************************************/
+/* Cancel_Device_Address_Generation()     						*/
+/* Location: 					 								*/
+/* Purpose: Cancel address generation procedure.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Cancel_Device_Address_Generation( void )
+{
+	HCI_COMMAND_OPCODE OpCode = { .Val = HCI_LE_RAND };
+	BD_Config = GENERATE_RANDOM_NUMBER_PART_A;
+	Clear_Command_CallBack( OpCode );
+	Cancel_Private_Address_Resolution();
+}
+
+
+/****************************************************************/
 /* AES_128_Encrypt()        									*/
 /* Location: 					 								*/
 /* Purpose: AES-128 encrypt machine.							*/
