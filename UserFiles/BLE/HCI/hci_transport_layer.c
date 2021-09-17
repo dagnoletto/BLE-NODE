@@ -189,10 +189,6 @@ static uint8_t Check_Command_Packets_Available( void )
 
 	ExitCritical();
 
-	//TODO: add some protection here: if Num_HCI_Command_Packets remained zero for too much time this may be
-	//a sintom of controller not responding some commands. In doing so, increase Num_HCI_Command_Packets by 1 to allow new
-	//commands to be enqueued
-
 	return (status);
 }
 
@@ -232,7 +228,7 @@ static void Increment_HCI_Command_Packets( void )
 
 	if ( !Num_HCI_Command_Packets )
 	{
-		Num_HCI_Command_Packets = 1;
+		Num_HCI_Command_Packets++;
 	}
 
 	ExitCritical();
