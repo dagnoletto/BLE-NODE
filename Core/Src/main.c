@@ -115,34 +115,31 @@ int main(void)
 
 		if( TimeBase_DelayMs( &Timer, Period, TRUE )  )
 		{
-			DEVICE_IDENTITY Id;
-
-			Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
-			Id.Peer_Identity_Address.Address.Bytes[0] = 0;
-			Id.Peer_Identity_Address.Address.Bytes[1] = 10;
-			Id.Peer_Identity_Address.Address.Bytes[2] = 20;
-			Id.Peer_Identity_Address.Address.Bytes[3] = 30;
-			Id.Peer_Identity_Address.Address.Bytes[4] = 40;
-			Id.Peer_Identity_Address.Address.Bytes[5] = 50;
-
-			memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
-			Id.Local_IRK.Bytes[0] = 0;
-			Id.Local_IRK.Bytes[15] = 15;
-
-			memset( &Id.Peer_IRK.Bytes[0], 0, sizeof(Id.Peer_IRK) );
-			Id.Peer_IRK.Bytes[0] = 5;
-			Id.Peer_IRK.Bytes[15] = 51;
-
-			RESOLVING_RECORD Record;
-			Record.Peer = Id;
-			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
-
-			Add_Record_To_Resolving_List( &Record );
-
-
-
-
-			/* ADVERTISING */
+//			DEVICE_IDENTITY Id;
+//
+//			Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
+//			Id.Peer_Identity_Address.Address.Bytes[0] = 0;
+//			Id.Peer_Identity_Address.Address.Bytes[1] = 10;
+//			Id.Peer_Identity_Address.Address.Bytes[2] = 20;
+//			Id.Peer_Identity_Address.Address.Bytes[3] = 30;
+//			Id.Peer_Identity_Address.Address.Bytes[4] = 40;
+//			Id.Peer_Identity_Address.Address.Bytes[5] = 50;
+//
+//			memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
+//			Id.Local_IRK.Bytes[0] = 0;
+//			Id.Local_IRK.Bytes[15] = 15;
+//
+//			memset( &Id.Peer_IRK.Bytes[0], 0, sizeof(Id.Peer_IRK) );
+//			Id.Peer_IRK.Bytes[0] = 5;
+//			Id.Peer_IRK.Bytes[15] = 51;
+//
+//			RESOLVING_RECORD Record;
+//			Record.Peer = Id;
+//			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
+//
+//			Add_Record_To_Resolving_List( &Record );
+//
+//			/* ADVERTISING */
 //			ADVERTISING_PARAMETERS Adv;
 //
 //			Adv.Advertising_Interval_Min = 160;
@@ -166,6 +163,34 @@ int main(void)
 
 
 
+
+
+
+
+			DEVICE_IDENTITY Id;
+
+			Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
+			Id.Peer_Identity_Address.Address.Bytes[0] = 0;
+			Id.Peer_Identity_Address.Address.Bytes[1] = 10;
+			Id.Peer_Identity_Address.Address.Bytes[2] = 20;
+			Id.Peer_Identity_Address.Address.Bytes[3] = 30;
+			Id.Peer_Identity_Address.Address.Bytes[4] = 40;
+			Id.Peer_Identity_Address.Address.Bytes[5] = 50;
+
+			memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
+			Id.Local_IRK.Bytes[0] = 5;
+			Id.Local_IRK.Bytes[15] = 51;
+
+			memset( &Id.Peer_IRK.Bytes[0], 0, sizeof(Id.Peer_IRK) );
+			Id.Peer_IRK.Bytes[0] = 0;
+			Id.Peer_IRK.Bytes[15] = 15;
+
+			RESOLVING_RECORD Record;
+			Record.Peer = Id;
+			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
+
+			Add_Record_To_Resolving_List( &Record );
+
 			/* SCANNING */
 			SCANNING_PARAMETERS Scan;
 
@@ -181,9 +206,6 @@ int main(void)
 			Scan.Role = OBSERVER;
 
 			Enter_Scanning_Mode( &Scan );
-
-
-
 
 		}
 
