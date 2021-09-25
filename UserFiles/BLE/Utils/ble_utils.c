@@ -36,12 +36,6 @@ typedef struct
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
-/* The DEFAULT_PUBLIC_ADDRESS is just a "default" address needed for the
- controller configuration. However, this address shall be an IEEE unique address
- as defined in the Page 2859 and Page 416 of Core_v5.2. PLEASE DO NOT USE PUBLIC
- ADDRESS IN ADVERTISING, SCANNING OR ANY OTHER OPERATION UNLESS THE PUBLIC ADDRESS
- IS REALLY AN IEEE ASSIGNED NUMBER. PREFER TO USE THE RANDOM TYPE INSTEAD. */
-#define DEFAULT_PUBLIC_ADDRESS { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 }
 
 
 /****************************************************************/
@@ -60,6 +54,7 @@ static void LE_Rand_Complete( CONTROLLER_ERROR_CODES Status, uint8_t Random_Numb
 static uint8_t Set_Static_Random_Device_Address( BD_ADDR_TYPE* StaticAddress );
 extern uint8_t LE_Write_Address( LE_BD_ADDR_TYPE* Address );
 extern LE_BD_ADDR_TYPE* LE_Read_Address( PEER_ADDR_TYPE AddressType );
+extern BD_ADDR_TYPE Configure_Public_Device_Address( void );
 
 
 /****************************************************************/
@@ -392,7 +387,8 @@ GET_BD_ADDR Get_Public_Device_Address( void )
 
 	if( Type != PEER_PUBLIC_DEV_ADDR ) /* Address is not initialized */
 	{
-		LE_BD_ADDR_TYPE PublicAddrRecord = { .Address = { DEFAULT_PUBLIC_ADDRESS } };
+		LE_BD_ADDR_TYPE PublicAddrRecord;
+		PublicAddrRecord.Address = Configure_Public_Device_Address();
 		PublicAddrRecord.Type = PEER_PUBLIC_DEV_ADDR;
 		PublicAddrRecord.Reserved = 0;
 		if( !LE_Write_Address( &PublicAddrRecord ) )
@@ -540,6 +536,30 @@ __attribute__((weak)) LE_BD_ADDR_TYPE* LE_Read_Address( PEER_ADDR_TYPE AddressTy
 	/* Considers address was not saved. This function should be
 	 * implemented at application side. */
 	return (NULL);
+}
+
+
+/****************************************************************/
+/* Configure_Public_Device_Address()							*/
+/* Location: 					 								*/
+/* Purpose: Retrieve the public address used by the device. 	*/
+/* It should be implemented on application side.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) BD_ADDR_TYPE Configure_Public_Device_Address( void )
+{
+	/* The DEFAULT_PUBLIC_ADDRESS is just a "default" address needed for the
+	 controller configuration. However, this address shall be an IEEE unique address
+	 as defined in the Page 2859 and Page 416 of Core_v5.2. PLEASE DO NOT USE PUBLIC
+	 ADDRESS IN ADVERTISING, SCANNING OR ANY OTHER OPERATION UNLESS THE PUBLIC ADDRESS
+	 IS REALLY AN IEEE ASSIGNED NUMBER. PREFER TO USE THE RANDOM TYPE INSTEAD. */
+	#define DEFAULT_PUBLIC_ADDRESS { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 }
+
+	/* Considers default address if not implemented on application side */
+	BD_ADDR_TYPE PublicAddr = { DEFAULT_PUBLIC_ADDRESS };
+	return (PublicAddr);
 }
 
 
