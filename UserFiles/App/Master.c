@@ -1,0 +1,165 @@
+
+
+/****************************************************************/
+/* Includes                                                     */
+/****************************************************************/
+#include "Master.h"
+#include "App.h"
+
+
+/****************************************************************/
+/* Type Defines                                                 */
+/****************************************************************/
+
+
+/****************************************************************/
+/* Static functions declaration                                 */
+/****************************************************************/
+uint8_t Config_Scanner(void);
+
+
+/****************************************************************/
+/* Defines                                                      */
+/****************************************************************/
+
+
+/****************************************************************/
+/* Global variables definition                                  */
+/****************************************************************/
+
+
+/****************************************************************/
+/* Local variables definition                                   */
+/****************************************************************/
+
+
+/****************************************************************/
+/* MasterNode()													*/
+/* Location: 					 								*/
+/* Purpose: Run master code										*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void MasterNode( void )
+{
+	static NODE_STATE MasterStateMachine = WAIT_BLE_STANDBY;
+
+	switch( MasterStateMachine )
+	{
+	case WAIT_BLE_STANDBY:
+		MasterStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_SCANNER_ROLE : WAIT_BLE_STANDBY;
+		break;
+
+	case CONFIG_SCANNER_ROLE:
+		MasterStateMachine = Config_Scanner() ? RUN_DEVICE_ROLE : CONFIG_SCANNER_ROLE;
+		break;
+
+	case RUN_DEVICE_ROLE:
+		break;
+
+	default: break;
+	}
+}
+
+
+/****************************************************************/
+/* Config_Scanner()        	     								*/
+/* Location: 					 								*/
+/* Purpose: Set the operating BLE state in scanning mode		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Config_Scanner(void)
+{
+	DEVICE_IDENTITY Id;
+
+	Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
+	Id.Peer_Identity_Address.Address = MasterPublicAddress;
+
+	memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
+	Id.Local_IRK.Bytes[0] = 5;
+	Id.Local_IRK.Bytes[15] = 51;
+
+	memset( &Id.Peer_IRK.Bytes[0], 0, sizeof(Id.Peer_IRK) );
+	Id.Peer_IRK.Bytes[0] = 0;
+	Id.Peer_IRK.Bytes[15] = 15;
+
+	RESOLVING_RECORD Record;
+	Record.Peer = Id;
+	Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
+
+	Add_Record_To_Resolving_List( &Record );
+
+	/* SCANNING */
+	SCANNING_PARAMETERS Scan;
+
+	Scan.LE_Scan_Type = ACTIVE_SCANNING;
+	Scan.LE_Scan_Interval = 320;
+	Scan.LE_Scan_Window = 320;
+	Scan.Own_Address_Type = OWN_RANDOM_DEV_ADDR;
+	Scan.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
+	Scan.PeerId = Record.Peer.Peer_Identity_Address;
+	Scan.Scanning_Filter_Policy = 0;
+	Scan.Filter_Duplicates = 0;
+	Scan.Privacy = TRUE;
+	Scan.Role = OBSERVER;
+
+	return ( Enter_Scanning_Mode( &Scan ) );
+}
+
+
+/****************************************************************/
+/* HCI_LE_Advertising_Report()                					*/
+/* Location: 2382 Core_v5.2		 								*/
+/* Purpose: The HCI_LE_Advertising_Report event indicates that 	*/
+/* one or more Bluetooth devices have responded to an active 	*/
+/* scan or have broadcast advertisements that were received 	*/
+/* during a passive scan. The Controller may queue these 		*/
+/* advertising reports and send information from multiple 		*/
+/* devices in one HCI_LE_Advertising_Report event. This event 	*/
+/* shall only be generated if scanning was enabled using the	*/
+/* HCI_LE_Set_Scan_Enable command. It only reports advertising  */
+/* events that used legacy advertising PDUs.					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
+		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
+{
+	static uint8_t AdvData[40];
+
+	/* Sub event code for the HCI_LE_Advertising_Report event: page 2382 Core_v5.2 */
+	if( Subevent_Code == 0x02 )
+	{
+		ADVERTISING_REPORT Report;
+		uint16_t Number_Of_Data_Bytes = 0;
+
+		for( uint8_t i = 0; i < Num_Reports; i++ )
+		{
+			Report.Event_Type = Event_Type[i];
+			Report.Address_Type = Address_Type[i];
+
+			if( Report.Address_Type == PUBLIC_IDENTITY_ADDR )
+			{
+				HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+			}
+
+			Report.Address = Address[i];
+			Report.Data_Length = Data_Length[i];
+			Report.RSSI = RSSI[i];
+			Report.DataPtr = &AdvData[0];
+
+			memcpy( Report.DataPtr, &Data[Number_Of_Data_Bytes], Report.Data_Length );
+
+			Number_Of_Data_Bytes += Report.Data_Length;
+		}
+	}
+}
+
+
+/****************************************************************/
+/* End of file	                                                */
+/****************************************************************/

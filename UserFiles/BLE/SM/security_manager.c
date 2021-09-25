@@ -94,7 +94,7 @@ uint16_t Get_Number_Of_Resolving_Records( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint16_t Add_Record_To_Resolving_List( RESOLVING_RECORD* Record )
+uint8_t Add_Record_To_Resolving_List( RESOLVING_RECORD* Record )
 {
 	uint32_t ListAddress = GET_LE_RESOLVING_LIST_BASE_ADDRESS();
 
@@ -138,7 +138,7 @@ uint16_t Add_Record_To_Resolving_List( RESOLVING_RECORD* Record )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint16_t Remove_Record_From_Resolving_List( IDENTITY_ADDRESS* Peer_Identity_Address )
+uint8_t Remove_Record_From_Resolving_List( IDENTITY_ADDRESS* Peer_Identity_Address )
 {
 	uint32_t ListAddress = GET_LE_RESOLVING_LIST_BASE_ADDRESS();
 
@@ -180,7 +180,7 @@ uint16_t Remove_Record_From_Resolving_List( IDENTITY_ADDRESS* Peer_Identity_Addr
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint16_t Clear_Resolving_List( void )
+uint8_t Clear_Resolving_List( void )
 {
 	uint32_t ListAddress = GET_LE_RESOLVING_LIST_BASE_ADDRESS();
 

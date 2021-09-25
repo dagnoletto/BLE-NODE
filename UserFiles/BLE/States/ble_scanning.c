@@ -628,35 +628,35 @@ static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Id
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
-		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
-{
-	/* Sub event code for the HCI_LE_Advertising_Report event: page 2382 Core_v5.2 */
-	if( Subevent_Code == 0x02 )
-	{
-		ADVERTISING_REPORT Report;
-		uint16_t Number_Of_Data_Bytes = 0;
-		static uint8_t AdvData[40];
-
-		HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );//TODO: teste de recebimento de advertisments
-
-		for( uint8_t i = 0; i < Num_Reports; i++ )
-		{
-			Report.Event_Type = Event_Type[i];
-			Report.Address_Type = Address_Type[i];
-			Report.Address = Address[i];
-			Report.Data_Length = Data_Length[i];
-			Report.RSSI = RSSI[i];
-			Report.DataPtr = &AdvData[0];
-
-			memcpy( Report.DataPtr, &Data[Number_Of_Data_Bytes], Report.Data_Length );
-
-			Number_Of_Data_Bytes += Report.Data_Length;
-
-			//TODO: add device to scanned device list
-		}
-	}
-}
+//TODO: callback implemented in higher layers for now. In the future this function may fill-up a list and the higher layers
+//could retrieve devices from this list
+//void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
+//		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
+//{
+//	/* Sub event code for the HCI_LE_Advertising_Report event: page 2382 Core_v5.2 */
+//	if( Subevent_Code == 0x02 )
+//	{
+//		ADVERTISING_REPORT Report;
+//		uint16_t Number_Of_Data_Bytes = 0;
+//		static uint8_t AdvData[40];
+//
+//		for( uint8_t i = 0; i < Num_Reports; i++ )
+//		{
+//			Report.Event_Type = Event_Type[i];
+//			Report.Address_Type = Address_Type[i];
+//			Report.Address = Address[i];
+//			Report.Data_Length = Data_Length[i];
+//			Report.RSSI = RSSI[i];
+//			Report.DataPtr = &AdvData[0];
+//
+//			memcpy( Report.DataPtr, &Data[Number_Of_Data_Bytes], Report.Data_Length );
+//
+//			Number_Of_Data_Bytes += Report.Data_Length;
+//
+//			//TODO: add device to scanned device list
+//		}
+//	}
+//}
 
 
 /****************************************************************/

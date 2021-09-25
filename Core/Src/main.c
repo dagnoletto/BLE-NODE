@@ -30,9 +30,7 @@
 #include "TimeFunctions.h"
 #include "Bluenrg.h"
 #include "ble_states.h"
-#include "ble_utils.h"
-#include "gap.h"
-#include "security_manager.h"
+#include "App.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -73,8 +71,7 @@ void SystemClock_Config(void);
 int main(void)
 {
 	/* USER CODE BEGIN 1 */
-	static uint32_t Timer = 0;
-	static uint32_t Period = 500UL;
+
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
@@ -101,6 +98,7 @@ int main(void)
 	/* USER CODE BEGIN 2 */
 	TimeFunctions_Init();
 	Reset_Bluenrg();
+	App_Init();
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -112,110 +110,7 @@ int main(void)
 		/* USER CODE BEGIN 3 */
 		Run_Bluenrg();
 		Run_BLE();
-
-		if( TimeBase_DelayMs( &Timer, Period, TRUE )  )
-		{
-//			DEVICE_IDENTITY Id;
-//
-//			Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
-//			Id.Peer_Identity_Address.Address.Bytes[0] = 0;
-//			Id.Peer_Identity_Address.Address.Bytes[1] = 10;
-//			Id.Peer_Identity_Address.Address.Bytes[2] = 20;
-//			Id.Peer_Identity_Address.Address.Bytes[3] = 30;
-//			Id.Peer_Identity_Address.Address.Bytes[4] = 40;
-//			Id.Peer_Identity_Address.Address.Bytes[5] = 50;
-//
-//			memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
-//			Id.Local_IRK.Bytes[0] = 0;
-//			Id.Local_IRK.Bytes[15] = 15;
-//
-//			memset( &Id.Peer_IRK.Bytes[0], 0, sizeof(Id.Peer_IRK) );
-//			Id.Peer_IRK.Bytes[0] = 5;
-//			Id.Peer_IRK.Bytes[15] = 51;
-//
-//			RESOLVING_RECORD Record;
-//			Record.Peer = Id;
-//			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
-//
-//			Add_Record_To_Resolving_List( &Record );
-//
-//			/* ADVERTISING */
-//			ADVERTISING_PARAMETERS Adv;
-//
-//			Adv.Advertising_Interval_Min = 160;
-//			Adv.Advertising_Interval_Max = 320;
-//			Adv.Advertising_Type = ADV_IND;
-//			Adv.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR;
-//			Adv.Own_Random_Address_Type = STATIC_DEVICE_ADDRESS;
-//			Adv.Peer_Address_Type = PEER_PUBLIC_DEV_ADDR;
-//			memcpy( &Adv.Peer_Address, &Id.Peer_Identity_Address.Address, sizeof(Adv.Peer_Address) );
-//			Adv.Advertising_Channel_Map.Val = DEFAULT_LE_ADV_CH_MAP;
-//			Adv.Advertising_Filter_Policy = 0;
-//			Adv.connIntervalmin = NO_SPECIFIC_MINIMUM;
-//			Adv.connIntervalmax = NO_SPECIFIC_MAXIMUM;
-//			Adv.Privacy = FALSE;
-//			Adv.Role = PERIPHERAL;
-//			Adv.DiscoveryMode = GENERAL_DISCOVERABLE_MODE;
-//
-//			Enter_Advertising_Mode( &Adv );
-//
-//			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
-
-
-
-
-
-
-
-			DEVICE_IDENTITY Id;
-
-			Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
-			Id.Peer_Identity_Address.Address.Bytes[0] = 0;
-			Id.Peer_Identity_Address.Address.Bytes[1] = 10;
-			Id.Peer_Identity_Address.Address.Bytes[2] = 20;
-			Id.Peer_Identity_Address.Address.Bytes[3] = 30;
-			Id.Peer_Identity_Address.Address.Bytes[4] = 40;
-			Id.Peer_Identity_Address.Address.Bytes[5] = 50;
-
-			memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
-			Id.Local_IRK.Bytes[0] = 5;
-			Id.Local_IRK.Bytes[15] = 51;
-
-			memset( &Id.Peer_IRK.Bytes[0], 0, sizeof(Id.Peer_IRK) );
-			Id.Peer_IRK.Bytes[0] = 0;
-			Id.Peer_IRK.Bytes[15] = 15;
-
-			RESOLVING_RECORD Record;
-			Record.Peer = Id;
-			Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
-
-			Add_Record_To_Resolving_List( &Record );
-
-			/* SCANNING */
-			SCANNING_PARAMETERS Scan;
-
-			Scan.LE_Scan_Type = ACTIVE_SCANNING;
-			Scan.LE_Scan_Interval = 320;
-			Scan.LE_Scan_Window = 320;
-			Scan.Own_Address_Type = OWN_RANDOM_DEV_ADDR;
-			Scan.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
-			Scan.PeerId = Record.Peer.Peer_Identity_Address;
-			Scan.Scanning_Filter_Policy = 0;
-			Scan.Filter_Duplicates = 0;
-			Scan.Privacy = TRUE;
-			Scan.Role = OBSERVER;
-
-			Enter_Scanning_Mode( &Scan );
-
-		}
-
-//		if( Get_Bluenrg_IRQ_Pin() )
-//		{
-//			HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
-//		}else
-//		{
-//			HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
-//		}
+		App_Run();
 	}
 	/* USER CODE END 3 */
 }
