@@ -558,7 +558,7 @@ static uint8_t Check_Scanner_Parameters( SCANNING_PARAMETERS* ScanPar )
 /****************************************************************/
 /* Check_Random_Address_For_Scanning()   						*/
 /* Location: 													*/
-/* Purpose: Check if random address for scanning.				*/
+/* Purpose: Check random address for scanning.					*/
 /* Parameters: none				         						*/
 /* Return:														*/
 /* Description:													*/

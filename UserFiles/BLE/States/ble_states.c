@@ -71,6 +71,8 @@ extern int8_t Advertising_Config( void );
 extern void Advertising( void );
 extern int8_t Scanning_Config( void );
 extern void Scanning( void );
+extern int8_t Initiating_Config( void );
+extern void Initiating( void );
 
 
 /****************************************************************/
@@ -159,6 +161,18 @@ void Run_BLE( void )
 		}
 		break;
 
+	case CONFIG_INITIATING:
+		ConfigStatus = Initiating_Config(  );
+		if( ConfigStatus == TRUE )
+		{
+			Set_BLE_State( INITIATING_STATE );
+		}else if( ConfigStatus < 0 )
+		{
+			Standby_Flag = BLE_FALSE;
+			Set_BLE_State( STANDBY_STATE );
+		}
+		break;
+
 	case STANDBY_STATE:
 		if( Standby_Flag != BLE_TRUE )
 		{
@@ -178,6 +192,7 @@ void Run_BLE( void )
 		break;
 
 	case INITIATING_STATE:
+		Initiating(  );
 		break;
 
 	case CONNECTION_STATE:

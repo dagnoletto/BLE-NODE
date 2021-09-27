@@ -13,6 +13,7 @@
 #include "gap.h"
 #include "ble_advertising.h"
 #include "ble_scanning.h"
+#include "ble_initiating.h"
 
 
 /****************************************************************/
@@ -25,6 +26,7 @@ typedef enum
 	BLE_INITIAL_SETUP,
 	CONFIG_ADVERTISING,
 	CONFIG_SCANNING,
+	CONFIG_INITIATING,
 	STANDBY_STATE,
 	ADVERTISING_STATE,
 	SCANNING_STATE,
@@ -46,6 +48,7 @@ LOCAL_VERSION_INFORMATION* Get_Local_Version_Information( void );
 uint8_t Enter_StandBy_Mode( void );
 uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar );
 uint8_t Enter_Scanning_Mode( SCANNING_PARAMETERS* ScanPar );
+uint8_t Enter_Initiating_Mode( INITIATING_PARAMETERS* InitPar );
 
 
 #endif /* BLE_STATES_H_ */
