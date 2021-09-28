@@ -49,14 +49,14 @@ void SlaveNode( void )
 	switch( SlaveStateMachine )
 	{
 	case WAIT_BLE_STANDBY:
-		SlaveStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_ADVERTISER_ROLE : WAIT_BLE_STANDBY;
+		SlaveStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_ADVERTISER : WAIT_BLE_STANDBY;
 		break;
 
-	case CONFIG_ADVERTISER_ROLE:
-		SlaveStateMachine = Config_Advertiser() ? RUN_DEVICE_ROLE : CONFIG_ADVERTISER_ROLE;
+	case CONFIG_ADVERTISER:
+		SlaveStateMachine = Config_Advertiser() ? RUN_ADVERTISER : CONFIG_ADVERTISER;
 		break;
 
-	case RUN_DEVICE_ROLE:
+	case RUN_ADVERTISER:
 		if( TimeBase_DelayMs( &Timer, 500, TRUE )  )
 		{
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );

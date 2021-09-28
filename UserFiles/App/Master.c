@@ -16,6 +16,7 @@
 /* Static functions declaration                                 */
 /****************************************************************/
 uint8_t Config_Scanner(void);
+uint8_t Config_Initiating(void);
 
 
 /****************************************************************/
@@ -48,14 +49,21 @@ void MasterNode( void )
 	switch( MasterStateMachine )
 	{
 	case WAIT_BLE_STANDBY:
-		MasterStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_SCANNER_ROLE : WAIT_BLE_STANDBY;
+		MasterStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_SCANNER : WAIT_BLE_STANDBY;
 		break;
 
-	case CONFIG_SCANNER_ROLE:
-		MasterStateMachine = Config_Scanner() ? RUN_DEVICE_ROLE : CONFIG_SCANNER_ROLE;
+	case CONFIG_SCANNER:
+		MasterStateMachine = Config_Scanner() ? RUN_SCANNER : CONFIG_SCANNER;
 		break;
 
-	case RUN_DEVICE_ROLE:
+	case RUN_SCANNER:
+		break;
+
+	case CONFIG_INITIATOR:
+		MasterStateMachine = Config_Initiating() ? RUN_INITIATOR : CONFIG_INITIATOR;
+		break;
+
+	case RUN_INITIATOR:
 		break;
 
 	default: break;
@@ -107,6 +115,56 @@ uint8_t Config_Scanner(void)
 	Scan.Role = OBSERVER;
 
 	return ( Enter_Scanning_Mode( &Scan ) );
+}
+
+
+/****************************************************************/
+/* Config_Initiating()     	     								*/
+/* Location: 					 								*/
+/* Purpose: Set the operating BLE state in initiating mode		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Config_Initiating(void)
+{
+	DEVICE_IDENTITY Id;
+
+	Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
+	Id.Peer_Identity_Address.Address = MasterPublicAddress;
+
+	memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
+	Id.Local_IRK.Bytes[0] = 5;
+	Id.Local_IRK.Bytes[15] = 51;
+
+	memset( &Id.Peer_IRK.Bytes[0], 0, sizeof(Id.Peer_IRK) );
+	Id.Peer_IRK.Bytes[0] = 0;
+	Id.Peer_IRK.Bytes[15] = 15;
+
+	RESOLVING_RECORD Record;
+	Record.Peer = Id;
+	Record.Local_Identity_Address = Get_Identity_Address( PEER_PUBLIC_DEV_ADDR );
+
+	Add_Record_To_Resolving_List( &Record );
+
+	/* INITIATING */
+	INITIATING_PARAMETERS Init;
+
+	Init.LE_Scan_Interval = 320;
+	Init.LE_Scan_Window = 320;
+	Init.Initiator_Filter_Policy = 0;
+	Init.Peer_Address_Type = PUBLIC_DEV_ADDR;
+	//TODO Init.Peer_Address = 0;
+	Init.Own_Address_Type = OWN_RANDOM_DEV_ADDR;
+	Init.Connection_Interval_Min = 0;
+	Init.Connection_Interval_Max = 0;
+	Init.Connection_Latency = 0;
+	Init.Supervision_Timeout = 0;
+	Init.Min_CE_Length = 0;
+	Init.Max_CE_Length = 0;
+	Init.Privacy = FALSE;
+
+	return ( Enter_Initiating_Mode( &Init ) );
 }
 
 
