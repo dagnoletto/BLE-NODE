@@ -162,7 +162,7 @@ uint8_t Config_Initiating(void)
 	Init.Supervision_Timeout = 0;
 	Init.Min_CE_Length = 0;
 	Init.Max_CE_Length = 0;
-	Init.Privacy = FALSE;
+	//Init.Privacy = FALSE;
 
 	return ( Enter_Initiating_Mode( &Init ) );
 }

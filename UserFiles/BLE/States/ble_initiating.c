@@ -50,8 +50,6 @@ static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Add_Device_To_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Random_Address_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Address_Resolution_Enable_Complete( CONTROLLER_ERROR_CODES Status );
-static uint8_t Check_Initiator_Parameters( INITIATING_PARAMETERS* InitPar );
-static uint8_t Check_Random_Address_For_Initiating( INITIATING_PARAMETERS* InitPar );
 static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Identity_Address );
 
 
@@ -452,109 +450,49 @@ void Initiating( void )
 /****************************************************************/
 uint8_t Check_Initiating_Parameters( INITIATING_PARAMETERS* InitPar )
 {
-	if( InitPar->LE_Scan_Window > InitPar->LE_Scan_Interval )
+	if( ( InitPar->LE_Scan_Window > InitPar->LE_Scan_Interval ) ||
+			( InitPar->Initiator_Filter_Policy > 1 ) ||
+			( InitPar->Connection_Interval_Min > InitPar->Connection_Interval_Max ) ||
+			( InitPar->Min_CE_Length > InitPar->Max_CE_Length ) )
 	{
-		/* LE_Scan_Window shall be less than or equal to LE_Scan_Interval */
-		/* Filter_Duplicates shall be 0 or 1. */
+		/* Inconsistent configuration */
 		return (FALSE);
+	}else if( Get_Supported_Commands()->Bits.HCI_LE_Set_Privacy_Mode /* &&  HCI_LE_Set_Privacy_Mode supported by the host */)
+	{
+		// TODO: Aqui admite que o host suporta HCI_LE_Set_Privacy_Mode, mas tem que implementar este comando no host ainda.
+		/* Me parece que nas versões em que HCI_LE_Set_Privacy_Mode está habilitado, qualquer endereço randômico recebido
+		 * pelo controlador, seja ele proveniente do host ou de um dispositivo remoto, será resolvido (se for RPA) e automaticamente
+		 * o controlador irá manter a privacidade para o endereço identidade correspondente. POr isso não há necessidade de
+		 * usar 0x02 ou 0x03 neste caso, pois o controlador irá resolver o endereço randômico passado através de Peer_Address_Type == 0x01
+		 * e já saberá se o RPA em questão corresponde a uma identidade pública ou estática. */
+		if( InitPar->Peer_Address_Type >= PUBLIC_IDENTITY_ADDR )
+		{
+			/* Those values shall only be used by the Host if either the Host or the Controller does not
+			 * support the HCI_LE_Set_Privacy_Mode command. */
+			/* The Host shall not set Peer_Address_Type to either 0x02 or 0x03 if both the Host and the Controller
+			support the HCI_LE_Set_Privacy_Mode command. If a Controller that supports the HCI_LE_Set_Privacy_Mode
+			command receives the HCI_LE_Create_Connection command with Peer_Address_Type set to either
+			0x02 or 0x03, it may use either device privacy mode or network privacy mode for that peer device. */
+			return (FALSE);
+		}
 	}else if( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 )
 	{
-		/* For Core version 4.1 and lower, the concept of resolving private addresses in the
-		 * controller is not present so the controller can not resolve the private addresses
-		 * in the controller, making this configuration unavailable. That means if the controller
-		 * receives an advertising address that matches the resolving list, the controller will not
-		 * generate its own RPA to request the scan to the advertiser. Although this configuration only
-		 * matters for active scanning, we avoid going further if the device does not support the
-		 * parameter range. */
-		if( ( InitPar->Own_Address_Type > OWN_RANDOM_DEV_ADDR) || ( InitPar->Initiator_Filter_Policy > 1 ) )
+		/* The Own_Address_Type can only be resolvable if Peer_Address_Type loads
+		 * the peer identity, otherwise we cannot find out the local IRK. */
+		if( InitPar->Own_Address_Type >= OWN_RESOL_OR_PUBLIC_ADDR )
 		{
+			if( InitPar->Peer_Address_Type < PUBLIC_IDENTITY_ADDR )
+			{
+				return (FALSE);
+			}
+		}else if( ( InitPar->Own_Address_Type == OWN_RANDOM_DEV_ADDR ) && ( InitPar->Own_Random_Address_Type == RESOLVABLE_PRIVATE ) )
+		{
+			/* We should only configure random as non-resolvable or static random address */
 			return (FALSE);
 		}
 	}
 
-	return( Check_Initiator_Parameters( InitPar ) );
-}
-
-
-/****************************************************************/
-/* Check_Initiator_Parameters()      							*/
-/* Location: 													*/
-/* Purpose: Verify initiating parameters for initiator.			*/
-/* Parameters: none				         						*/
-/* Return:														*/
-/* Description:													*/
-/****************************************************************/
-static uint8_t Check_Initiator_Parameters( INITIATING_PARAMETERS* InitPar )
-{
-	switch( InitPar->Own_Address_Type )
-	{
-	case OWN_PUBLIC_DEV_ADDR:
-		/* During active scanning, a privacy enabled Central shall use a non-resolvable
-		or resolvable private address. */
-		return ( ( ( /* InitPar->LE_Scan_Type == ACTIVE_SCANNING */0 /* TODO */ ) && InitPar->Privacy ) ? FALSE : TRUE );
-		break;
-
-	case OWN_RANDOM_DEV_ADDR:
-		return ( Check_Random_Address_For_Initiating( InitPar ) );
-		break;
-
-	case OWN_RESOL_OR_PUBLIC_ADDR:
-		/* Due to the fact the public address may be used for active scanning, no privacy is
-		 * guaranteed under this condition. */
-		return ( ( ( /* InitPar->LE_Scan_Type == ACTIVE_SCANNING */0 /* TODO */ ) && InitPar->Privacy ) ? FALSE : TRUE );
-		break;
-
-	case OWN_RESOL_OR_RANDOM_ADDR:
-		/* If we are scanning actively with privacy, the privacy depends pretty much of how
-		 * random part is configured. */
-		if( ( /* InitPar->LE_Scan_Type == ACTIVE_SCANNING */0 /* TODO */ ) && InitPar->Privacy )
-		{
-			/* Check random part */
-			return ( Check_Random_Address_For_Initiating( InitPar ) );
-		}else if( /* InitPar->Own_Random_Address_Type == RESOLVABLE_PRIVATE */0 /* TODO */ )
-		{
-			/* Check resolvable private address is possible to generate */
-			return ( /* Check_Local_Resolvable_Private_Address( &InitPar->PeerId ) */0 /* TODO */ );
-		}else
-		{
-			return (TRUE);
-		}
-		break;
-	}
-	return (FALSE);
-}
-
-
-/****************************************************************/
-/* Check_Random_Address_For_Initiating()   						*/
-/* Location: 													*/
-/* Purpose: Check random address for initiating.				*/
-/* Parameters: none				         						*/
-/* Return:														*/
-/* Description:													*/
-/****************************************************************/
-static uint8_t Check_Random_Address_For_Initiating( INITIATING_PARAMETERS* InitPar )
-{
-	switch( /* InitPar->Own_Random_Address_Type */0 /* TODO */ )
-	{
-	case STATIC_DEVICE_ADDRESS:
-		/* During active scanning, a privacy enabled Central shall use a non-resolvable
-		or resolvable private address. */
-		return ( ( ( /* InitPar->LE_Scan_Type == ACTIVE_SCANNING */0 /* TODO */ ) && InitPar->Privacy ) ? FALSE : TRUE );
-		break;
-
-	case RESOLVABLE_PRIVATE:
-		/* Permitted in privacy mode */
-		/* But we need to know if we have record for the peer identity. */
-		return ( /* Check_Local_Resolvable_Private_Address( &InitPar->PeerId ) */0 /* TODO */ );
-		break;
-
-	case NON_RESOLVABLE_PRIVATE:
-		/* Permitted in privacy mode */
-		return (TRUE);
-		break;
-	}
-	return (FALSE);
+	return (TRUE);
 }
 
 

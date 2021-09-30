@@ -36,6 +36,7 @@ typedef struct
 
 typedef struct
 {
+	/* TODO: add privacy mode to update with HCI_LE_Set_Privacy_Mode command */
 	DEVICE_IDENTITY Peer;
 	IDENTITY_ADDRESS Local_Identity_Address;
 }__attribute__((packed)) RESOLVING_RECORD;

@@ -34,6 +34,7 @@
 /****************************************************************/
 /* External variables declaration                               */
 /****************************************************************/
+//TODO: Implementar a HCI_LE_Set_Privacy_Mode? Como fica na inicialização dos estados (advertising, scanning, initiating)?
 uint8_t Hosted_LE_Add_Device_To_Resolving_List(void* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
 uint8_t Hosted_LE_Remove_Device_From_Resolving_List(void* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
 uint8_t Hosted_LE_Read_Peer_Resolvable_Address(void* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
