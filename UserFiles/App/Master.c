@@ -154,15 +154,16 @@ uint8_t Config_Initiating(void)
 	Init.LE_Scan_Window = 320;
 	Init.Initiator_Filter_Policy = 0;
 	Init.Peer_Address_Type = PUBLIC_DEV_ADDR;
-	//TODO Init.Peer_Address = 0;
-	Init.Own_Address_Type = OWN_RANDOM_DEV_ADDR;
-	Init.Connection_Interval_Min = 0;
-	Init.Connection_Interval_Max = 0;
+	Init.Peer_Address = SlavePublicAddress;
+	Init.Own_Address_Type = OWN_PUBLIC_DEV_ADDR;
+	Init.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
+	Init.Connection_Interval_Min = 80; /* 80 * 1.25ms = 100ms */
+	Init.Connection_Interval_Max = 80; /* 80 * 1.25ms = 100ms */
 	Init.Connection_Latency = 0;
-	Init.Supervision_Timeout = 0;
-	Init.Min_CE_Length = 0;
-	Init.Max_CE_Length = 0;
-	//Init.Privacy = FALSE;
+	Init.Supervision_Timeout = 80; /* 80 * 10ms = 800ms */
+	Init.Min_CE_Length = 80; /* 80 * 1.25ms = 100ms */
+	Init.Max_CE_Length = 80; /* 80 * 1.25ms = 100ms */
+	Init.Privacy = FALSE;
 
 	return ( Enter_Initiating_Mode( &Init ) );
 }

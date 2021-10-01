@@ -492,6 +492,19 @@ uint8_t Check_Initiating_Parameters( INITIATING_PARAMETERS* InitPar )
 		}
 	}
 
+	/* TODO: testar a condição abaixo! */
+	/* The Link Layer shall use resolvable private addresses for the initiator’s device
+	address (InitA field) when initiating connection establishment with an
+	associated device that exists in the Resolving List. The initiator’s device
+	address (InitA field) in the initiating PDU is generated using the Resolving List
+	Local IRK and the Resolvable Private Address Generation Procedure (see
+	Section 1.3.2.2). The Link Layer should not set the InitA field to the same value
+	as the TargetA field in the received advertising PDU.
+	The Link Layer shall use the Host-provided address for the initiator’s device
+	address (InitA field) when initiating connection establishment with a device that
+	is not in the Resolving List. */
+	//Quando privacidade estiver habilitado, não deixar o InitA ser ajustado para identity address
+
 	return (TRUE);
 }
 

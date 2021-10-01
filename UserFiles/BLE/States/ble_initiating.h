@@ -31,6 +31,7 @@ typedef struct
 	uint16_t Supervision_Timeout;
 	uint16_t Min_CE_Length;
 	uint16_t Max_CE_Length;
+	uint8_t Privacy; /* TRUE / FALSE for initiator privacy */
 	uint32_t Counter;
 }INITIATING_PARAMETERS;
 
