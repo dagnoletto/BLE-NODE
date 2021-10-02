@@ -50,6 +50,7 @@ static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Add_Device_To_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Random_Address_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Address_Resolution_Enable_Complete( CONTROLLER_ERROR_CODES Status );
+static uint8_t Check_Initiator_Address( INITIATING_PARAMETERS* InitPar );
 static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Identity_Address );
 
 
@@ -125,6 +126,8 @@ int8_t Initiating_Config( void )
 {
 	static uint32_t InitConfigTimeout = 0;
 	static RESOLVING_RECORD* RecordPtr;
+
+	//TODO: Quando privacidade estiver habilitado, nunca deixar o InitA ser ajustado para identity address
 
 	switch( InitConfig.Actual )
 	{
@@ -485,14 +488,23 @@ uint8_t Check_Initiating_Parameters( INITIATING_PARAMETERS* InitPar )
 			{
 				return (FALSE);
 			}
-		}else if( ( InitPar->Own_Address_Type == OWN_RANDOM_DEV_ADDR ) && ( InitPar->Own_Random_Address_Type == RESOLVABLE_PRIVATE ) )
-		{
-			/* We should only configure random as non-resolvable or static random address */
-			return (FALSE);
 		}
 	}
 
-	/* TODO: testar a condição abaixo! */
+	return ( Check_Initiator_Address(InitPar) );
+}
+
+
+/****************************************************************/
+/* Check_Initiator_Address()      								*/
+/* Location: 													*/
+/* Purpose: Verify initiator address.							*/
+/* Parameters: none				         						*/
+/* Return:														*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Check_Initiator_Address( INITIATING_PARAMETERS* InitPar )
+{
 	/* The Link Layer shall use resolvable private addresses for the initiator’s device
 	address (InitA field) when initiating connection establishment with an
 	associated device that exists in the Resolving List. The initiator’s device
@@ -503,9 +515,45 @@ uint8_t Check_Initiating_Parameters( INITIATING_PARAMETERS* InitPar )
 	The Link Layer shall use the Host-provided address for the initiator’s device
 	address (InitA field) when initiating connection establishment with a device that
 	is not in the Resolving List. */
-	//Quando privacidade estiver habilitado, não deixar o InitA ser ajustado para identity address
 
-	return (TRUE);
+	switch( InitPar->Own_Address_Type )
+	{
+	case OWN_PUBLIC_DEV_ADDR:
+		/* During initiating, a privacy enabled Initiator shall use a non-resolvable or resolvable private address. */
+		return ( InitPar->Privacy ? FALSE : TRUE );
+		break;
+
+	case OWN_RANDOM_DEV_ADDR:
+	case OWN_RESOL_OR_RANDOM_ADDR:
+	{
+		/* If we are initiating with privacy, the privacy depends pretty much of how
+		 * random part is configured since if no resolving record is found, privacy must lay on random part. */
+		switch( InitPar->Own_Random_Address_Type )
+		{
+		case STATIC_DEVICE_ADDRESS:
+			/* During initiating, a privacy enabled Initiator shall use a non-resolvable or resolvable private address. */
+			return ( InitPar->Privacy ? FALSE : TRUE );
+			break;
+
+		case NON_RESOLVABLE_PRIVATE:
+			/* Permitted in privacy mode */
+			return (TRUE);
+			break;
+
+		default:
+			break;
+		}
+	}
+	break;
+
+	case OWN_RESOL_OR_PUBLIC_ADDR:
+		/* Due to the fact the public address will be used for initiating if no resolving record is found, no privacy is
+		 * guaranteed under this condition. */
+		return ( InitPar->Privacy ? FALSE : TRUE );
+		break;
+	}
+
+	return (FALSE);
 }
 
 

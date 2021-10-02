@@ -176,6 +176,7 @@ void Run_BLE( void )
 	case STANDBY_STATE:
 		if( Standby_Flag != BLE_TRUE )
 		{
+			//TODO: adicionar aqui código para desligar comandos scanning, advertising e initiating
 			if( ACI_Hal_Device_Standby( &Hal_Device_Standby_Event, NULL ) )
 			{
 				Standby_Flag = BLE_TRUE;
@@ -315,7 +316,6 @@ static uint8_t BLE_Init( void )
 			EVENT_MASK Event_Mask;
 			memset( &Event_Mask, 0, sizeof(Event_Mask) );
 
-			/* TODO: should add connection request and disconnection complete? */
 			/* Flush occurred might also be important. HCI_Data_Buffer_Overflow also? */
 			Event_Mask.Bits.Read_Remote_Supported_Features_Complete_event = 1;
 			Event_Mask.Bits.Read_Remote_Version_Information_Complete_event = 1;

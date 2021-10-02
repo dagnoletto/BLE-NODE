@@ -45,6 +45,7 @@ uint8_t Config_Initiating(void);
 void MasterNode( void )
 {
 	static NODE_STATE MasterStateMachine = WAIT_BLE_STANDBY;
+	static uint32_t TimeCounter = 0;
 
 	switch( MasterStateMachine )
 	{
@@ -57,6 +58,15 @@ void MasterNode( void )
 		break;
 
 	case RUN_SCANNER:
+		if( ( Get_BLE_State() == SCANNING_STATE ) && ( TimeBase_DelayMs( &TimeCounter, 3000, TRUE ) ) )
+		{
+			MasterStateMachine = CONFIG_STANDBY;
+		}
+		break;
+
+	case CONFIG_STANDBY:
+		Enter_StandBy_Mode();
+		MasterStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_INITIATOR : CONFIG_STANDBY;
 		break;
 
 	case CONFIG_INITIATOR:
