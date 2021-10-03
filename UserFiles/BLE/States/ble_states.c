@@ -61,12 +61,13 @@ static void LE_Read_Buffer_Size_Complete( CONTROLLER_ERROR_CODES Status, uint16_
 		uint8_t Total_Num_LE_ACL_Data_Packets );
 static void LE_Read_Local_Supported_Features_Complete( CONTROLLER_ERROR_CODES Status,
 		LE_SUPPORTED_FEATURES* LE_Features );
-static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status );
 
 
 /****************************************************************/
 /* extern functions declaration                                 */
 /****************************************************************/
+extern int8_t Standby_Config( void );
+extern void Standby( void );
 extern int8_t Advertising_Config( void );
 extern void Advertising( void );
 extern int8_t Scanning_Config( void );
@@ -91,7 +92,6 @@ extern void Initiating( void );
 static BLE_STATES BLEState = RESET_CONTROLLER;
 static BLE_INIT_STEPS BLEInitSteps = LOCAL_SUPPORTED_COMMANDS;
 static BLE_STATUS Controller_Reset_Flag = BLE_ERROR;
-static BLE_STATUS Standby_Flag = BLE_FALSE;
 static SUPPORTED_COMMANDS HCI_Supported_Commands;
 static SUPPORTED_FEATURES HCI_LMP_Features;
 static LE_SUPPORTED_FEATURES HCI_LE_Features;
@@ -132,8 +132,18 @@ void Run_BLE( void )
 	case BLE_INITIAL_SETUP:
 		if( BLE_Init(  ) )
 		{
-			Standby_Flag = BLE_FALSE;
+			Enter_Standby_Mode();
+		}
+		break;
+
+	case CONFIG_STANDBY:
+		ConfigStatus = Standby_Config(  );
+		if( ConfigStatus == TRUE )
+		{
 			Set_BLE_State( STANDBY_STATE );
+		}else if( ConfigStatus < 0 )
+		{
+			Enter_Standby_Mode();
 		}
 		break;
 
@@ -144,8 +154,7 @@ void Run_BLE( void )
 			Set_BLE_State( ADVERTISING_STATE );
 		}else if( ConfigStatus < 0 )
 		{
-			Standby_Flag = BLE_FALSE;
-			Set_BLE_State( STANDBY_STATE );
+			Enter_Standby_Mode();
 		}
 		break;
 
@@ -156,8 +165,7 @@ void Run_BLE( void )
 			Set_BLE_State( SCANNING_STATE );
 		}else if( ConfigStatus < 0 )
 		{
-			Standby_Flag = BLE_FALSE;
-			Set_BLE_State( STANDBY_STATE );
+			Enter_Standby_Mode();
 		}
 		break;
 
@@ -168,20 +176,12 @@ void Run_BLE( void )
 			Set_BLE_State( INITIATING_STATE );
 		}else if( ConfigStatus < 0 )
 		{
-			Standby_Flag = BLE_FALSE;
-			Set_BLE_State( STANDBY_STATE );
+			Enter_Standby_Mode();
 		}
 		break;
 
 	case STANDBY_STATE:
-		if( Standby_Flag != BLE_TRUE )
-		{
-			//TODO: adicionar aqui código para desligar comandos scanning, advertising e initiating
-			if( ACI_Hal_Device_Standby( &Hal_Device_Standby_Event, NULL ) )
-			{
-				Standby_Flag = BLE_TRUE;
-			}
-		}
+		Standby(  );
 		break;
 
 	case ADVERTISING_STATE:
@@ -712,65 +712,6 @@ static void Read_Local_Version_Information_Complete( CONTROLLER_ERROR_CODES Stat
 	{
 		BLEInitSteps = READ_LOCAL_VERSION;
 	}
-}
-
-
-/****************************************************************/
-/* Hal_Device_Standby_Event()        	    	   				*/
-/* Location: 					 								*/
-/* Purpose: Called to indicate the status of standby command.	*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status )
-{
-	if( Status == COMMAND_SUCCESS )
-	{
-		/* Cancels any ongoing controller's function shared by the host */
-		Hosted_Functions_Enter_Standby( );
-		Standby_Flag = BLE_TRUE;
-	}else
-	{
-		Standby_Flag = BLE_ERROR;
-	}
-}
-
-
-/****************************************************************/
-/* Enter_StandBy_Mode()        	 								*/
-/* Location: 					 								*/
-/* Purpose: Put the controller in stand-by mode.				*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-uint8_t Enter_StandBy_Mode( void )
-{
-	switch( BLEState )
-	{
-	case ADVERTISING_STATE:
-	case SCANNING_STATE:
-	case INITIATING_STATE:
-	case CONNECTION_STATE:
-	case SYNCHRONIZATION_STATE:
-	case ISOCHRONOUS_BROADCASTING_STATE:
-		/* TODO: algumas funções tem máquinas de estado para transição, ou seja, estas funções
-		 * devem ir do início ao fim, caso contrário a próxima chamada de função vai "zoar" com a mesma
-		 * Por isso, avaliar quais são as funções e esperar as mesmas terminarem ou prover uma maneira
-		 * de resetar estas funções por aqui antes de colocar o sistema em stand-by. */
-		/* TODO: liberar memória alocada das funções de advertisement, scanning e etc? */
-		Standby_Flag = BLE_FALSE;
-		Set_BLE_State( STANDBY_STATE );
-		return (TRUE);
-		break;
-
-	default:
-		break;
-
-	}
-
-	return (FALSE);
 }
 
 

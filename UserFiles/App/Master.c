@@ -64,10 +64,10 @@ void MasterNode( void )
 		}
 		break;
 
-	case CONFIG_STANDBY:
-		Enter_StandBy_Mode();
-		MasterStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_INITIATOR : CONFIG_STANDBY;
-		break;
+//	case CONFIG_STANDBY:
+//		Enter_StandBy_Mode();
+//		MasterStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_INITIATOR : CONFIG_STANDBY;
+//		break;
 
 	case CONFIG_INITIATOR:
 		MasterStateMachine = Config_Initiating() ? RUN_INITIATOR : CONFIG_INITIATOR;
