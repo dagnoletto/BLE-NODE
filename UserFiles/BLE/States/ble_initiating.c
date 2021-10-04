@@ -44,6 +44,7 @@ typedef struct
 /****************************************************************/
 int8_t Initiating_Config( void );
 void Initiating( void );
+static void Free_Initiating_Parameters( void );
 static void HCI_LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status );
 static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
 static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
@@ -93,17 +94,16 @@ uint8_t Enter_Initiating_Mode( INITIATING_PARAMETERS* InitPar )
 	{
 		if( Check_Initiating_Parameters( InitPar )  )
 		{
-			if( InitiatingParameters != NULL )
-			{
-				free(InitiatingParameters);
-				InitiatingParameters = NULL;
-			}
+			Free_Initiating_Parameters( );
 
 			InitiatingParameters = malloc( sizeof(INITIATING_PARAMETERS) );
 
 			if( InitiatingParameters != NULL )
 			{
 				*InitiatingParameters = *InitPar;
+
+				InitConfig.Actual = CANCEL_INITIATING;
+
 				Set_BLE_State( CONFIG_INITIATING );
 				return (TRUE);
 			}
@@ -111,6 +111,68 @@ uint8_t Enter_Initiating_Mode( INITIATING_PARAMETERS* InitPar )
 	}
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Exit_Initiating_Mode()        	 							*/
+/* Location: 					 								*/
+/* Purpose: Put the controller in standby exiting from 			*/
+/* initiating mode.		 										*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Exit_Initiating_Mode( BLE_STATES CurrentState )
+{
+	if( CurrentState == INITIATING_STATE )
+	{
+		Free_Initiating_Parameters( );
+
+		InitConfig.Actual = CANCEL_INITIATING;
+
+		return (TRUE);
+	}else if( CurrentState == CONFIG_INITIATING )
+	{
+		//TODO: Here we have to test if we are in a safe step to disable the state. By the contrary, we may be
+		//blocked in a function or step
+		//Acredito que seja melhor forçar o InitConfig.Actual para um ponto da configuração em que a máquina de estados
+		//cancele a configuração e depois disso ela mesmo chame a entrada para stand-by, retornando (-1)
+
+//		if( InitConfig.Actual != REQUEST_ADV_CANCEL )
+//		{
+//			InitConfig.Actual = REQUEST_ADV_CANCEL;
+//		}
+		//TODO: Não seve entrar em stand-by por aqui porque a máquina de estados deve continuar em config. Ela entrará em
+		//stand-by sozinha.
+
+		if( InitConfig.Actual == FAILED_INIT_CONFIG )
+		{
+			InitConfig.Actual = CANCEL_INITIATING;
+			Free_Initiating_Parameters( );
+			return (TRUE);
+		}
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Free_Initiating_Parameters()        	   						*/
+/* Location: 					 								*/
+/* Purpose: Free allocated initiating parameters memory			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Free_Initiating_Parameters( void )
+{
+	if( InitiatingParameters != NULL )
+	{
+		free(InitiatingParameters);
+		InitiatingParameters = NULL;
+	}
 }
 
 
@@ -275,9 +337,7 @@ int8_t Initiating_Config( void )
 		break;
 
 	case FAILED_INIT_CONFIG:
-		InitConfig.Actual = CANCEL_INITIATING;
-		free(InitiatingParameters);
-		InitiatingParameters = NULL;
+		Free_Initiating_Parameters( );
 		return (-1); /* Failed condition */
 		break;
 

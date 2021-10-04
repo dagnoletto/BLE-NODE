@@ -45,6 +45,7 @@ typedef struct
 /****************************************************************/
 int8_t Scanning_Config( void );
 void Scanning( void );
+static void Free_Scanning_Parameters( void );
 static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
 static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Add_Device_To_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
@@ -96,17 +97,16 @@ uint8_t Enter_Scanning_Mode( SCANNING_PARAMETERS* ScanPar )
 	{
 		if( Check_Scanning_Parameters( ScanPar )  )
 		{
-			if( ScanningParameters != NULL )
-			{
-				free(ScanningParameters);
-				ScanningParameters = NULL;
-			}
+			Free_Scanning_Parameters( );
 
 			ScanningParameters = malloc( sizeof(SCANNING_PARAMETERS) );
 
 			if( ScanningParameters != NULL )
 			{
 				*ScanningParameters = *ScanPar;
+
+				ScanConfig.Actual = DISABLE_SCANNING;
+
 				Set_BLE_State( CONFIG_SCANNING );
 				return (TRUE);
 			}
@@ -114,6 +114,68 @@ uint8_t Enter_Scanning_Mode( SCANNING_PARAMETERS* ScanPar )
 	}
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Exit_Scanning_Mode()        	 								*/
+/* Location: 					 								*/
+/* Purpose: Put the controller in standby exiting from 			*/
+/* scanning mode.		 										*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Exit_Scanning_Mode( BLE_STATES CurrentState )
+{
+	if( CurrentState == SCANNING_STATE )
+	{
+		Free_Scanning_Parameters( );
+
+		ScanConfig.Actual = DISABLE_SCANNING;
+
+		return (TRUE);
+	}else if( CurrentState == CONFIG_SCANNING )
+	{
+		//TODO: Here we have to test if we are in a safe step to disable the state. By the contrary, we may be
+		//blocked in a function or step
+		//Acredito que seja melhor forçar o ScanConfig.Actual para um ponto da configuração em que a máquina de estados
+		//cancele a configuração e depois disso ela mesmo chame a entrada para stand-by, retornando (-1)
+
+		//		if( ScanConfig.Actual != REQUEST_ADV_CANCEL )
+		//		{
+		//			ScanConfig.Actual = REQUEST_ADV_CANCEL;
+		//		}
+		//TODO: Não seve entrar em stand-by por aqui porque a máquina de estados deve continuar em config. Ela entrará em
+		//stand-by sozinha.
+
+		if( ScanConfig.Actual == FAILED_SCAN_CONFIG )
+		{
+			ScanConfig.Actual = DISABLE_SCANNING;
+			Free_Scanning_Parameters( );
+			return (TRUE);
+		}
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Free_Scanning_Parameters()      		  	   					*/
+/* Location: 					 								*/
+/* Purpose: Free allocated scanning parameters memory			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Free_Scanning_Parameters( void )
+{
+	if( ScanningParameters != NULL )
+	{
+		free(ScanningParameters);
+		ScanningParameters = NULL;
+	}
 }
 
 
@@ -276,9 +338,7 @@ int8_t Scanning_Config( void )
 			break;
 
 		case FAILED_SCAN_CONFIG:
-			ScanConfig.Actual = DISABLE_SCANNING;
-			free(ScanningParameters);
-			ScanningParameters = NULL;
+			Free_Scanning_Parameters( );
 			return (-1); /* Failed condition */
 			break;
 
@@ -447,6 +507,8 @@ void Scanning( void )
 	 * is disabled. We lay on the fact address resolution is always enabled in the controller
 	 * for versions above 4.1. */
 
+	/* TODO: the ScanningParameters can be deallocated at any time. A protection scheme should be employed
+	 * as this function may be executing while ScanningParameters is being deallocated. */
 	if( ScanningParameters->Privacy && ( ScanningParameters->LE_Scan_Type == ACTIVE_SCANNING ) &&
 			( ( ScanningParameters->Own_Address_Type == OWN_RANDOM_DEV_ADDR || ScanningParameters->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) &&
 					( ScanningParameters->Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE || ScanningParameters->Own_Random_Address_Type == RESOLVABLE_PRIVATE ) ) )

@@ -15,9 +15,9 @@
 /****************************************************************/
 typedef enum
 {
+	DISABLE_ADVERTISING,
 	SEND_STANDBY_CMD,
 	END_STANDBY_CONFIG,
-	FAILED_STANDBY_CONFIG,
 	WAIT_OPERATION,
 }STANDBY_CONFIG_STEPS;
 
@@ -25,7 +25,6 @@ typedef enum
 typedef struct
 {
 	STANDBY_CONFIG_STEPS Actual;
-	BLE_STATES ExitingState;
 }STANDBY_CONFIG;
 
 
@@ -34,6 +33,7 @@ typedef struct
 /****************************************************************/
 int8_t Standby_Config( void );
 void Standby( void );
+static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status );
 
 
@@ -41,6 +41,9 @@ static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status );
 /* extern functions declaration                                 */
 /****************************************************************/
 extern void Set_BLE_State( BLE_STATES NewBLEState );
+extern uint8_t Exit_Advertising_Mode( BLE_STATES CurrentState );
+extern uint8_t Exit_Scanning_Mode( BLE_STATES CurrentState );
+extern uint8_t Exit_Initiating_Mode( BLE_STATES CurrentState );
 
 
 /****************************************************************/
@@ -67,34 +70,52 @@ static STANDBY_CONFIG StandbyConfig;
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Enter_Standby_Mode( void )
+void Enter_Standby_Mode( void )
 {
-	StandbyConfig.ExitingState = Get_BLE_State( );
-	StandbyConfig.Actual = SEND_STANDBY_CMD;
+	BLE_STATES state = Get_BLE_State( );
 
-	switch( StandbyConfig.ExitingState )
+	if( state != STANDBY_STATE )
 	{
-	case ADVERTISING_STATE:
-	case SCANNING_STATE:
-	case INITIATING_STATE:
-	case CONNECTION_STATE:
-	case SYNCHRONIZATION_STATE:
-	case ISOCHRONOUS_BROADCASTING_STATE:
-		/* TODO: algumas funções tem máquinas de estado para transição, ou seja, estas funções
-		 * devem ir do início ao fim, caso contrário a próxima chamada de função vai "zoar" com a mesma
-		 * Por isso, avaliar quais são as funções e esperar as mesmas terminarem ou prover uma maneira
-		 * de resetar estas funções por aqui antes de colocar o sistema em stand-by. */
-		/* TODO: liberar memória alocada das funções de advertisement, scanning e etc? */
-		Set_BLE_State( CONFIG_STANDBY );
-		break;
+		uint8_t FunStat = TRUE;
 
-	default:
-		Set_BLE_State( CONFIG_STANDBY );
-		break;
+		switch( state )
+		{
+		case CONFIG_ADVERTISING:
+		case ADVERTISING_STATE:
+			FunStat = Exit_Advertising_Mode( state );
+			break;
 
+		case CONFIG_SCANNING:
+		case SCANNING_STATE:
+			FunStat = Exit_Scanning_Mode( state );
+			break;
+
+		case CONFIG_INITIATING:
+		case INITIATING_STATE:
+			FunStat = Exit_Initiating_Mode( state );
+			break;
+
+		case CONFIG_STANDBY:
+			/* Already in stand-by configuration, do not restart */
+			FunStat = FALSE;
+			break;
+
+		case CONNECTION_STATE:
+		case SYNCHRONIZATION_STATE:
+		case ISOCHRONOUS_BROADCASTING_STATE:
+			/* TODO: to be implemented */
+			FunStat = FALSE;
+			break;
+
+		default: break;
+		}
+
+		if ( FunStat )
+		{
+			StandbyConfig.Actual = DISABLE_ADVERTISING;
+			Set_BLE_State( CONFIG_STANDBY );
+		}
 	}
-
-	return (TRUE);
 }
 
 
@@ -113,24 +134,25 @@ int8_t Standby_Config( void )
 
 	switch( StandbyConfig.Actual )
 	{
+	case DISABLE_ADVERTISING:
+		StandbyConfigTimeout = 0;
+		StandbyConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
+		break;
+
 	case SEND_STANDBY_CMD:
 		StandbyConfigTimeout = 0;
 		StandbyConfig.Actual = ACI_Hal_Device_Standby( &Hal_Device_Standby_Event, NULL ) ? WAIT_OPERATION : SEND_STANDBY_CMD;
 		break;
 
 	case END_STANDBY_CONFIG:
-		StandbyConfig.Actual = SEND_STANDBY_CMD;
+		StandbyConfig.Actual = DISABLE_ADVERTISING;
 		return (TRUE);
-		break;
-
-	case FAILED_STANDBY_CONFIG:
-		return (-1); /* Failed condition */
 		break;
 
 	case WAIT_OPERATION:
 		if( TimeBase_DelayMs( &StandbyConfigTimeout, 500, TRUE ) )
 		{
-			StandbyConfig.Actual = FAILED_STANDBY_CONFIG;
+			StandbyConfig.Actual = DISABLE_ADVERTISING;
 		}
 		break;
 
@@ -157,6 +179,23 @@ void Standby( void )
 
 
 /****************************************************************/
+/* LE_Set_Advertising_Enable_Complete()        	   				*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	if( StandbyConfig.Actual == WAIT_OPERATION )
+	{
+		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_STANDBY_CMD : DISABLE_ADVERTISING;
+	}
+}
+
+
+/****************************************************************/
 /* Hal_Device_Standby_Event()        	    	   				*/
 /* Location: 					 								*/
 /* Purpose: Called to indicate the status of standby command.	*/
@@ -175,7 +214,7 @@ static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status )
 			StandbyConfig.Actual = END_STANDBY_CONFIG;
 		}else
 		{
-			StandbyConfig.Actual = SEND_STANDBY_CMD;
+			StandbyConfig.Actual = DISABLE_ADVERTISING;
 		}
 	}
 }

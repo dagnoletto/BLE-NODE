@@ -47,7 +47,8 @@ BLE_STATES Get_BLE_State( void );
 SUPPORTED_COMMANDS* Get_Supported_Commands( void );
 SUPPORTED_FEATURES* Get_Supported_Features( void );
 LOCAL_VERSION_INFORMATION* Get_Local_Version_Information( void );
-uint8_t Enter_Standby_Mode( void );
+
+void Enter_Standby_Mode( void );
 uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar );
 uint8_t Enter_Scanning_Mode( SCANNING_PARAMETERS* ScanPar );
 uint8_t Enter_Initiating_Mode( INITIATING_PARAMETERS* InitPar );

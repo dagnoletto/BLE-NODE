@@ -141,9 +141,6 @@ void Run_BLE( void )
 		if( ConfigStatus == TRUE )
 		{
 			Set_BLE_State( STANDBY_STATE );
-		}else if( ConfigStatus < 0 )
-		{
-			Enter_Standby_Mode();
 		}
 		break;
 

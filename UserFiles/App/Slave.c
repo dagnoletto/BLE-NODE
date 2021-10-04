@@ -44,22 +44,43 @@ uint8_t Config_Advertiser(void);
 void SlaveNode( void )
 {
 	static NODE_STATE SlaveStateMachine = WAIT_BLE_STANDBY;
+	static uint32_t TimerLED = 0;
 	static uint32_t Timer = 0;
 
 	switch( SlaveStateMachine )
 	{
 	case WAIT_BLE_STANDBY:
-		SlaveStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_ADVERTISER : WAIT_BLE_STANDBY;
+		if( TimeBase_DelayMs( &TimerLED, 100, TRUE )  )
+		{
+			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+		}
+		if( ( Get_BLE_State() == STANDBY_STATE ) && ( TimeBase_DelayMs( &Timer, 5000, TRUE ) ) )
+		{
+			SlaveStateMachine = CONFIG_ADVERTISER;
+		}
+		break;
+
+	case CONFIG_STANDBY:
+		TimerLED = 0;
+		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
+		Enter_Standby_Mode();
+		SlaveStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? WAIT_BLE_STANDBY : CONFIG_STANDBY;
 		break;
 
 	case CONFIG_ADVERTISER:
+		TimerLED = 0;
+		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
 		SlaveStateMachine = Config_Advertiser() ? RUN_ADVERTISER : CONFIG_ADVERTISER;
 		break;
 
 	case RUN_ADVERTISER:
-		if( TimeBase_DelayMs( &Timer, 500, TRUE )  )
+		if( TimeBase_DelayMs( &TimerLED, 500, TRUE )  )
 		{
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+		}
+		if( ( Get_BLE_State() == ADVERTISING_STATE ) && ( TimeBase_DelayMs( &Timer, 5000, TRUE ) ) )
+		{
+			SlaveStateMachine = CONFIG_STANDBY;
 		}
 		break;
 

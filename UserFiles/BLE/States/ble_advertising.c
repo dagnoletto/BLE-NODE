@@ -53,6 +53,7 @@ typedef struct
 /****************************************************************/
 int8_t Advertising_Config( void );
 void Advertising( void );
+static void Free_Advertising_Parameters( void );
 static ADV_CONFIG Update_Random_Address( void );
 static ADV_CONFIG Check_Local_IRK( RESOLVING_RECORD* ResolvingRecord, uint8_t RPAInController );
 static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
@@ -108,11 +109,7 @@ uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar )
 	{
 		if( Check_Advertising_Parameters( AdvPar )  )
 		{
-			if( AdvertisingParameters != NULL )
-			{
-				free(AdvertisingParameters);
-				AdvertisingParameters = NULL;
-			}
+			Free_Advertising_Parameters( );
 
 			AdvertisingParameters = malloc( sizeof(ADVERTISING_PARAMETERS) );
 
@@ -122,6 +119,9 @@ uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar )
 				AdvertisingParameters->Original_Own_Address_Type = AdvertisingParameters->Own_Address_Type;
 				AdvertisingParameters->Original_Own_Random_Address_Type = AdvertisingParameters->Own_Random_Address_Type;
 				AdvertisingParameters->Original_Peer_Address = AdvertisingParameters->Peer_Address;
+
+				AdvConfig.Actual = DISABLE_ADVERTISING;
+
 				Set_BLE_State( CONFIG_ADVERTISING );
 				return (TRUE);
 			}
@@ -129,6 +129,68 @@ uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar )
 	}
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Exit_Advertising_Mode()        	 							*/
+/* Location: 					 								*/
+/* Purpose: Put the controller in standby exiting from 			*/
+/* advertising mode.		 									*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Exit_Advertising_Mode( BLE_STATES CurrentState )
+{
+	if( CurrentState == ADVERTISING_STATE )
+	{
+		Free_Advertising_Parameters( );
+
+		AdvConfig.Actual = DISABLE_ADVERTISING;
+
+		return (TRUE);
+	}else if( CurrentState == CONFIG_ADVERTISING )
+	{
+		//TODO: Here we have to test if we are in a safe step to disable the state. By the contrary, we may be
+		//blocked in a function or step
+		//Acredito que seja melhor forçar o AdvConfig.Actual para um ponto da configuração em que a máquina de estados
+		//cancele a configuração e depois disso ela mesmo chame a entrada para stand-by, retornando (-1)
+
+		//		if( AdvConfig.Actual != REQUEST_ADV_CANCEL )
+		//		{
+		//			AdvConfig.Actual = REQUEST_ADV_CANCEL;
+		//		}
+		//TODO: Não seve entrar em stand-by por aqui porque a máquina de estados deve continuar em config. Ela entrará em
+		//stand-by sozinha.
+
+		if( AdvConfig.Actual == FAILED_ADV_CONFIG )
+		{
+			AdvConfig.Actual = DISABLE_ADVERTISING;
+			Free_Advertising_Parameters( );
+			return (TRUE);
+		}
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Free_Advertising_Parameters()        	   					*/
+/* Location: 					 								*/
+/* Purpose: Free allocated advertising parameters memory		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Free_Advertising_Parameters( void )
+{
+	if( AdvertisingParameters != NULL )
+	{
+		free(AdvertisingParameters);
+		AdvertisingParameters = NULL;
+	}
 }
 
 
@@ -409,9 +471,7 @@ int8_t Advertising_Config( void )
 		break;
 
 	case FAILED_ADV_CONFIG:
-		AdvConfig.Actual = DISABLE_ADVERTISING;
-		free(AdvertisingParameters);
-		AdvertisingParameters = NULL;
+		Free_Advertising_Parameters( );
 		return (-1); /* Failed condition */
 		break;
 
@@ -621,6 +681,8 @@ void Advertising( void )
 	 * is disabled. We lay on the fact address resolution is always enabled in the controller
 	 * for versions above 4.1. */
 
+	/* TODO: the AdvertisingParameters can be deallocated at any time. A protection scheme should be employed
+	 * as this function may be executing while AdvertisingParameters is being deallocated. */
 	if( AdvertisingParameters->Privacy && ( ( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) ||
 			( ( AdvertisingParameters->Original_Own_Address_Type == OWN_RANDOM_DEV_ADDR ) &&
 					( AdvertisingParameters->Original_Own_Random_Address_Type == NON_RESOLVABLE_PRIVATE ) ) ) )
