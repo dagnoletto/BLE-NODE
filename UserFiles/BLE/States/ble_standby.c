@@ -76,10 +76,14 @@ void Enter_Standby_Mode( void )
 
 	if( state != STANDBY_STATE )
 	{
-		uint8_t FunStat = TRUE;
+		uint8_t FunStat = FALSE;
 
 		switch( state )
 		{
+		case BLE_INITIAL_SETUP_DONE:
+			FunStat = TRUE;
+			break;
+
 		case CONFIG_ADVERTISING:
 		case ADVERTISING_STATE:
 			FunStat = Exit_Advertising_Mode( state );

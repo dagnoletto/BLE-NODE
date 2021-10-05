@@ -132,8 +132,12 @@ void Run_BLE( void )
 	case BLE_INITIAL_SETUP:
 		if( BLE_Init(  ) )
 		{
-			Enter_Standby_Mode();
+			Set_BLE_State( BLE_INITIAL_SETUP_DONE );
 		}
+		break;
+
+	case BLE_INITIAL_SETUP_DONE:
+		Enter_Standby_Mode();
 		break;
 
 	case CONFIG_STANDBY:

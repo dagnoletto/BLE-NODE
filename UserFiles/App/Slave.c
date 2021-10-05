@@ -57,14 +57,17 @@ void SlaveNode( void )
 		}
 		if( ( Get_BLE_State() == STANDBY_STATE ) && ( TimeBase_DelayMs( &Timer, 10000, TRUE ) ) )
 		{
-			SlaveStateMachine = CONFIG_ADVERTISING;
+			SlaveStateMachine = Config_Advertiser() ? CONFIG_ADVERTISING : CONFIG_STANDBY;
 		}
 		break;
 
 	case CONFIG_ADVERTISING:
 		TimerLED = 0;
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
-		SlaveStateMachine = Config_Advertiser() ? ADVERTISING_STATE : CONFIG_ADVERTISING;
+		if( Get_BLE_State() == ADVERTISING_STATE )
+		{
+			SlaveStateMachine = ADVERTISING_STATE;
+		}
 		break;
 
 	case ADVERTISING_STATE:
@@ -72,7 +75,7 @@ void SlaveNode( void )
 		{
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
-		if( ( Get_BLE_State() == ADVERTISING_STATE ) && ( TimeBase_DelayMs( &Timer, 10000, TRUE ) ) )
+		if( TimeBase_DelayMs( &Timer, 10000, TRUE ) )
 		{
 			SlaveStateMachine = CONFIG_STANDBY;
 		}
