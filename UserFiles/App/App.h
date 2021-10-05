@@ -21,19 +21,6 @@
 /****************************************************************/
 /* Type Defines                                                 */
 /****************************************************************/
-typedef enum
-{
-	WAIT_BLE_STANDBY,
-	CONFIG_ADVERTISER,
-	CONFIG_SCANNER,
-	CONFIG_INITIATOR,
-	RUN_ADVERTISER,
-	RUN_SCANNER,
-	RUN_INITIATOR,
-	STOP_ADVERTISER,
-	STOP_SCANNER,
-	STOP_INITIATOR
-}NODE_STATE;
 
 
 /****************************************************************/

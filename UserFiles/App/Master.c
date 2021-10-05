@@ -44,36 +44,35 @@ uint8_t Config_Initiating(void);
 /****************************************************************/
 void MasterNode( void )
 {
-	static NODE_STATE MasterStateMachine = WAIT_BLE_STANDBY;
+	static BLE_STATES MasterStateMachine = CONFIG_STANDBY;
 	static uint32_t TimeCounter = 0;
 
 	switch( MasterStateMachine )
 	{
-	case WAIT_BLE_STANDBY:
-		MasterStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_SCANNER : WAIT_BLE_STANDBY;
+	case CONFIG_STANDBY:
+		MasterStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_SCANNING : CONFIG_STANDBY;
 		break;
 
-	case CONFIG_SCANNER:
-		MasterStateMachine = Config_Scanner() ? RUN_SCANNER : CONFIG_SCANNER;
+	case CONFIG_SCANNING:
+		MasterStateMachine = Config_Scanner() ? SCANNING_STATE : CONFIG_SCANNING;
 		break;
 
-	case RUN_SCANNER:
-		if( ( Get_BLE_State() == SCANNING_STATE ) && ( TimeBase_DelayMs( &TimeCounter, 3000, TRUE ) ) )
+	case SCANNING_STATE:
+		if( ( Get_BLE_State() == SCANNING_STATE ) && ( TimeBase_DelayMs( &TimeCounter, 5000, TRUE ) ) )
 		{
-			MasterStateMachine = CONFIG_STANDBY;
+			MasterStateMachine = CONFIG_INITIATING;
 		}
 		break;
 
-//	case CONFIG_STANDBY:
-//		Enter_StandBy_Mode();
-//		MasterStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_INITIATOR : CONFIG_STANDBY;
-//		break;
-
-	case CONFIG_INITIATOR:
-		MasterStateMachine = Config_Initiating() ? RUN_INITIATOR : CONFIG_INITIATOR;
+	case CONFIG_INITIATING:
+		MasterStateMachine = Config_Initiating() ? INITIATING_STATE : CONFIG_INITIATING;
 		break;
 
-	case RUN_INITIATOR:
+	case INITIATING_STATE:
+		if( ( Get_BLE_State() == INITIATING_STATE ) && ( TimeBase_DelayMs( &TimeCounter, 5000, TRUE ) ) )
+		{
+			//MasterStateMachine = CONFIG_INITIATING;
+		}
 		break;
 
 	default: break;
