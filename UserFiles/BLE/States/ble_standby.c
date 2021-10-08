@@ -142,6 +142,7 @@ int8_t Standby_Config( void )
 	switch( StandbyConfig.Actual )
 	{
 	case DISABLE_SCANNING:
+		Hosted_Functions_Enter_Standby( );
 		StandbyConfigTimeout = 0;
 		StandbyConfig.Actual = HCI_LE_Set_Scan_Enable( FALSE, FALSE, &LE_Set_Scan_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_SCANNING;
 		break;
@@ -164,6 +165,16 @@ int8_t Standby_Config( void )
 	case WAIT_OPERATION:
 		if( TimeBase_DelayMs( &StandbyConfigTimeout, 500, TRUE ) )
 		{
+			HCI_COMMAND_OPCODE OpCode;
+
+			Hosted_Functions_Enter_Standby( );
+
+			OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
+			Clear_Command_CallBack( OpCode );
+
+			OpCode.Val = HCI_LE_SET_ADVERTISING_ENABLE;
+			Clear_Command_CallBack( OpCode );
+
 			StandbyConfig.Actual = DISABLE_SCANNING;
 		}
 		break;
@@ -202,7 +213,7 @@ static void LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	if( StandbyConfig.Actual == WAIT_OPERATION )
 	{
-		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? DISABLE_ADVERTISING : DISABLE_SCANNING;
+		StandbyConfig.Actual = DISABLE_ADVERTISING;
 	}
 }
 
@@ -219,7 +230,7 @@ static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	if( StandbyConfig.Actual == WAIT_OPERATION )
 	{
-		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_STANDBY_CMD : DISABLE_SCANNING;
+		StandbyConfig.Actual = SEND_STANDBY_CMD;
 	}
 }
 
