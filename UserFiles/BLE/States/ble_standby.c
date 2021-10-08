@@ -15,6 +15,8 @@
 /****************************************************************/
 typedef enum
 {
+	DISABLE_HOSTED_FUNCTIONS,
+	DISABLE_SCANNING,
 	DISABLE_ADVERTISING,
 	SEND_STANDBY_CMD,
 	END_STANDBY_CONFIG,
@@ -33,6 +35,7 @@ typedef struct
 /****************************************************************/
 int8_t Standby_Config( void );
 void Standby( void );
+static void LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status );
 
@@ -116,7 +119,7 @@ void Enter_Standby_Mode( void )
 
 		if ( FunStat )
 		{
-			StandbyConfig.Actual = DISABLE_ADVERTISING;
+			StandbyConfig.Actual = DISABLE_HOSTED_FUNCTIONS;
 			Set_BLE_State( CONFIG_STANDBY );
 		}
 	}
@@ -134,13 +137,29 @@ void Enter_Standby_Mode( void )
 int8_t Standby_Config( void )
 {
 	static uint32_t StandbyConfigTimeout = 0;
+	HCI_COMMAND_OPCODE OpCode;
 	//TODO: adicionar aqui código para desligar comandos scanning, advertising e initiating
 
 	switch( StandbyConfig.Actual )
 	{
-	case DISABLE_ADVERTISING:
+	case DISABLE_HOSTED_FUNCTIONS:
+		/* Cancels any ongoing controller's function shared by the host */
+		Hosted_Functions_Enter_Standby( );
+		StandbyConfig.Actual = DISABLE_SCANNING;
+		break;
+
+	case DISABLE_SCANNING:
+		OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
+		Clear_Command_CallBack( OpCode );
 		StandbyConfigTimeout = 0;
-		StandbyConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADVERTISING;
+		StandbyConfig.Actual = HCI_LE_Set_Scan_Enable( FALSE, FALSE, &LE_Set_Scan_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_HOSTED_FUNCTIONS;
+		break;
+
+	case DISABLE_ADVERTISING:
+		OpCode.Val = HCI_LE_SET_ADVERTISING_ENABLE;
+		Clear_Command_CallBack( OpCode );
+		StandbyConfigTimeout = 0;
+		StandbyConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_HOSTED_FUNCTIONS;
 		break;
 
 	case SEND_STANDBY_CMD:
@@ -149,14 +168,14 @@ int8_t Standby_Config( void )
 		break;
 
 	case END_STANDBY_CONFIG:
-		StandbyConfig.Actual = DISABLE_ADVERTISING;
+		StandbyConfig.Actual = DISABLE_HOSTED_FUNCTIONS;
 		return (TRUE);
 		break;
 
 	case WAIT_OPERATION:
 		if( TimeBase_DelayMs( &StandbyConfigTimeout, 500, TRUE ) )
 		{
-			StandbyConfig.Actual = DISABLE_ADVERTISING;
+			StandbyConfig.Actual = DISABLE_HOSTED_FUNCTIONS;
 		}
 		break;
 
@@ -183,6 +202,23 @@ void Standby( void )
 
 
 /****************************************************************/
+/* LE_Set_Scan_Enable_Complete()        	   					*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	if( StandbyConfig.Actual == WAIT_OPERATION )
+	{
+		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? DISABLE_ADVERTISING : DISABLE_HOSTED_FUNCTIONS;
+	}
+}
+
+
+/****************************************************************/
 /* LE_Set_Advertising_Enable_Complete()        	   				*/
 /* Location: 					 								*/
 /* Purpose: 													*/
@@ -194,7 +230,7 @@ static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	if( StandbyConfig.Actual == WAIT_OPERATION )
 	{
-		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_STANDBY_CMD : DISABLE_ADVERTISING;
+		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_STANDBY_CMD : DISABLE_HOSTED_FUNCTIONS;
 	}
 }
 
@@ -218,7 +254,7 @@ static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status )
 			StandbyConfig.Actual = END_STANDBY_CONFIG;
 		}else
 		{
-			StandbyConfig.Actual = DISABLE_ADVERTISING;
+			StandbyConfig.Actual = DISABLE_HOSTED_FUNCTIONS;
 		}
 	}
 }

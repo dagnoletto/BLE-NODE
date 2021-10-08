@@ -45,34 +45,52 @@ uint8_t Config_Initiating(void);
 void MasterNode( void )
 {
 	static BLE_STATES MasterStateMachine = CONFIG_STANDBY;
-	static uint32_t TimeCounter = 0;
+	static uint32_t TimerLED = 0;
+	static uint32_t Timer = 0;
 
 	switch( MasterStateMachine )
 	{
 	case CONFIG_STANDBY:
-		MasterStateMachine = ( Get_BLE_State() == STANDBY_STATE ) ? CONFIG_SCANNING : CONFIG_STANDBY;
+		Enter_Standby_Mode();
+		if( TimeBase_DelayMs( &TimerLED, 100, TRUE )  )
+		{
+			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+		}
+		if( ( Get_BLE_State() == STANDBY_STATE ) && ( TimeBase_DelayMs( &Timer, 10000, TRUE ) ) )
+		{
+			MasterStateMachine = Config_Scanner() ? CONFIG_SCANNING : CONFIG_STANDBY;
+		}
 		break;
 
 	case CONFIG_SCANNING:
-		MasterStateMachine = Config_Scanner() ? SCANNING_STATE : CONFIG_SCANNING;
+		TimerLED = 0;
+		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
+		if( Get_BLE_State() == SCANNING_STATE )
+		{
+			MasterStateMachine = SCANNING_STATE;
+		}
 		break;
 
 	case SCANNING_STATE:
-		if( ( Get_BLE_State() == SCANNING_STATE ) && ( TimeBase_DelayMs( &TimeCounter, 5000, TRUE ) ) )
+		if( TimeBase_DelayMs( &TimerLED, 500, TRUE )  )
 		{
-			MasterStateMachine = CONFIG_INITIATING;
+			//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+		}
+		if( TimeBase_DelayMs( &Timer, 10000, TRUE ) )
+		{
+			MasterStateMachine = CONFIG_STANDBY;
 		}
 		break;
 
 	case CONFIG_INITIATING:
-		MasterStateMachine = Config_Initiating() ? INITIATING_STATE : CONFIG_INITIATING;
+		//MasterStateMachine = Config_Initiating() ? INITIATING_STATE : CONFIG_INITIATING;
 		break;
 
 	case INITIATING_STATE:
-		if( ( Get_BLE_State() == INITIATING_STATE ) && ( TimeBase_DelayMs( &TimeCounter, 5000, TRUE ) ) )
-		{
-			//MasterStateMachine = CONFIG_INITIATING;
-		}
+		//		if( ( Get_BLE_State() == INITIATING_STATE ) && ( TimeBase_DelayMs( &Timer, 5000, TRUE ) ) )
+		//		{
+		//			//MasterStateMachine = CONFIG_INITIATING;
+		//		}
 		break;
 
 	default: break;

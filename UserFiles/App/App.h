@@ -35,7 +35,7 @@ void App_Run(void);
 /****************************************************************/
 #define BLE_SLAVE   0
 #define BLE_MASTER  1
-#define BLE_NODE BLE_SLAVE
+#define BLE_NODE BLE_MASTER
 
 
 /****************************************************************/
