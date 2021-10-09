@@ -908,10 +908,10 @@ void Hosted_Functions_Process( void )
 			/* ADV_SCAN_IND_EVT */
 			/* ADV_NONCONN_IND_EVT */
 			/* SCAN_RSP_EVT */
-			IRK_TYPE* Local_IRK_Ptr = ( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT ) ? &Desc->Id.Local_IRK : &Desc->Id.Peer_IRK;
+			IRK_TYPE* IRK_Ptr = ( Event_Type_Ptr[Num_Reports - 1] == ADV_DIRECT_IND_EVT ) ? &Desc->Id.Local_IRK : &Desc->Id.Peer_IRK;
 
 			CommandToProcess.ProcessSteps = 4;
-			if( Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], Local_IRK_Ptr, 1, &Check_Private_Addr ) )
+			if( Resolve_Private_Address( Get_Supported_Commands(), &Address_Ptr[Num_Reports - 1], IRK_Ptr, 1, &Check_Private_Addr ) )
 			{
 				TimeCounter = 0;
 			}else

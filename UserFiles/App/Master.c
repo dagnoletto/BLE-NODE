@@ -68,6 +68,7 @@ void MasterNode( void )
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
 		if( Get_BLE_State() == SCANNING_STATE )
 		{
+			SlaveInfo.AdvData.Size = 0;
 			MasterStateMachine = SCANNING_STATE;
 		}
 		break;
@@ -80,6 +81,10 @@ void MasterNode( void )
 		if( TimeBase_DelayMs( &Timer, 10000, TRUE ) )
 		{
 			//MasterStateMachine = CONFIG_STANDBY;
+		}
+		if( SlaveInfo.AdvData.Size )
+		{
+			MasterStateMachine = CONFIG_STANDBY;
 		}
 		break;
 
@@ -112,7 +117,7 @@ uint8_t Config_Scanner(void)
 	DEVICE_IDENTITY Id;
 
 	Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
-	Id.Peer_Identity_Address.Address = MasterPublicAddress;
+	Id.Peer_Identity_Address.Address = SlavePublicAddress;
 
 	memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
 	Id.Local_IRK.Bytes[0] = 5;
@@ -160,7 +165,7 @@ uint8_t Config_Initiating(void)
 	DEVICE_IDENTITY Id;
 
 	Id.Peer_Identity_Address.Type = PEER_PUBLIC_DEV_ADDR;
-	Id.Peer_Identity_Address.Address = MasterPublicAddress;
+	Id.Peer_Identity_Address.Address = SlavePublicAddress;
 
 	memset( &Id.Local_IRK.Bytes[0], 0, sizeof(Id.Local_IRK) );
 	Id.Local_IRK.Bytes[0] = 5;
@@ -239,9 +244,9 @@ void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint
 
 			Number_Of_Data_Bytes += Report.Data_Length;
 
-			if( Report.Address_Type == PUBLIC_IDENTITY_ADDR )
+			if( /*Report.Address_Type == PUBLIC_IDENTITY_ADDR*/ memcmp( &SlavePublicAddress, &Report.Address, sizeof(Report.Address) ) == 0 )
 			{
-				if( ( SlaveInfo.AdvData.Size ) && ( SlaveInfo.Address_Type == Report.Address_Type ) && ( memcmp( &SlaveInfo.Address, &Report.Address, sizeof(SlaveInfo.Address) ) == 0 ) )
+				if( ( SlaveInfo.AdvData.Size ) && ( SlaveInfo.Address_Type == Report.Address_Type ) )
 				{
 					SlaveInfo.Address_Type = Report.Address_Type;
 					SlaveInfo.Address = Report.Address;
@@ -250,12 +255,13 @@ void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint
 					{
 						SlaveInfo.ScanRspData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.ScanRspData.Bytes) );
 						memcpy( &SlaveInfo.ScanRspData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.ScanRspData.Size );
-						HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+						//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 					}else
 					{
 						SlaveInfo.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.AdvData.Bytes) );
 						memcpy( &SlaveInfo.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.AdvData.Size );
 					}
+					HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
 				}else
 				{
 					SlaveInfo.Address_Type = Report.Address_Type;
