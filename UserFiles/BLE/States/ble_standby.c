@@ -270,7 +270,7 @@ static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status )
 			StandbyConfig.Actual = END_STANDBY_CONFIG;
 		}else
 		{
-			StandbyConfig.Actual = StandbyConfig.BaseStep;
+			StandbyConfig.Actual = SEND_STANDBY_CMD;
 		}
 	}
 }
