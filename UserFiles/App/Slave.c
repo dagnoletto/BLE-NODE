@@ -55,7 +55,7 @@ void SlaveNode( void )
 		{
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
-		if( ( Get_BLE_State() == STANDBY_STATE ) && ( TimeBase_DelayMs( &Timer, 10000, TRUE ) ) )
+		if( ( Get_BLE_State() == STANDBY_STATE ) && ( TimeBase_DelayMs( &Timer, 5000, TRUE ) ) )
 		{
 			SlaveStateMachine = Config_Advertiser() ? CONFIG_ADVERTISING : CONFIG_STANDBY;
 		}
@@ -77,7 +77,7 @@ void SlaveNode( void )
 		}
 		if( TimeBase_DelayMs( &Timer, 10000, TRUE ) )
 		{
-			SlaveStateMachine = CONFIG_STANDBY;
+			//SlaveStateMachine = CONFIG_STANDBY;
 		}
 		break;
 

@@ -32,6 +32,7 @@ uint8_t Config_Initiating(void);
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
+static SLAVE_ADV_INFO SlaveInfo;
 
 
 /****************************************************************/
@@ -78,7 +79,7 @@ void MasterNode( void )
 		}
 		if( TimeBase_DelayMs( &Timer, 10000, TRUE ) )
 		{
-			MasterStateMachine = CONFIG_STANDBY;
+			//MasterStateMachine = CONFIG_STANDBY;
 		}
 		break;
 
@@ -138,8 +139,9 @@ uint8_t Config_Scanner(void)
 	Scan.PeerId = Record.Peer.Peer_Identity_Address;
 	Scan.Scanning_Filter_Policy = 0;
 	Scan.Filter_Duplicates = 0;
-	Scan.Privacy = TRUE;
-	Scan.Role = OBSERVER;
+	Scan.Privacy = TRUE; /* Due to the fact in this 4.1 controller the address resolution is done in the Host, some scan response packets are lost */
+						 /* because the controller cannot unload the responses while servicing other Host's requests. The controller itself discards some responses */
+	Scan.Role = CENTRAL;
 
 	return ( Enter_Scanning_Mode( &Scan ) );
 }
@@ -215,7 +217,7 @@ uint8_t Config_Initiating(void)
 void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
 		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
 {
-	static uint8_t AdvData[40];
+	//static uint8_t AdvData[40];
 
 	/* Sub event code for the HCI_LE_Advertising_Report event: page 2382 Core_v5.2 */
 	if( Subevent_Code == 0x02 )
@@ -228,19 +230,46 @@ void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint
 			Report.Event_Type = Event_Type[i];
 			Report.Address_Type = Address_Type[i];
 
-			if( Report.Address_Type == PUBLIC_IDENTITY_ADDR )
-			{
-				HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
-			}
-
 			Report.Address = Address[i];
 			Report.Data_Length = Data_Length[i];
 			Report.RSSI = RSSI[i];
-			Report.DataPtr = &AdvData[0];
+			//Report.DataPtr = &AdvData[0];
 
-			memcpy( Report.DataPtr, &Data[Number_Of_Data_Bytes], Report.Data_Length );
+			//memcpy( Report.DataPtr, &Data[Number_Of_Data_Bytes], Report.Data_Length );
 
 			Number_Of_Data_Bytes += Report.Data_Length;
+
+			if( Report.Address_Type == PUBLIC_IDENTITY_ADDR )
+			{
+				if( ( SlaveInfo.AdvData.Size ) && ( SlaveInfo.Address_Type == Report.Address_Type ) && ( memcmp( &SlaveInfo.Address, &Report.Address, sizeof(SlaveInfo.Address) ) == 0 ) )
+				{
+					SlaveInfo.Address_Type = Report.Address_Type;
+					SlaveInfo.Address = Report.Address;
+					SlaveInfo.RSSI = Report.RSSI;
+					if ( Report.Event_Type == SCAN_RSP_EVT )
+					{
+						SlaveInfo.ScanRspData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.ScanRspData.Bytes) );
+						memcpy( &SlaveInfo.ScanRspData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.ScanRspData.Size );
+						HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+					}else
+					{
+						SlaveInfo.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.AdvData.Bytes) );
+						memcpy( &SlaveInfo.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.AdvData.Size );
+					}
+				}else
+				{
+					SlaveInfo.Address_Type = Report.Address_Type;
+					SlaveInfo.Address = Report.Address;
+					SlaveInfo.RSSI = Report.RSSI;
+					SlaveInfo.ScanRspData.Size = 0;
+					if ( Report.Event_Type != SCAN_RSP_EVT )
+					{
+						SlaveInfo.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.AdvData.Bytes) );
+						memcpy( &SlaveInfo.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.AdvData.Size );
+					}
+				}
+				//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+			}
 		}
 	}
 }

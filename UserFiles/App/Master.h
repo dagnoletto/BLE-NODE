@@ -8,6 +8,7 @@
 /* Includes                                                     */
 /****************************************************************/
 #include "Types.h"
+#include "hci.h"
 
 
 /****************************************************************/
@@ -24,6 +25,22 @@ void MasterNode( void );
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
+typedef struct
+{
+	ADDRESS_TYPE Address_Type;
+	BD_ADDR_TYPE Address;
+	int8_t RSSI;
+	struct
+	{
+		uint8_t Size;
+		uint8_t Bytes[MAX_ADVERTISING_DATA_LENGTH];
+	}AdvData;
+	struct
+	{
+		uint8_t Size;
+		uint8_t Bytes[MAX_SCAN_RESPONSE_DATA_LENGTH];
+	}ScanRspData;
+}SLAVE_ADV_INFO;
 
 
 /****************************************************************/

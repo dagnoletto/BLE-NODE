@@ -32,6 +32,18 @@
 #define EnterCritical() asm ( "CPSID i\n\t" ) /* Disable exceptions */
 #define ExitCritical() asm ( "CPSIE i\n\t" )  /* Enable exceptions */
 
+/* Max statement */
+#define MAX(a,b) \
+  ({ typeof (a) _a = (a); \
+      typeof (b) _b = (b); \
+    _a > _b ? _a : _b; })
+
+/* Min statement */
+#define MIN(a,b) \
+  ({ typeof (a) _a = (a); \
+      typeof (b) _b = (b); \
+    _a < _b ? _a : _b; })
+
 
 #endif /* TYPES_H_ */
 
