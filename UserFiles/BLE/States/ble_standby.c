@@ -62,6 +62,7 @@ extern uint8_t Exit_Initiating_Mode( BLE_STATES CurrentState );
 /* Local variables definition                                   */
 /****************************************************************/
 static STANDBY_CONFIG StandbyConfig;
+static uint32_t StandbyConfigTimeout = 0;
 
 
 /****************************************************************/
@@ -135,26 +136,26 @@ void Enter_Standby_Mode( void )
 /****************************************************************/
 int8_t Standby_Config( void )
 {
-	static uint32_t StandbyConfigTimeout = 0;
-
 	//TODO: adicionar aqui código para desligar comandos scanning, advertising e initiating
 
 	switch( StandbyConfig.Actual )
 	{
 	case DISABLE_SCANNING:
-		Hosted_Functions_Enter_Standby( );
 		StandbyConfigTimeout = 0;
-		StandbyConfig.Actual = HCI_LE_Set_Scan_Enable( FALSE, FALSE, &LE_Set_Scan_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_SCANNING;
+		StandbyConfig.Actual = WAIT_OPERATION;
+		HCI_LE_Set_Scan_Enable( FALSE, FALSE, &LE_Set_Scan_Enable_Complete, NULL );
 		break;
 
 	case DISABLE_ADVERTISING:
 		StandbyConfigTimeout = 0;
-		StandbyConfig.Actual = HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_SCANNING;
+		StandbyConfig.Actual = WAIT_OPERATION;
+		HCI_LE_Set_Advertising_Enable( FALSE, &LE_Set_Advertising_Enable_Complete, NULL );
 		break;
 
 	case SEND_STANDBY_CMD:
 		StandbyConfigTimeout = 0;
-		StandbyConfig.Actual = ACI_Hal_Device_Standby( &Hal_Device_Standby_Event, NULL ) ? WAIT_OPERATION : SEND_STANDBY_CMD;
+		StandbyConfig.Actual = WAIT_OPERATION;
+		ACI_Hal_Device_Standby( &Hal_Device_Standby_Event, NULL );
 		break;
 
 	case END_STANDBY_CONFIG:
@@ -163,7 +164,7 @@ int8_t Standby_Config( void )
 		break;
 
 	case WAIT_OPERATION:
-		if( TimeBase_DelayMs( &StandbyConfigTimeout, 500, TRUE ) )
+		if( TimeBase_DelayMs( &StandbyConfigTimeout, 1000, TRUE ) )
 		{
 			HCI_COMMAND_OPCODE OpCode;
 
@@ -213,7 +214,7 @@ static void LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	if( StandbyConfig.Actual == WAIT_OPERATION )
 	{
-		StandbyConfig.Actual = DISABLE_ADVERTISING;
+		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? DISABLE_ADVERTISING : DISABLE_SCANNING;
 	}
 }
 
@@ -230,7 +231,7 @@ static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	if( StandbyConfig.Actual == WAIT_OPERATION )
 	{
-		StandbyConfig.Actual = SEND_STANDBY_CMD;
+		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_STANDBY_CMD : DISABLE_SCANNING;
 	}
 }
 
