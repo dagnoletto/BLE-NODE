@@ -179,7 +179,7 @@ int8_t Standby_Config( void )
 		break;
 
 	case WAIT_OPERATION:
-		if( TimeBase_DelayMs( &StandbyConfigTimeout, 500, TRUE ) )
+		if( TimeBase_DelayMs( &StandbyConfigTimeout, 1000, TRUE ) )
 		{
 			HCI_COMMAND_OPCODE OpCode;
 
