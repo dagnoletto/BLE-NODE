@@ -57,9 +57,15 @@ void MasterNode( void )
 		{
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
-		if( ( Get_BLE_State() == STANDBY_STATE ) && ( TimeBase_DelayMs( &Timer, 10000, TRUE ) ) )
+		if( ( Get_BLE_State() == STANDBY_STATE ) && ( TimeBase_DelayMs( &Timer, 5000, TRUE ) ) )
 		{
-			MasterStateMachine = Config_Scanner() ? CONFIG_SCANNING : CONFIG_STANDBY;
+			if( SlaveInfo.AdvData.Size && SlaveInfo.ScanRspData.Size )
+			{
+				MasterStateMachine = Config_Initiating() ? CONFIG_INITIATING : CONFIG_STANDBY;
+			}else
+			{
+				MasterStateMachine = Config_Scanner() ? CONFIG_SCANNING : CONFIG_STANDBY;
+			}
 		}
 		break;
 
@@ -69,6 +75,7 @@ void MasterNode( void )
 		if( Get_BLE_State() == SCANNING_STATE )
 		{
 			SlaveInfo.AdvData.Size = 0;
+			SlaveInfo.ScanRspData.Size = 0;
 			MasterStateMachine = SCANNING_STATE;
 		}
 		break;
@@ -82,21 +89,28 @@ void MasterNode( void )
 		{
 			//MasterStateMachine = CONFIG_STANDBY;
 		}
-		if( SlaveInfo.AdvData.Size )
+		if( SlaveInfo.AdvData.Size && SlaveInfo.ScanRspData.Size )
 		{
 			MasterStateMachine = CONFIG_STANDBY;
 		}
 		break;
 
 	case CONFIG_INITIATING:
-		//MasterStateMachine = Config_Initiating() ? INITIATING_STATE : CONFIG_INITIATING;
+		TimerLED = 0;
+		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
+		if( Get_BLE_State() == INITIATING_STATE )
+		{
+			SlaveInfo.AdvData.Size = 0;
+			SlaveInfo.ScanRspData.Size = 0;
+			MasterStateMachine = INITIATING_STATE;
+		}
 		break;
 
 	case INITIATING_STATE:
-		//		if( ( Get_BLE_State() == INITIATING_STATE ) && ( TimeBase_DelayMs( &Timer, 5000, TRUE ) ) )
-		//		{
-		//			//MasterStateMachine = CONFIG_INITIATING;
-		//		}
+		if( TimeBase_DelayMs( &TimerLED, 1000, TRUE ) )
+		{
+			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+		}
 		break;
 
 	default: break;
@@ -144,8 +158,9 @@ uint8_t Config_Scanner(void)
 	Scan.PeerId = Record.Peer.Peer_Identity_Address;
 	Scan.Scanning_Filter_Policy = 0;
 	Scan.Filter_Duplicates = 0;
-	Scan.Privacy = TRUE; /* Due to the fact in this 4.1 controller the address resolution is done in the Host, some scan response packets are lost */
-						 /* because the controller cannot unload the responses while servicing other Host's requests. The controller itself discards some responses */
+	//Scan.Privacy = TRUE; /* Due to the fact in this 4.1 controller the address resolution is done in the Host, some scan response packets are lost */
+	/* because the controller cannot unload the responses while servicing other Host's requests. The controller itself discards some responses */
+	Scan.Privacy = FALSE;
 	Scan.Role = CENTRAL;
 
 	return ( Enter_Scanning_Mode( &Scan ) );
@@ -242,8 +257,6 @@ void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint
 
 			//memcpy( Report.DataPtr, &Data[Number_Of_Data_Bytes], Report.Data_Length );
 
-			Number_Of_Data_Bytes += Report.Data_Length;
-
 			if( /*Report.Address_Type == PUBLIC_IDENTITY_ADDR*/ memcmp( &SlavePublicAddress, &Report.Address, sizeof(Report.Address) ) == 0 )
 			{
 				if( ( SlaveInfo.AdvData.Size ) && ( SlaveInfo.Address_Type == Report.Address_Type ) )
@@ -255,13 +268,13 @@ void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint
 					{
 						SlaveInfo.ScanRspData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.ScanRspData.Bytes) );
 						memcpy( &SlaveInfo.ScanRspData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.ScanRspData.Size );
-						//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+						HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 					}else
 					{
 						SlaveInfo.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.AdvData.Bytes) );
 						memcpy( &SlaveInfo.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.AdvData.Size );
 					}
-					HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
+					//HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
 				}else
 				{
 					SlaveInfo.Address_Type = Report.Address_Type;
@@ -276,6 +289,9 @@ void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint
 				}
 				//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 			}
+
+			Number_Of_Data_Bytes += Report.Data_Length;
+
 		}
 	}
 }

@@ -139,10 +139,10 @@ uint8_t Exit_Initiating_Mode( BLE_STATES CurrentState )
 		//Acredito que seja melhor forçar o InitConfig.Actual para um ponto da configuração em que a máquina de estados
 		//cancele a configuração e depois disso ela mesmo chame a entrada para stand-by, retornando (-1)
 
-//		if( InitConfig.Actual != REQUEST_ADV_CANCEL )
-//		{
-//			InitConfig.Actual = REQUEST_ADV_CANCEL;
-//		}
+		//		if( InitConfig.Actual != REQUEST_ADV_CANCEL )
+		//		{
+		//			InitConfig.Actual = REQUEST_ADV_CANCEL;
+		//		}
 		//TODO: Não seve entrar em stand-by por aqui porque a máquina de estados deve continuar em config. Ela entrará em
 		//stand-by sozinha.
 
@@ -208,37 +208,38 @@ int8_t Initiating_Config( void )
 		InitConfig.Actual = HCI_LE_Set_Address_Resolution_Enable( FALSE, &LE_Set_Address_Resolution_Enable_Complete, NULL ) ? WAIT_OPERATION : DISABLE_ADDRESS_RESOLUTION;
 		break;
 
-		//	case CLEAR_RESOLVING_LIST:
-		//		if( ( ScanningParameters->Privacy ) || ( ScanningParameters->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR ) ||
-		//				( ScanningParameters->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) ||
-		//				( ( ScanningParameters->Own_Address_Type == OWN_RANDOM_DEV_ADDR ) && ( ScanningParameters->Own_Random_Address_Type == RESOLVABLE_PRIVATE ) ) )
-		//		{
-		//			/* Check if this peer device is in the resolving list */
-		//			RecordPtr = Get_Record_From_Peer_Identity( &ScanningParameters->PeerId );
-		//
-		//			SM_Resolving_List_Index = 0;
-		//			ScanConfig.Actual = HCI_LE_Clear_Resolving_List( &LE_Clear_Resolving_List_Complete, NULL ) ? WAIT_OPERATION : CLEAR_RESOLVING_LIST;
-		//		}else
-		//		{
-		//			ScanConfig.Actual = VERIFY_OWN_ADDRESS;
-		//		}
-		//		break;
-		//
-		//	case ADD_TO_RESOLVING_LIST:
-		//		/* Check if we have bonded devices to add to the resolving list */
-		//		if ( SM_Resolving_List_Index < Get_Number_Of_Resolving_Records() )
-		//		{
-		//			DEVICE_IDENTITY* DevId = &( Get_Record_From_Index( SM_Resolving_List_Index )->Peer );
-		//			/* Here we add a device to the controller's resolving list if it exists in the Host's list */
-		//			ScanConfig.Actual = HCI_LE_Add_Device_To_Resolving_List( DevId->Peer_Identity_Address.Type, DevId->Peer_Identity_Address.Address,
-		//					&DevId->Peer_IRK, &DevId->Local_IRK, &LE_Add_Device_To_Resolving_List_Complete, NULL ) ? WAIT_OPERATION : ADD_TO_RESOLVING_LIST;
-		//		}else
-		//		{
-		//			ScanConfig.Actual = VERIFY_OWN_ADDRESS;
-		//		}
-		//		break;
-		//
+	case CLEAR_RESOLVING_LIST:
+		if( ( InitiatingParameters->Privacy ) ||
+				( InitiatingParameters->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR ) ||
+				( InitiatingParameters->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) ||
+				( InitiatingParameters->Peer_Address_Type == PUBLIC_IDENTITY_ADDR ) ||
+				( InitiatingParameters->Peer_Address_Type == RANDOM_IDENTITY_ADDR ) )
+		{
+			SM_Resolving_List_Index = 0;
+			InitConfig.Actual = HCI_LE_Clear_Resolving_List( &LE_Clear_Resolving_List_Complete, NULL ) ? WAIT_OPERATION : CLEAR_RESOLVING_LIST;
+		}else
+		{
+			InitConfig.Actual = VERIFY_OWN_ADDRESS;
+		}
+		break;
+
+	case ADD_TO_RESOLVING_LIST:
+		/* Check if we have bonded devices to add to the resolving list */
+		if ( SM_Resolving_List_Index < Get_Number_Of_Resolving_Records() )
+		{
+			DEVICE_IDENTITY* DevId = &( Get_Record_From_Index( SM_Resolving_List_Index )->Peer );
+			/* Here we add a device to the controller's resolving list if it exists in the Host's list */
+			InitConfig.Actual = HCI_LE_Add_Device_To_Resolving_List( DevId->Peer_Identity_Address.Type, DevId->Peer_Identity_Address.Address,
+					&DevId->Peer_IRK, &DevId->Local_IRK, &LE_Add_Device_To_Resolving_List_Complete, NULL ) ? WAIT_OPERATION : ADD_TO_RESOLVING_LIST;
+		}else
+		{
+			InitConfig.Actual = Get_Number_Of_Resolving_Records() ? ENABLE_ADDRESS_RESOLUTION : VERIFY_OWN_ADDRESS;
+		}
+		break;
+
 		//	case VERIFY_OWN_ADDRESS:
+		/* Check if this peer device is in the resolving list */
+		//RecordPtr = Get_Record_From_Peer_Identity( &InitiatingParameters->->PeerId );
 		//		switch( ScanningParameters->Own_Address_Type )
 		//		{
 		//		case OWN_PUBLIC_DEV_ADDR:

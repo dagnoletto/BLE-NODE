@@ -121,7 +121,7 @@ uint8_t Config_Advertiser(void)
 	Adv.Advertising_Interval_Min = 160;
 	Adv.Advertising_Interval_Max = 320;
 	Adv.Advertising_Type = ADV_IND;
-	Adv.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR;
+	Adv.Own_Address_Type = OWN_PUBLIC_DEV_ADDR; //OWN_RESOL_OR_PUBLIC_ADDR;
 	Adv.Own_Random_Address_Type = STATIC_DEVICE_ADDRESS;
 	Adv.Peer_Address_Type = PEER_PUBLIC_DEV_ADDR;
 	memcpy( &Adv.Peer_Address, &Id.Peer_Identity_Address.Address, sizeof(Adv.Peer_Address) );
