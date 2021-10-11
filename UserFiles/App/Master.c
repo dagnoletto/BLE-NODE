@@ -202,9 +202,9 @@ uint8_t Config_Initiating(void)
 	Init.LE_Scan_Interval = 320;
 	Init.LE_Scan_Window = 320;
 	Init.Initiator_Filter_Policy = 0;
-	Init.Peer_Address_Type = PUBLIC_DEV_ADDR;
+	Init.Peer_Address_Type = PUBLIC_IDENTITY_ADDR; //PUBLIC_DEV_ADDR;
 	Init.Peer_Address = SlavePublicAddress;
-	Init.Own_Address_Type = OWN_PUBLIC_DEV_ADDR;
+	Init.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR;//OWN_PUBLIC_DEV_ADDR;
 	Init.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
 	Init.Connection_Interval_Min = 80; /* 80 * 1.25ms = 100ms */
 	Init.Connection_Interval_Max = 80; /* 80 * 1.25ms = 100ms */
