@@ -272,6 +272,7 @@ int8_t Initiating_Config( void )
 				 * sent through Peer_Address_Type in this case */
 				if( InitiatingParameters->Peer_Address_Type >= PUBLIC_IDENTITY_ADDR )
 				{
+					//TODO: aqui deve acusar failure para versão <= 4.1
 					/* Check if this peer device is in the resolving list and if local IRK is not NULL */
 					IDENTITY_ADDRESS Peer_Id_Addr;
 					Peer_Id_Addr.Type = ( InitiatingParameters->Peer_Address_Type == PUBLIC_IDENTITY_ADDR ) ? PEER_PUBLIC_DEV_ADDR : PEER_RANDOM_DEV_ADDR;
@@ -299,6 +300,7 @@ int8_t Initiating_Config( void )
 					}
 				}else
 				{
+					/* TODO: encontrar a identidade baseado no endereço público ou resolvível */
 					InitConfig.Actual = FAILED_INIT_CONFIG;
 				}
 			}else
@@ -354,20 +356,43 @@ int8_t Initiating_Config( void )
 		InitConfig.Actual = HCI_LE_Set_Random_Address( RandomAddress, &LE_Set_Random_Address_Complete, NULL ) ? WAIT_OPERATION : SET_RANDOM_ADDRESS;
 		break;
 
+	case VERIFY_PEER_ADDRESS:
+	{
+		switch( InitiatingParameters->Peer_Address_Type )
+		{
+		case PUBLIC_DEV_ADDR:
+		case RANDOM_DEV_ADDR:
+			InitConfig.Actual = SET_INIT_PARAMETERS;
+			break;
 
-		//		case SET_SCAN_PARAMETERS:
-		//			ScanConfigTimeout = 0;
-		//			ScanConfig.Next = ENABLE_SCANNING;
-		//			ScanConfig.Actual = HCI_LE_Set_Scan_Parameters( ScanningParameters->LE_Scan_Type, ScanningParameters->LE_Scan_Interval, ScanningParameters->LE_Scan_Window,
-		//					ScanningParameters->Own_Address_Type, ScanningParameters->Scanning_Filter_Policy, &LE_Set_Scan_Parameters_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_PARAMETERS;
-		//			break;
-		//
-		//		case ENABLE_SCANNING:
-		//			ScanConfigTimeout = 0;
-		//			ScanConfig.Next = END_INIT_CONFIG;
-		//			ScanConfig.Prev = ENABLE_SCANNING;
-		//			ScanConfig.Actual = HCI_LE_Set_Scan_Enable( TRUE, ScanningParameters->Filter_Duplicates, &LE_Set_Scan_Enable_Complete, NULL ) ? WAIT_OPERATION : ENABLE_SCANNING;
-		//			break;
+		case PUBLIC_IDENTITY_ADDR:
+		case RANDOM_IDENTITY_ADDR:
+			if( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 )
+			{
+				/* Only address resolution in the controller can handle this */
+				InitConfig.Actual = FAILED_INIT_CONFIG;
+			}else
+			{
+				InitConfig.Actual = SET_INIT_PARAMETERS;
+			}
+			break;
+		}
+	}
+	break;
+
+	//		case SET_SCAN_PARAMETERS:
+	//			ScanConfigTimeout = 0;
+	//			ScanConfig.Next = ENABLE_SCANNING;
+	//			ScanConfig.Actual = HCI_LE_Set_Scan_Parameters( ScanningParameters->LE_Scan_Type, ScanningParameters->LE_Scan_Interval, ScanningParameters->LE_Scan_Window,
+	//					ScanningParameters->Own_Address_Type, ScanningParameters->Scanning_Filter_Policy, &LE_Set_Scan_Parameters_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_PARAMETERS;
+	//			break;
+	//
+	//		case ENABLE_SCANNING:
+	//			ScanConfigTimeout = 0;
+	//			ScanConfig.Next = END_INIT_CONFIG;
+	//			ScanConfig.Prev = ENABLE_SCANNING;
+	//			ScanConfig.Actual = HCI_LE_Set_Scan_Enable( TRUE, ScanningParameters->Filter_Duplicates, &LE_Set_Scan_Enable_Complete, NULL ) ? WAIT_OPERATION : ENABLE_SCANNING;
+	//			break;
 
 	case END_INIT_CONFIG:
 		InitConfig.Actual = CANCEL_INITIATING;
@@ -579,14 +604,12 @@ uint8_t Check_Initiating_Parameters( INITIATING_PARAMETERS* InitPar )
 		}
 	}else if( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 )
 	{
-		/* The Own_Address_Type can only be resolvable if Peer_Address_Type loads
-		 * the peer identity, otherwise we cannot find out the local IRK. */
-		if( InitPar->Own_Address_Type >= OWN_RESOL_OR_PUBLIC_ADDR )
+		/* The Peer_Address_Type can only be identity type if address resolution
+		 * is enabled in the controller, since incoming advertising packet should be
+		 * resolved prior to be accepted by the initiator */
+		if( InitPar->Peer_Address_Type >= PUBLIC_IDENTITY_ADDR )
 		{
-			if( InitPar->Peer_Address_Type < PUBLIC_IDENTITY_ADDR )
-			{
-				return (FALSE);
-			}
+			return (FALSE);
 		}
 	}
 
