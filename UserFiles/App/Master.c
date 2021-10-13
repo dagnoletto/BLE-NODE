@@ -202,8 +202,8 @@ uint8_t Config_Initiating(void)
 	Init.LE_Scan_Interval = 320;
 	Init.LE_Scan_Window = 320;
 	Init.Initiator_Filter_Policy = 0;
-	Init.Peer_Address_Type = PUBLIC_IDENTITY_ADDR; //PUBLIC_DEV_ADDR;
-	Init.Peer_Address = SlavePublicAddress;
+	Init.Peer_Address_Type = SlaveInfo.Address_Type; //PUBLIC_DEV_ADDR;
+	Init.Peer_Address = SlaveInfo.Address; //SlavePublicAddress;
 	Init.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR;//OWN_PUBLIC_DEV_ADDR;
 	Init.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
 	Init.Connection_Interval_Min = 80; /* 80 * 1.25ms = 100ms */
@@ -234,65 +234,96 @@ uint8_t Config_Initiating(void)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
+void HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
 		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
 {
 	//static uint8_t AdvData[40];
 
 	/* Sub event code for the HCI_LE_Advertising_Report event: page 2382 Core_v5.2 */
-	if( Subevent_Code == 0x02 )
+	ADVERTISING_REPORT Report;
+	uint16_t Number_Of_Data_Bytes = 0;
+
+	for( uint8_t i = 0; i < Num_Reports; i++ )
 	{
-		ADVERTISING_REPORT Report;
-		uint16_t Number_Of_Data_Bytes = 0;
+		Report.Event_Type = Event_Type[i];
+		Report.Address_Type = Address_Type[i];
 
-		for( uint8_t i = 0; i < Num_Reports; i++ )
+		Report.Address = Address[i];
+		Report.Data_Length = Data_Length[i];
+		Report.RSSI = RSSI[i];
+		//Report.DataPtr = &AdvData[0];
+
+		//memcpy( Report.DataPtr, &Data[Number_Of_Data_Bytes], Report.Data_Length );
+
+		if( ( ( Report.Data_Length == 25 ) && ( Report.Event_Type == ADV_IND_EVT ) ) || ( ( Report.Data_Length == 17 ) && ( Report.Event_Type == SCAN_RSP_EVT ) ) /* memcmp( &SlavePublicAddress, &Report.Address, sizeof(Report.Address) ) == 0 */ )
 		{
-			Report.Event_Type = Event_Type[i];
-			Report.Address_Type = Address_Type[i];
-
-			Report.Address = Address[i];
-			Report.Data_Length = Data_Length[i];
-			Report.RSSI = RSSI[i];
-			//Report.DataPtr = &AdvData[0];
-
-			//memcpy( Report.DataPtr, &Data[Number_Of_Data_Bytes], Report.Data_Length );
-
-			if( /*Report.Address_Type == PUBLIC_IDENTITY_ADDR*/ memcmp( &SlavePublicAddress, &Report.Address, sizeof(Report.Address) ) == 0 )
+			if( ( SlaveInfo.AdvData.Size ) && ( SlaveInfo.Address_Type == Report.Address_Type ) )
 			{
-				if( ( SlaveInfo.AdvData.Size ) && ( SlaveInfo.Address_Type == Report.Address_Type ) )
+				SlaveInfo.Address_Type = Report.Address_Type;
+				SlaveInfo.Address = Report.Address;
+				SlaveInfo.RSSI = Report.RSSI;
+				if ( Report.Event_Type == SCAN_RSP_EVT )
 				{
-					SlaveInfo.Address_Type = Report.Address_Type;
-					SlaveInfo.Address = Report.Address;
-					SlaveInfo.RSSI = Report.RSSI;
-					if ( Report.Event_Type == SCAN_RSP_EVT )
-					{
-						SlaveInfo.ScanRspData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.ScanRspData.Bytes) );
-						memcpy( &SlaveInfo.ScanRspData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.ScanRspData.Size );
-						HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
-					}else
-					{
-						SlaveInfo.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.AdvData.Bytes) );
-						memcpy( &SlaveInfo.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.AdvData.Size );
-					}
-					//HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
+					SlaveInfo.ScanRspData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.ScanRspData.Bytes) );
+					memcpy( &SlaveInfo.ScanRspData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.ScanRspData.Size );
+					HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 				}else
 				{
-					SlaveInfo.Address_Type = Report.Address_Type;
-					SlaveInfo.Address = Report.Address;
-					SlaveInfo.RSSI = Report.RSSI;
-					SlaveInfo.ScanRspData.Size = 0;
-					if ( Report.Event_Type != SCAN_RSP_EVT )
-					{
-						SlaveInfo.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.AdvData.Bytes) );
-						memcpy( &SlaveInfo.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.AdvData.Size );
-					}
+					SlaveInfo.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.AdvData.Bytes) );
+					memcpy( &SlaveInfo.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.AdvData.Size );
 				}
-				//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+				//HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
+			}else
+			{
+				SlaveInfo.Address_Type = Report.Address_Type;
+				SlaveInfo.Address = Report.Address;
+				SlaveInfo.RSSI = Report.RSSI;
+				SlaveInfo.ScanRspData.Size = 0;
+				if ( Report.Event_Type != SCAN_RSP_EVT )
+				{
+					SlaveInfo.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.AdvData.Bytes) );
+					memcpy( &SlaveInfo.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.AdvData.Size );
+				}
 			}
-
-			Number_Of_Data_Bytes += Report.Data_Length;
-
+			//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
+
+		Number_Of_Data_Bytes += Report.Data_Length;
+
+	}
+}
+
+
+/****************************************************************/
+/* HCI_LE_Connection_Complete()                					*/
+/* Location: 2379 Core_v5.2		 								*/
+/* Purpose: The HCI_LE_Connection_Complete event indicates to 	*/
+/* both of the Hosts forming the connection that a new 			*/
+/* connection has been created. Upon the creation of the		*/
+/* connection a Connection_Handle shall be assigned by the		*/
+/* Controller, and passed to the Host in this event. If the 	*/
+/* connection creation fails this event shall be provided to 	*/
+/* the Host that had issued the HCI_LE_Create_Connection 		*/
+/* command. This event indicates to the Host which issued an 	*/
+/* HCI_LE_Create_Connection command and received an 			*/
+/* HCI_Command_Status event if the connection creation failed 	*/
+/* or was successful. The Master_Clock_Accuracy parameter is 	*/
+/* only valid for a slave. On a master, this parameter shall be */
+/* set to 0x00. Note: This event is not sent if the 			*/
+/* HCI_LE_Enhanced_Connection_Complete event 					*/
+/* (see Section 7.7.65.10) is unmasked.							*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, PEER_ADDR_TYPE Peer_Address_Type,
+		BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
+		uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy )
+{
+	uint8_t teste = 0;
+	if(teste)
+	{
+		teste = 0;
 	}
 }
 

@@ -21,11 +21,15 @@ typedef enum
 	ADD_TO_RESOLVING_LIST,
 	ENABLE_ADDRESS_RESOLUTION,
 	VERIFY_OWN_ADDRESS,
+	GET_PEER_IDENTITY,
+	LOAD_RESOLVING_RECORD,
+	RESOLVE_PEER_RPA,
+	PEER_RPA_RESOLVED,
 	GENERATE_RANDOM_ADDRESS,
 	WAIT_FOR_NEW_LOCAL_READ,
 	SET_RANDOM_ADDRESS,
 	VERIFY_PEER_ADDRESS,
-	SET_INIT_PARAMETERS,
+	CREATE_CONNECTION,
 	END_INIT_CONFIG,
 	FAILED_INIT_CONFIG,
 	WAIT_OPERATION,
@@ -48,11 +52,15 @@ void Initiating( void );
 static void Free_Initiating_Parameters( void );
 static void HCI_LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status );
 static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
+static void LE_Create_Connection_Status( CONTROLLER_ERROR_CODES Status );
 static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Add_Device_To_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Random_Address_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Address_Resolution_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static uint8_t Check_Initiator_Address( INITIATING_PARAMETERS* InitPar );
+static void Check_Private_Addr(uint8_t resolvstatus, CONTROLLER_ERROR_CODES status);
+static INIT_CONFIG_STEPS Verify_Local_RPA( IDENTITY_ADDRESS* Peer_Identity_Address );
+static INIT_CONFIG_STEPS No_Local_RPA_Is_Possible( void );
 static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Identity_Address );
 
 
@@ -189,14 +197,13 @@ static void Free_Initiating_Parameters( void )
 int8_t Initiating_Config( void )
 {
 	static uint32_t InitConfigTimeout = 0;
-	static RESOLVING_RECORD* RecordPtr;
+	static RESOLVING_RECORD* ResRecord;
 
 	//TODO: Quando privacidade estiver habilitado, nunca deixar o InitA ser ajustado para identity address
 
 	switch( InitConfig.Actual )
 	{
 	case CANCEL_INITIATING:
-		RecordPtr = NULL;
 		InitConfigTimeout = 0;
 		InitiatingParameters->Own_Address_Type = InitiatingParameters->Original_Own_Address_Type;
 		InitiatingParameters->Counter = 0;
@@ -266,42 +273,13 @@ int8_t Initiating_Config( void )
 		case OWN_RESOL_OR_RANDOM_ADDR:
 			if( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 )
 			{
-				/* We should receive the peer identity through Peer_Address_Type. If not, we should have to
-				 * resolve the peer random address for every record in the resolving list. This is hard to do
-				 * in the host side for lower than 4.1 versions. So, we assume failure if the peer identity is not
-				 * sent through Peer_Address_Type in this case */
 				if( InitiatingParameters->Peer_Address_Type >= PUBLIC_IDENTITY_ADDR )
 				{
-					//TODO: aqui deve acusar failure para versão <= 4.1
-					/* Check if this peer device is in the resolving list and if local IRK is not NULL */
-					IDENTITY_ADDRESS Peer_Id_Addr;
-					Peer_Id_Addr.Type = ( InitiatingParameters->Peer_Address_Type == PUBLIC_IDENTITY_ADDR ) ? PEER_PUBLIC_DEV_ADDR : PEER_RANDOM_DEV_ADDR;
-					Peer_Id_Addr.Address = InitiatingParameters->Peer_Address;
-
-					if( Check_Local_Resolvable_Private_Address( &Peer_Id_Addr ) )
-					{
-						/* We assume random since for lower than 4.1 controller, this the only possible option */
-						InitConfigTimeout = 0;
-						InitiatingParameters->Own_Address_Type = OWN_RANDOM_DEV_ADDR;
-						InitConfig.Actual = HCI_LE_Read_Local_Resolvable_Address( Peer_Id_Addr.Type, Peer_Id_Addr.Address,
-								&Read_Local_Resolvable_Address_Complete, NULL ) ? WAIT_OPERATION : WAIT_FOR_NEW_LOCAL_READ;
-					}else
-					{
-						/* No RPA can be employed */
-						if ( InitiatingParameters->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR )
-						{
-							InitiatingParameters->Own_Address_Type = OWN_PUBLIC_DEV_ADDR;
-							InitConfig.Actual = VERIFY_PEER_ADDRESS;
-						}else
-						{
-							InitiatingParameters->Own_Address_Type = OWN_RANDOM_DEV_ADDR;
-							InitConfig.Actual = GENERATE_RANDOM_ADDRESS;
-						}
-					}
+					/* For lower than 4.1 version, address resolution at the controller is not available */
+					InitConfig.Actual = FAILED_INIT_CONFIG;
 				}else
 				{
-					/* TODO: encontrar a identidade baseado no endereço público ou resolvível */
-					InitConfig.Actual = FAILED_INIT_CONFIG;
+					InitConfig.Actual = GET_PEER_IDENTITY;
 				}
 			}else
 			{
@@ -314,6 +292,102 @@ int8_t Initiating_Config( void )
 		}
 	}
 	break;
+
+	case GET_PEER_IDENTITY:
+	{
+		InitConfigTimeout = 0;
+		IDENTITY_ADDRESS Peer_Id_Addr;
+
+		if( InitiatingParameters->Peer_Address_Type == PUBLIC_DEV_ADDR )
+		{
+			/* We assume we have a public identity address same as peer public device address loaded
+			 * into the resolving list. If found, we can generate InitA as RPA. If not, InitA will be
+			 * public or random address */
+			Peer_Id_Addr.Type = PEER_PUBLIC_DEV_ADDR;
+			Peer_Id_Addr.Address = InitiatingParameters->Peer_Address;
+
+			InitConfig.Actual = Verify_Local_RPA( &Peer_Id_Addr );
+		}else if( InitiatingParameters->Peer_Address_Type == RANDOM_DEV_ADDR )
+		{
+			RESOLVING_RECORD* RecordPtr;
+			Peer_Id_Addr.Address = InitiatingParameters->Peer_Address;
+
+			for( PEER_ADDR_TYPE i = PEER_PUBLIC_DEV_ADDR; i <= PEER_RANDOM_DEV_ADDR; i++ )
+			{
+				Peer_Id_Addr.Type = i;
+				RecordPtr = Get_Record_From_Peer_Identity( &Peer_Id_Addr );
+				if( RecordPtr != NULL )
+				{
+					break;
+				}
+			}
+
+			if( RecordPtr != NULL )
+			{
+				/* If the peer address is equal to the identity address, we don't need to resolve anything. Just check if local RPA
+				 * is OK to be generated. */
+				InitConfig.Actual = Verify_Local_RPA( &Peer_Id_Addr );
+			}else if( ( InitiatingParameters->Peer_Address.Bytes[sizeof(BD_ADDR_TYPE) - 1] & 0xC0 ) == 0x40 )
+			{
+				/* This is a resolvable private address, we should try to resolve it */
+				/* We are going to try resolving for every record the random address provided for the peer device */
+				SM_Resolving_List_Index = 0;
+				InitConfig.Actual = LOAD_RESOLVING_RECORD;
+			}else
+			{
+				/* It cannot be resolved. Most likely it is random not resolvable
+				 * or it is random static identity out of resolving list */
+				InitConfig.Actual = No_Local_RPA_Is_Possible( );
+			}
+		}else
+		{
+			InitConfig.Actual = FAILED_INIT_CONFIG;
+		}
+	}
+	break;
+
+	case LOAD_RESOLVING_RECORD:
+		ResRecord = Get_Record_From_Index( SM_Resolving_List_Index );
+		if( ResRecord != NULL )
+		{
+			/* This is a resolvable private address, we should try to resolve it */
+			if( !Check_NULL_IRK(&ResRecord->Peer.Peer_IRK) )
+			{
+				/* The peer IRK for this record is not null, we can proceed with resolution */
+				InitConfig.Actual = RESOLVE_PEER_RPA;
+				if( Resolve_Private_Address( Get_Supported_Commands(), &InitiatingParameters->Peer_Address, &ResRecord->Peer.Peer_IRK, 2, &Check_Private_Addr ) )
+				{
+					InitConfigTimeout = 0;
+				}else
+				{
+					Cancel_Private_Address_Resolution();
+					/* End resolution for this address */
+					InitConfig.Actual = GET_PEER_IDENTITY;
+				}
+			}else
+			{
+				/* Go to the next record */
+				SM_Resolving_List_Index++;
+			}
+		}else
+		{
+			/* The list ended and no resolving record matched with the peer device address. */
+			InitConfig.Actual = No_Local_RPA_Is_Possible( );
+		}
+		break;
+
+	case RESOLVE_PEER_RPA:
+		if( TimeBase_DelayMs( &InitConfigTimeout, 500, TRUE ) )
+		{
+			Cancel_Private_Address_Resolution();
+			/* End resolution for this address */
+			InitConfig.Actual = GET_PEER_IDENTITY;
+		}
+		break;
+
+	case PEER_RPA_RESOLVED:
+		InitConfig.Actual = Verify_Local_RPA( &ResRecord->Peer.Peer_Identity_Address );
+		break;
 
 	case GENERATE_RANDOM_ADDRESS:
 	{
@@ -357,12 +431,11 @@ int8_t Initiating_Config( void )
 		break;
 
 	case VERIFY_PEER_ADDRESS:
-	{
 		switch( InitiatingParameters->Peer_Address_Type )
 		{
 		case PUBLIC_DEV_ADDR:
 		case RANDOM_DEV_ADDR:
-			InitConfig.Actual = SET_INIT_PARAMETERS;
+			InitConfig.Actual = CREATE_CONNECTION;
 			break;
 
 		case PUBLIC_IDENTITY_ADDR:
@@ -373,47 +446,42 @@ int8_t Initiating_Config( void )
 				InitConfig.Actual = FAILED_INIT_CONFIG;
 			}else
 			{
-				InitConfig.Actual = SET_INIT_PARAMETERS;
+				InitConfig.Actual = CREATE_CONNECTION;
 			}
 			break;
 		}
-	}
-	break;
-
-	//		case SET_SCAN_PARAMETERS:
-	//			ScanConfigTimeout = 0;
-	//			ScanConfig.Next = ENABLE_SCANNING;
-	//			ScanConfig.Actual = HCI_LE_Set_Scan_Parameters( ScanningParameters->LE_Scan_Type, ScanningParameters->LE_Scan_Interval, ScanningParameters->LE_Scan_Window,
-	//					ScanningParameters->Own_Address_Type, ScanningParameters->Scanning_Filter_Policy, &LE_Set_Scan_Parameters_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_PARAMETERS;
-	//			break;
-	//
-	//		case ENABLE_SCANNING:
-	//			ScanConfigTimeout = 0;
-	//			ScanConfig.Next = END_INIT_CONFIG;
-	//			ScanConfig.Prev = ENABLE_SCANNING;
-	//			ScanConfig.Actual = HCI_LE_Set_Scan_Enable( TRUE, ScanningParameters->Filter_Duplicates, &LE_Set_Scan_Enable_Complete, NULL ) ? WAIT_OPERATION : ENABLE_SCANNING;
-	//			break;
-
-	case END_INIT_CONFIG:
-		InitConfig.Actual = CANCEL_INITIATING;
-		return (TRUE);
 		break;
 
-	case FAILED_INIT_CONFIG:
-		Free_Initiating_Parameters( );
-		return (-1); /* Failed condition */
-		break;
+		case CREATE_CONNECTION:
+			InitConfigTimeout = 0;
+			InitConfig.Next = END_INIT_CONFIG;
+			InitConfig.Prev = CREATE_CONNECTION;
+			InitConfig.Actual = HCI_LE_Create_Connection( InitiatingParameters->LE_Scan_Interval, InitiatingParameters->LE_Scan_Window, InitiatingParameters->Initiator_Filter_Policy,
+					InitiatingParameters->Peer_Address_Type, InitiatingParameters->Peer_Address, InitiatingParameters->Own_Address_Type,
+					InitiatingParameters->Connection_Interval_Min, InitiatingParameters->Connection_Interval_Max, InitiatingParameters->Connection_Latency,
+					InitiatingParameters->Supervision_Timeout, InitiatingParameters->Min_CE_Length, InitiatingParameters->Max_CE_Length, &LE_Create_Connection_Status ) ? WAIT_OPERATION : CREATE_CONNECTION;
+			break;
 
-	case WAIT_OPERATION:
-		if( TimeBase_DelayMs( &InitConfigTimeout, 500, TRUE ) )
-		{
+		case END_INIT_CONFIG:
 			InitConfig.Actual = CANCEL_INITIATING;
-			InitConfig.Next = CANCEL_INITIATING;
-		}
-		break;
+			return (TRUE);
+			break;
 
-	default:
-		break;
+		case FAILED_INIT_CONFIG:
+			Free_Initiating_Parameters( );
+			return (-1); /* Failed condition */
+			break;
+
+		case WAIT_OPERATION:
+			if( TimeBase_DelayMs( &InitConfigTimeout, 500, TRUE ) )
+			{
+				InitConfig.Actual = CANCEL_INITIATING;
+				InitConfig.Next = CANCEL_INITIATING;
+			}
+			break;
+
+		default:
+			break;
 	}
 
 	return (FALSE);
@@ -508,6 +576,20 @@ static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Statu
 	{
 		InitConfig.Actual = WAIT_FOR_NEW_LOCAL_READ;
 	}
+}
+
+
+/****************************************************************/
+/* LE_Create_Connection_Status()        	   					*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Create_Connection_Status( CONTROLLER_ERROR_CODES Status )
+{
+	InitConfig.Actual = ( Status == COMMAND_SUCCESS ) ? InitConfig.Next : InitConfig.Prev;
 }
 
 
@@ -680,6 +762,88 @@ static uint8_t Check_Initiator_Address( INITIATING_PARAMETERS* InitPar )
 
 
 /****************************************************************/
+/* Check_Private_Addr()      									*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Check_Private_Addr(uint8_t resolvstatus, CONTROLLER_ERROR_CODES status)
+{
+	if( Get_BLE_State() == CONFIG_INITIATING )
+	{
+		if( InitConfig.Actual == RESOLVE_PEER_RPA )
+		{
+			SM_Resolving_List_Index++;
+			if( status == COMMAND_SUCCESS )
+			{
+				InitConfig.Actual = resolvstatus ? PEER_RPA_RESOLVED : LOAD_RESOLVING_RECORD;
+			}else
+			{
+				InitConfig.Actual = LOAD_RESOLVING_RECORD; /* Could not be resolved due to controller failure */
+			}
+		}
+	}
+}
+
+
+/****************************************************************/
+/* Verify_Local_RPA()   										*/
+/* Location: 													*/
+/* Purpose: Check if local RPA can be generated.				*/
+/* Parameters: none				         						*/
+/* Return:														*/
+/* Description:													*/
+/****************************************************************/
+static INIT_CONFIG_STEPS Verify_Local_RPA( IDENTITY_ADDRESS* Peer_Identity_Address )
+{
+	INIT_CONFIG_STEPS ActualStep;
+
+	if( Check_Local_Resolvable_Private_Address( Peer_Identity_Address ) )
+	{
+		/* We assume random since for lower than 4.1 controller, this the only possible option */
+		InitiatingParameters->Own_Address_Type = OWN_RANDOM_DEV_ADDR;
+		ActualStep = HCI_LE_Read_Local_Resolvable_Address( Peer_Identity_Address->Type, Peer_Identity_Address->Address,
+				&Read_Local_Resolvable_Address_Complete, NULL ) ? WAIT_OPERATION : WAIT_FOR_NEW_LOCAL_READ;
+	}else
+	{
+		/* No RPA can be employed */
+		ActualStep = No_Local_RPA_Is_Possible( );
+	}
+
+	return ( ActualStep );
+}
+
+
+/****************************************************************/
+/* No_Local_RPA_Is_Possible()   								*/
+/* Location: 													*/
+/* Purpose: Called when no local RPA can be generated.			*/
+/* Parameters: none				         						*/
+/* Return:														*/
+/* Description:													*/
+/****************************************************************/
+static INIT_CONFIG_STEPS No_Local_RPA_Is_Possible( void )
+{
+	INIT_CONFIG_STEPS ActualStep = FAILED_INIT_CONFIG;
+
+	/* No RPA can be employed */
+	if ( InitiatingParameters->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR )
+	{
+		InitiatingParameters->Own_Address_Type = OWN_PUBLIC_DEV_ADDR;
+		ActualStep = VERIFY_PEER_ADDRESS;
+	}else if( InitiatingParameters->Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR )
+	{
+		InitiatingParameters->Own_Address_Type = OWN_RANDOM_DEV_ADDR;
+		ActualStep = GENERATE_RANDOM_ADDRESS;
+	}
+
+	return ( ActualStep );
+}
+
+
+/****************************************************************/
 /* Check_Local_Resolvable_Private_Address()   					*/
 /* Location: 													*/
 /* Purpose: Check if local RPA can be generated.				*/
@@ -694,6 +858,8 @@ static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Id
 	{
 		/* The local IRK must be valid since local identity would be used instead of
 		 * Resolvable private address. */
+		/* TODO: if InitiatingParameters->Privacy is FALSE, maybe the initiator could use
+		 * zero filled local IRK? */
 		if( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) )
 		{
 			return (TRUE);

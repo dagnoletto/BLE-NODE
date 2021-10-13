@@ -1300,7 +1300,7 @@ void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 void 	HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_Handle[], uint16_t Num_Completed_Packets[] );
 void 	HCI_Data_Buffer_Overflow( uint8_t Link_Type );
 void	HCI_Encryption_Key_Refresh_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
-void 	HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
+void 	HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
 		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] );
 void 	HCI_LE_Long_Term_Key_Request( uint16_t Connection_Handle, uint8_t Random_Number[8], uint16_t Encrypted_Diversifier );
 
