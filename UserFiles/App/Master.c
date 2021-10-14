@@ -85,9 +85,11 @@ void MasterNode( void )
 		{
 			//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
-		if( TimeBase_DelayMs( &Timer, 10000, TRUE ) )
+		if( TimeBase_DelayMs( &Timer, 5000, TRUE ) )
 		{
-			//MasterStateMachine = CONFIG_STANDBY;
+			//			SlaveInfo.AdvData.Size = 25;
+			//			SlaveInfo.ScanRspData.Size = 17;
+			//			MasterStateMachine = CONFIG_STANDBY;
 		}
 		if( SlaveInfo.AdvData.Size && SlaveInfo.ScanRspData.Size )
 		{
@@ -100,6 +102,7 @@ void MasterNode( void )
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
 		if( Get_BLE_State() == INITIATING_STATE )
 		{
+			Timer = 0;
 			SlaveInfo.AdvData.Size = 0;
 			SlaveInfo.ScanRspData.Size = 0;
 			MasterStateMachine = INITIATING_STATE;
@@ -110,6 +113,10 @@ void MasterNode( void )
 		if( TimeBase_DelayMs( &TimerLED, 1000, TRUE ) )
 		{
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+		}
+		if( TimeBase_DelayMs( &Timer, 5000, TRUE ) )
+		{
+			MasterStateMachine = CONFIG_STANDBY;
 		}
 		break;
 

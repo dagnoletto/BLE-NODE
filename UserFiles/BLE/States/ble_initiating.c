@@ -50,7 +50,7 @@ typedef struct
 int8_t Initiating_Config( void );
 void Initiating( void );
 static void Free_Initiating_Parameters( void );
-static void HCI_LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status );
+static void LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status );
 static void Read_Local_Resolvable_Address_Complete( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
 static void LE_Create_Connection_Status( CONTROLLER_ERROR_CODES Status );
 static void LE_Clear_Resolving_List_Complete( CONTROLLER_ERROR_CODES Status );
@@ -209,7 +209,7 @@ int8_t Initiating_Config( void )
 		InitiatingParameters->Counter = 0;
 		InitConfig.Next = DISABLE_ADDRESS_RESOLUTION;
 		InitConfig.Prev = CANCEL_INITIATING;
-		InitConfig.Actual = HCI_LE_Create_Connection_Cancel( &HCI_LE_Create_Connection_Cancel_Complete, NULL ) ? WAIT_OPERATION : CANCEL_INITIATING;
+		InitConfig.Actual = HCI_LE_Create_Connection_Cancel( &LE_Create_Connection_Cancel_Complete, NULL ) ? WAIT_OPERATION : CANCEL_INITIATING;
 		break;
 
 	case DISABLE_ADDRESS_RESOLUTION:
@@ -489,12 +489,12 @@ int8_t Initiating_Config( void )
 
 
 /****************************************************************/
-/* HCI_LE_Create_Connection_Cancel_Complete()    				*/
+/* LE_Create_Connection_Cancel_Complete()    					*/
 /* Location: 					 								*/
 /* Purpose: 													*/
 /* Description:													*/
 /****************************************************************/
-static void HCI_LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status )
+static void LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	InitConfig.Actual = ( ( Status == COMMAND_SUCCESS ) || ( Status == COMMAND_DISALLOWED ) ) ? InitConfig.Next : InitConfig.Prev;
 }

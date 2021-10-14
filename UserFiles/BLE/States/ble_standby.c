@@ -36,6 +36,7 @@ typedef struct
 /****************************************************************/
 int8_t Standby_Config( void );
 void Standby( void );
+static void LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status );
@@ -167,6 +168,12 @@ int8_t Standby_Config( void )
 		HCI_LE_Set_Scan_Enable( FALSE, FALSE, &LE_Set_Scan_Enable_Complete, NULL );
 		break;
 
+	case DISABLE_INITIATING:
+		StandbyConfigTimeout = 0;
+		StandbyConfig.Actual = WAIT_OPERATION;
+		HCI_LE_Create_Connection_Cancel( &LE_Create_Connection_Cancel_Complete, NULL );
+		break;
+
 	case SEND_STANDBY_CMD:
 		StandbyConfigTimeout = 0;
 		StandbyConfig.Actual = WAIT_OPERATION;
@@ -214,6 +221,21 @@ int8_t Standby_Config( void )
 void Standby( void )
 {
 
+}
+
+
+/****************************************************************/
+/* LE_Create_Connection_Cancel_Complete()    					*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	if( StandbyConfig.Actual == WAIT_OPERATION )
+	{
+		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_STANDBY_CMD : StandbyConfig.BaseStep;
+	}
 }
 
 
