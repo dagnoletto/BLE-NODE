@@ -6,6 +6,7 @@
 #include "hci_transport_layer.h"
 #include "hosted_functions.h"
 #include "Bluenrg.h"
+#include "ble_states.h"
 
 
 /****************************************************************/
@@ -432,10 +433,20 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			case LE_CONNECTION_COMPLETE:
 				RETURN_ON_FAULT(Status);
 				//TODO: alterar para BLE_STATUS CONNECTED
-				HCI_LE_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
-						EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],
-						( EventPacketPtr->Event_Parameter[15] << 8 ) | EventPacketPtr->Event_Parameter[14], ( EventPacketPtr->Event_Parameter[17] << 8 ) | EventPacketPtr->Event_Parameter[16],
-						EventPacketPtr->Event_Parameter[18] );
+				if( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 )
+				{
+					/* As we have unmasked the LE_Enhanced_Connection_Complete_event, no higher than 4.1
+					 * should call the LE_CONNECTION_COMPLETE event. For 4.1 and lower we translate the
+					 * HCI_LE_Connection_Complete into HCI_LE_Enhanced_Connection_Complete */
+					OpCode.Val = HCI_LE_CREATE_CONNECTION;
+					Delegate_Function_To_Host( OpCode, NULL, EventPacketPtr );
+				}else
+				{
+					HCI_LE_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
+							EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],
+							( EventPacketPtr->Event_Parameter[15] << 8 ) | EventPacketPtr->Event_Parameter[14], ( EventPacketPtr->Event_Parameter[17] << 8 ) | EventPacketPtr->Event_Parameter[16],
+							EventPacketPtr->Event_Parameter[18] );
+				}
 				break;
 
 			case LE_ADVERTISING_REPORT:
@@ -471,6 +482,14 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 						( EventPacketPtr->Event_Parameter[12] << 8 ) | EventPacketPtr->Event_Parameter[11]);
 				break;
 
+			case LE_ENHANCED_CONNECTION_COMPLETE:
+				RETURN_ON_FAULT(Status);
+				HCI_LE_Enhanced_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
+						EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[12])),
+						(BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[18])), ( EventPacketPtr->Event_Parameter[25] << 8 ) | EventPacketPtr->Event_Parameter[24],
+						( EventPacketPtr->Event_Parameter[27] << 8 ) | EventPacketPtr->Event_Parameter[26], ( EventPacketPtr->Event_Parameter[29] << 8 ) | EventPacketPtr->Event_Parameter[28],
+						EventPacketPtr->Event_Parameter[30] );
+				break;
 			}
 			break;
 

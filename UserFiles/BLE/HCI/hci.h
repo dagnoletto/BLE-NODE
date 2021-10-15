@@ -177,7 +177,8 @@ typedef enum
 	LE_ADVERTISING_REPORT  		  	 = 0x02,
 	LE_CONNECTION_UPDATE_COMPLETE 	 = 0x03,
 	LE_READ_REMOTE_FEATURES_COMPLETE = 0x04,
-	LE_LONG_TERM_KEY_REQUEST		 = 0x05
+	LE_LONG_TERM_KEY_REQUEST		 = 0x05,
+	LE_ENHANCED_CONNECTION_COMPLETE  = 0x0A
 }LE_SUBEVENT_CODE;
 
 
@@ -1163,6 +1164,13 @@ typedef union
 }__attribute__((packed)) SUPPORTED_LE_STATES;
 
 
+typedef enum /* BLE device role */
+{
+	MASTER = 0x00,
+	SLAVE  = 0x01
+}BLE_ROLE;
+
+
 typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 {
 	/* These Hardware_Codes will be implementation-specific, and can be
@@ -1245,9 +1253,12 @@ uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Wi
 		ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, OWN_ADDR_TYPE Own_Address_Type,
 		uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
 		uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length, DefCmdStatus StatusCallBack );
-void 	HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, uint8_t Role, PEER_ADDR_TYPE Peer_Address_Type,
+void 	HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, BLE_ROLE Role, PEER_ADDR_TYPE Peer_Address_Type,
 		BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
 		uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy );
+void 	HCI_LE_Enhanced_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, BLE_ROLE Role, ADDRESS_TYPE Peer_Address_Type,
+		BD_ADDR_TYPE* Peer_Address, BD_ADDR_TYPE* Local_Resolvable_Private_Address, BD_ADDR_TYPE* Peer_Resolvable_Private_Address, uint16_t Connection_Interval,
+		uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy );
 uint8_t HCI_LE_Create_Connection_Cancel( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Read_White_List_Size( LEReadWhiteListSizeComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Clear_White_List( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );

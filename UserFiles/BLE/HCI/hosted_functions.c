@@ -254,6 +254,27 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		}
 		break;
 
+	case HCI_LE_CREATE_CONNECTION:
+		/* This command is "faked" and is used to check the connection complete event. */
+		//TODO: finalizar
+		if( /* !CommandToProcess.OpCode.Val */0 )
+		{
+
+		}else
+		{
+			/* The state machine is busy processing another request, but this event must not be missed out.
+			 * In this case, just forward the original event data with null info whenever different from the original */
+			BD_ADDR_TYPE NullAddress;
+			memset( &NullAddress.Bytes, 0, sizeof(NullAddress.Bytes) );
+
+			HCI_LE_Enhanced_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
+					EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), &NullAddress,
+					&NullAddress, ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],
+					( EventPacketPtr->Event_Parameter[15] << 8 ) | EventPacketPtr->Event_Parameter[14], ( EventPacketPtr->Event_Parameter[17] << 8 ) | EventPacketPtr->Event_Parameter[16],
+					EventPacketPtr->Event_Parameter[18] );
+		}
+		break;
+
 	case HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST:
 		EventPacketPtr->Parameter_Total_Length = 4;
 		Transform_Status_To_Command_Event( EventPacketPtr );
