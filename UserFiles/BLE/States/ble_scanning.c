@@ -286,7 +286,7 @@ int8_t Scanning_Config( void )
 
 			case STATIC_DEVICE_ADDRESS:
 			default:
-				RandomAddress = *( Get_Static_Random_Device_Address( ).Ptr );
+				RandomAddress = *( Get_Static_Random_Device_Address( ).AddrPtr );
 				ScanConfig.Actual = SET_RANDOM_ADDRESS;
 				break;
 			}

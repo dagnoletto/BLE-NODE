@@ -509,7 +509,7 @@ static ADV_CONFIG Update_Random_Address( void )
 		AdvStep.Actual = GENERATE_NON_RESOLVABLE_ADDRESS;
 	}else if( AdvertisingParameters->Own_Random_Address_Type == STATIC_DEVICE_ADDRESS )
 	{
-		RandomAddress = *( Get_Static_Random_Device_Address( ).Ptr );
+		RandomAddress = *( Get_Static_Random_Device_Address( ).AddrPtr );
 		AdvStep.Actual = SET_RANDOM_ADDRESS;
 	}else
 	{

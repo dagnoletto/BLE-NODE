@@ -405,7 +405,7 @@ int8_t Initiating_Config( void )
 		break;
 
 		case STATIC_DEVICE_ADDRESS:
-			RandomAddress = *( Get_Static_Random_Device_Address( ).Ptr );
+			RandomAddress = *( Get_Static_Random_Device_Address( ).AddrPtr );
 			InitConfig.Actual = SET_RANDOM_ADDRESS;
 			break;
 

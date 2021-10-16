@@ -153,7 +153,7 @@ BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_A
 						status = FALSE;
 					}else
 					{
-						RANDOM_ADDRESS = *StaticAddr.Ptr;
+						RANDOM_ADDRESS = *StaticAddr.AddrPtr;
 					}
 				}else
 				{
@@ -161,7 +161,7 @@ BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_A
 				}
 			}else
 			{
-				RANDOM_ADDRESS = *StaticAddr.Ptr;
+				RANDOM_ADDRESS = *StaticAddr.AddrPtr;
 			}
 			BD_Config = GENERATE_RANDOM_NUMBER_PART_A;
 
@@ -398,7 +398,8 @@ GET_BD_ADDR Get_Public_Device_Address( void )
 	}
 
 	ReturnVal.Status = TRUE;
-	ReturnVal.Ptr = (BD_ADDR_TYPE*)( &Ptr->Address );
+	ReturnVal.AddrPtr = (BD_ADDR_TYPE*)( &Ptr->Address );
+	ReturnVal.Type = PUBLIC_DEV_ADDR;
 
 	return (ReturnVal);
 }
@@ -422,7 +423,8 @@ GET_BD_ADDR Get_Static_Random_Device_Address( void )
 	if( Type == PEER_RANDOM_DEV_ADDR ) /* Address is initialized? */
 	{
 		ReturnVal.Status = TRUE;
-		ReturnVal.Ptr = (BD_ADDR_TYPE*)( &Ptr->Address );
+		ReturnVal.AddrPtr = (BD_ADDR_TYPE*)( &Ptr->Address );
+		ReturnVal.Type = RANDOM_DEV_ADDR;
 	}
 
 	return (ReturnVal);
@@ -482,7 +484,7 @@ IDENTITY_ADDRESS Get_Identity_Address( PEER_ADDR_TYPE Type )
 
 	if ( Addr.Status )
 	{
-		Identity.Address = *( Addr.Ptr );
+		Identity.Address = *( Addr.AddrPtr );
 	}
 
 	return ( Identity );
@@ -597,7 +599,7 @@ static uint8_t Create_Private_Address( uint8_t Random_Bytes[6] )
 	{
 		Random_Bytes[sizeof(BD_ADDR_TYPE) - 1] &= 0x3F; /* Clears the non-resolvable private address. The sub-type must be 0b00 */
 		/* Public and private non-resolvable MUST NOT be equal. */
-		if( memcmp( &Random_Bytes[0], Get_Public_Device_Address( ).Ptr, sizeof(BD_ADDR_TYPE) ) != 0 )
+		if( memcmp( &Random_Bytes[0], Get_Public_Device_Address( ).AddrPtr, sizeof(BD_ADDR_TYPE) ) != 0 )
 		{
 			return (TRUE);
 		}

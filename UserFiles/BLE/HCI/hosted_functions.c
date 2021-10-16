@@ -267,6 +267,8 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 			BD_ADDR_TYPE NullAddress;
 			memset( &NullAddress.Bytes, 0, sizeof(NullAddress.Bytes) );
 
+			//TODO: carregar Local_Resolvable_Proivate_Addres quando possível. O peer será zero porque por peer_address_type é do tipo random (0x01)
+
 			HCI_LE_Enhanced_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
 					EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), &NullAddress,
 					&NullAddress, ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],

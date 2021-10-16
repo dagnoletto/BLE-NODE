@@ -25,11 +25,6 @@
 /****************************************************************/
 typedef void (*EncryptCallBack)(uint8_t EncryptedData[16], CONTROLLER_ERROR_CODES status);
 typedef void (*StatusCallBack)(uint8_t comparisonStatus, CONTROLLER_ERROR_CODES status);
-typedef struct
-{
-	uint8_t Status;
-	BD_ADDR_TYPE* Ptr;
-}GET_BD_ADDR;
 
 
 /****************************************************************/
