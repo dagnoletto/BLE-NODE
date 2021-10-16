@@ -93,6 +93,7 @@ static ADVERTISING_PARAMETERS* AdvertisingParameters = NULL;
 static ADV_CONFIG AdvConfig = { DISABLE_ADVERTISING, DISABLE_ADVERTISING, DISABLE_ADVERTISING };
 static BD_ADDR_TYPE RandomAddress;
 static uint16_t SM_Resolving_List_Index;
+static RESOLVING_RECORD* RecordPtr;
 
 
 /****************************************************************/
@@ -205,12 +206,11 @@ static void Free_Advertising_Parameters( void )
 int8_t Advertising_Config( void )
 {
 	static uint32_t AdvConfigTimeout = 0;
-	static RESOLVING_RECORD* Ptr;
 
 	switch( AdvConfig.Actual )
 	{
 	case DISABLE_ADVERTISING:
-		Ptr = NULL;
+		RecordPtr = NULL;
 		AdvertisingParameters->Own_Address_Type = AdvertisingParameters->Original_Own_Address_Type;
 		AdvertisingParameters->Own_Random_Address_Type = AdvertisingParameters->Original_Own_Random_Address_Type;
 		AdvertisingParameters->Peer_Address = AdvertisingParameters->Original_Peer_Address;
@@ -234,8 +234,8 @@ int8_t Advertising_Config( void )
 			/* Check if this peer device is in the resolving list */
 			PeerId.Type = AdvertisingParameters->Peer_Address_Type;
 			PeerId.Address = AdvertisingParameters->Peer_Address;
-			Ptr = Get_Record_From_Peer_Identity( &PeerId );
-			if( Ptr != NULL )
+			RecordPtr = Get_Record_From_Peer_Identity( &PeerId );
+			if( RecordPtr != NULL )
 			{
 				/* This device is in the Host's list. Clear the controller list to add all list again afterwards */
 				SM_Resolving_List_Index = 0;
@@ -281,9 +281,9 @@ int8_t Advertising_Config( void )
 				/* Above version 4.1, the controller generates the addresses.
 				 * However, we still have to check if local IRK is not null because controller does'nt have
 				 * the local identity to do it. */
-				if( Ptr != NULL )
+				if( RecordPtr != NULL )
 				{
-					AdvConfig.Actual = Check_Local_IRK( Ptr, TRUE ).Actual;
+					AdvConfig.Actual = Check_Local_IRK( RecordPtr, TRUE ).Actual;
 				}else if( AdvertisingParameters->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR )
 				{
 					AdvConfig.Actual = SET_PEER_ADDRESS;
@@ -297,9 +297,9 @@ int8_t Advertising_Config( void )
 			{
 				/* For lower versions, the host must generate the resolvable address */
 				/* Check if this device identity is in the Host resolving list */
-				if ( Ptr != NULL )
+				if ( RecordPtr != NULL )
 				{
-					AdvConfig.Actual = Check_Local_IRK( Ptr, FALSE ).Actual;
+					AdvConfig.Actual = Check_Local_IRK( RecordPtr, FALSE ).Actual;
 				}else
 				{
 					if( AdvertisingParameters->Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR )
@@ -368,14 +368,14 @@ int8_t Advertising_Config( void )
 				( AdvertisingParameters->Original_Own_Address_Type == OWN_RESOL_OR_PUBLIC_ADDR || AdvertisingParameters->Original_Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR ) )
 		{
 			/* Direct advertising is used, which means the peer address may be resolvable if the peer's identity is in the resolving list */
-			if( Ptr != NULL )
+			if( RecordPtr != NULL )
 			{
 				/* Our hosted simulated function already deals with the condition stated in Page 3023 Core_v5.2:
 				 * If the Host, when populating the resolving list, sets a peer IRK to all zeros, then the peer address used within an
 				 * advertising physical channel PDU shall use the peer’s Identity Address, which is provided by the Host. TODO: However, we are
 				 * not sure if versions of the controller above 4.1 do the same. We assume yes. */
-				AdvConfig.Actual = HCI_LE_Read_Peer_Resolvable_Address( Ptr->Peer.Peer_Identity_Address.Type,
-						Ptr->Peer.Peer_Identity_Address.Address, &Read_Peer_Resolvable_Address_Complete, NULL ) ? WAIT_OPERATION : WAIT_FOR_NEW_PEER_READ;
+				AdvConfig.Actual = HCI_LE_Read_Peer_Resolvable_Address( RecordPtr->Peer.Peer_Identity_Address.Type,
+						RecordPtr->Peer.Peer_Identity_Address.Address, &Read_Peer_Resolvable_Address_Complete, NULL ) ? WAIT_OPERATION : WAIT_FOR_NEW_PEER_READ;
 			}else
 			{
 				/* It is not on the list, so proceed with whatever peer address loaded */
@@ -395,7 +395,7 @@ int8_t Advertising_Config( void )
 		break;
 
 	case ENABLE_ADDRESS_RESOLUTION:
-		if( ( Ptr != NULL ) && ( AdvertisingParameters->Privacy ) )
+		if( ( RecordPtr != NULL ) && ( AdvertisingParameters->Privacy ) )
 		{
 			AdvConfig.Next = SET_ADV_PARAMETERS;
 			AdvConfig.Prev = ENABLE_ADDRESS_RESOLUTION;
@@ -488,6 +488,84 @@ int8_t Advertising_Config( void )
 	}
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Get_Advertiser_Address()      								*/
+/* Location: 					 								*/
+/* Purpose: Verify the advertising own address.					*/
+/* parameters.													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Get_Advertiser_Address( LOCAL_ADDRESS_TYPE* Type, BD_ADDR_TYPE* AdvA )
+{
+	uint8_t ReturnStatus = FALSE;
+
+	if( ( AdvertisingParameters != NULL ) && ( Get_BLE_State() == ADVERTISING_STATE ) )
+	{
+
+		switch( AdvertisingParameters->Original_Own_Address_Type )
+		{
+		case OWN_PUBLIC_DEV_ADDR:
+			*AdvA = *( Get_Public_Device_Address().AddrPtr );
+			*Type = LOCAL_PUBLIC_DEV_ADDR;
+			ReturnStatus = TRUE;
+			break;
+
+		case OWN_RANDOM_DEV_ADDR:
+			*AdvA = RandomAddress;
+			*Type = LOCAL_RANDOM_DEV_ADDR;
+			ReturnStatus = TRUE;
+			break;
+
+		case OWN_RESOL_OR_PUBLIC_ADDR:
+		case OWN_RESOL_OR_RANDOM_ADDR:
+			if( AdvertisingParameters->Own_Address_Type == OWN_PUBLIC_DEV_ADDR )
+			{
+				/* Resolving record not found, so use the public address */
+				*AdvA = *( Get_Public_Device_Address().AddrPtr );
+				*Type = LOCAL_PUBLIC_DEV_ADDR;
+				ReturnStatus = TRUE;
+			}else if( AdvertisingParameters->Own_Address_Type == OWN_RANDOM_DEV_ADDR )
+			{
+				/* Is there a valid resolving record? */
+				if( RecordPtr != NULL )
+				{
+					if( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) )
+					{
+						*AdvA = RandomAddress;
+						*Type = ( RecordPtr->Local_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR ) ? LOCAL_RPA_PUBLIC_IDENTITY : LOCAL_RPA_RANDOM_IDENTITY;
+						ReturnStatus = TRUE;
+					}else if( RecordPtr->Local_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR )
+					{
+						*AdvA = *( Get_Public_Device_Address().AddrPtr );
+						*Type = LOCAL_PUBLIC_IDENTITY_ADDR;
+						ReturnStatus = TRUE;
+					}else if( RecordPtr->Local_Identity_Address.Type == PEER_RANDOM_DEV_ADDR )
+					{
+						*AdvA = *( Get_Static_Random_Device_Address( ).AddrPtr );
+						*Type = LOCAL_RANDOM_IDENTITY_ADDR;
+						ReturnStatus = TRUE;
+					}
+				}else if( AdvertisingParameters->Original_Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR )
+				{
+					*AdvA = RandomAddress;
+					*Type = LOCAL_RANDOM_DEV_ADDR;
+					ReturnStatus = TRUE;
+				}
+			}
+			break;
+		}
+
+	}
+
+	/* For when ReturnStatus = FALSE: The address was solely specified by the controller, there is no way
+	 * to know. This happen for higher than 4.1 versions. Or another condition prevented
+	 * the advertising address to be found */
+	return ( ReturnStatus );
 }
 
 

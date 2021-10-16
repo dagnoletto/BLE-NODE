@@ -49,6 +49,7 @@ extern void Set_BLE_State( BLE_STATES NewBLEState );
 extern uint8_t Exit_Advertising_Mode( BLE_STATES CurrentState );
 extern uint8_t Exit_Scanning_Mode( BLE_STATES CurrentState );
 extern uint8_t Exit_Initiating_Mode( BLE_STATES CurrentState );
+extern void Clear_Used_Device_Address( void );
 
 
 /****************************************************************/

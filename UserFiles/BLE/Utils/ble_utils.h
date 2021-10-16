@@ -9,7 +9,6 @@
 /****************************************************************/
 #include "hci.h"
 #include "Types.h"
-#include "ble_states.h"
 #include "gap.h"
 #include "security_manager.h"
 #include "main.h"
@@ -25,6 +24,24 @@
 /****************************************************************/
 typedef void (*EncryptCallBack)(uint8_t EncryptedData[16], CONTROLLER_ERROR_CODES status);
 typedef void (*StatusCallBack)(uint8_t comparisonStatus, CONTROLLER_ERROR_CODES status);
+
+
+typedef struct
+{
+	uint8_t Status;
+	BD_ADDR_TYPE* AddrPtr;
+}GET_BD_ADDR;
+
+
+typedef enum
+{
+	LOCAL_PUBLIC_DEV_ADDR    	  = 0x00, /* Public Device Address */
+	LOCAL_RANDOM_DEV_ADDR	   	  = 0x01, /* Random Device Address */
+	LOCAL_PUBLIC_IDENTITY_ADDR 	  = 0x02, /* Public Identity Address */
+	LOCAL_RANDOM_IDENTITY_ADDR 	  = 0x03, /* Random (static) Identity Address */
+	LOCAL_RPA_PUBLIC_IDENTITY	  = 0x04, /* Resolvable Private Address based on Public Identity Address */
+	LOCAL_RPA_RANDOM_IDENTITY	  = 0x05  /* Resolvable Private Address based on Random (static) Identity Address */
+}LOCAL_ADDRESS_TYPE;
 
 
 /****************************************************************/

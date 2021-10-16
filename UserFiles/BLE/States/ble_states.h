@@ -40,14 +40,6 @@ typedef enum
 }BLE_STATES;
 
 
-typedef struct
-{
-	uint8_t Status;
-	BD_ADDR_TYPE* AddrPtr;
-	ADDRESS_TYPE Type;
-}GET_BD_ADDR;
-
-
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
@@ -56,7 +48,6 @@ BLE_STATES Get_BLE_State( void );
 SUPPORTED_COMMANDS* Get_Supported_Commands( void );
 SUPPORTED_FEATURES* Get_Supported_Features( void );
 LOCAL_VERSION_INFORMATION* Get_Local_Version_Information( void );
-GET_BD_ADDR Get_Used_Device_Address( void );
 
 void Enter_Standby_Mode( void );
 uint8_t Enter_Advertising_Mode( ADVERTISING_PARAMETERS* AdvPar );

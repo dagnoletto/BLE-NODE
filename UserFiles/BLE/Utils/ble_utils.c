@@ -399,7 +399,6 @@ GET_BD_ADDR Get_Public_Device_Address( void )
 
 	ReturnVal.Status = TRUE;
 	ReturnVal.AddrPtr = (BD_ADDR_TYPE*)( &Ptr->Address );
-	ReturnVal.Type = PUBLIC_DEV_ADDR;
 
 	return (ReturnVal);
 }
@@ -424,7 +423,6 @@ GET_BD_ADDR Get_Static_Random_Device_Address( void )
 	{
 		ReturnVal.Status = TRUE;
 		ReturnVal.AddrPtr = (BD_ADDR_TYPE*)( &Ptr->Address );
-		ReturnVal.Type = RANDOM_DEV_ADDR;
 	}
 
 	return (ReturnVal);

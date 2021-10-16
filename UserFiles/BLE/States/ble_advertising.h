@@ -10,6 +10,7 @@
 #include "hci.h"
 #include "link_layer.h"
 #include "gap.h"
+#include "ble_utils.h"
 
 
 /****************************************************************/
@@ -55,6 +56,7 @@ uint8_t Get_Max_Advertising_Data_Length( void );
 uint8_t Get_Max_Scan_Response_Data_Length( void );
 uint8_t Check_Advertising_Parameters( ADVERTISING_PARAMETERS* AdvPar );
 void Set_Advertising_HostData( ADVERTISING_PARAMETERS* AdvPar );
+uint8_t Get_Advertiser_Address( LOCAL_ADDRESS_TYPE* Type, BD_ADDR_TYPE* AdvA );
 
 
 #endif /* BLE_ADVERTISING_H_ */

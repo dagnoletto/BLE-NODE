@@ -36,14 +36,6 @@ typedef enum
 }BLE_INIT_STEPS;
 
 
-typedef struct
-{
-	uint8_t Status;
-	BD_ADDR_TYPE Address;
-	ADDRESS_TYPE Type;
-}USED_BD_ADDR;
-
-
 /****************************************************************/
 /* Local functions declaration                                  */
 /****************************************************************/
@@ -107,7 +99,6 @@ static uint16_t LE_ACL_Data_Packet_Length_Supported;
 static uint8_t Total_Num_LE_ACL_Data_Packets_Supported;
 static LOCAL_VERSION_INFORMATION LocalInfo;
 static uint8_t ControllerResolvingListSize;
-static USED_BD_ADDR LocalUsedAddress = { .Status = FALSE };
 
 
 /****************************************************************/
@@ -288,26 +279,6 @@ SUPPORTED_FEATURES* Get_Supported_Features( void )
 LOCAL_VERSION_INFORMATION* Get_Local_Version_Information( void )
 {
 	return ( &LocalInfo );
-}
-
-
-/****************************************************************/
-/* Get_Used_Device_Address()        	 						*/
-/* Location: 					 								*/
-/* Purpose: Get the Controller used device address.				*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-GET_BD_ADDR Get_Used_Device_Address( void )
-{
-	GET_BD_ADDR ReturnVal;
-
-	ReturnVal.Status = LocalUsedAddress.Status;
-	ReturnVal.Type = LocalUsedAddress.Type;
-	ReturnVal.AddrPtr = &LocalUsedAddress.Address;
-
-	return ( ReturnVal );
 }
 
 
