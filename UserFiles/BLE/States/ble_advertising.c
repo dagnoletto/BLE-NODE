@@ -504,7 +504,8 @@ uint8_t Get_Advertiser_Address( LOCAL_ADDRESS_TYPE* Type, BD_ADDR_TYPE* AdvA )
 {
 	uint8_t ReturnStatus = FALSE;
 
-	if( ( AdvertisingParameters != NULL ) && ( Get_BLE_State() == ADVERTISING_STATE ) )
+	if( ( AdvertisingParameters != NULL ) && ( Get_BLE_State() == ADVERTISING_STATE ) &&
+			( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) )
 	{
 
 		switch( AdvertisingParameters->Original_Own_Address_Type )

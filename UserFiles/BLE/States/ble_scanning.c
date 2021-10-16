@@ -81,6 +81,7 @@ static SCANNING_PARAMETERS* ScanningParameters = NULL;
 static SCAN_CONFIG ScanConfig = { DISABLE_SCANNING, DISABLE_SCANNING, DISABLE_SCANNING };
 static BD_ADDR_TYPE RandomAddress;
 static uint16_t SM_Resolving_List_Index;
+static RESOLVING_RECORD* RecordPtr;
 
 
 /****************************************************************/
@@ -190,7 +191,6 @@ static void Free_Scanning_Parameters( void )
 int8_t Scanning_Config( void )
 {
 	static uint32_t ScanConfigTimeout = 0;
-	static RESOLVING_RECORD* RecordPtr;
 
 	switch( ScanConfig.Actual )
 	{
@@ -355,6 +355,79 @@ int8_t Scanning_Config( void )
 	}
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Get_Scanner_Address()      									*/
+/* Location: 					 								*/
+/* Purpose: Verify the scanning own address.					*/
+/* parameters.													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Get_Scanner_Address( LOCAL_ADDRESS_TYPE* Type, BD_ADDR_TYPE* ScanA )
+{
+	uint8_t ReturnStatus = FALSE;
+
+	if( ( ScanningParameters != NULL ) && ( Get_BLE_State() == SCANNING_STATE ) &&
+			( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) )
+	{
+
+		switch( ScanningParameters->Own_Address_Type )
+		{
+		case OWN_PUBLIC_DEV_ADDR:
+			*ScanA = *( Get_Public_Device_Address().AddrPtr );
+			*Type = LOCAL_PUBLIC_DEV_ADDR;
+			ReturnStatus = TRUE;
+			break;
+
+		case OWN_RANDOM_DEV_ADDR:
+		{
+			switch( ScanningParameters->Own_Random_Address_Type )
+			{
+			case NON_RESOLVABLE_PRIVATE:
+			case STATIC_DEVICE_ADDRESS:
+				*ScanA = RandomAddress;
+				*Type = LOCAL_RANDOM_DEV_ADDR;
+				ReturnStatus = TRUE;
+				break;
+
+			case RESOLVABLE_PRIVATE:
+				/* Is there a valid resolving record? */
+				if( RecordPtr != NULL )
+				{
+					if( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) )
+					{
+						*ScanA = RandomAddress;
+						*Type = ( RecordPtr->Local_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR ) ? LOCAL_RPA_PUBLIC_IDENTITY : LOCAL_RPA_RANDOM_IDENTITY;
+						ReturnStatus = TRUE;
+					}else if( RecordPtr->Local_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR )
+					{
+						*ScanA = RandomAddress;
+						*Type = LOCAL_PUBLIC_IDENTITY_ADDR;
+						ReturnStatus = TRUE;
+					}else if( RecordPtr->Local_Identity_Address.Type == PEER_RANDOM_DEV_ADDR )
+					{
+						*ScanA = RandomAddress;
+						*Type = LOCAL_RANDOM_IDENTITY_ADDR;
+						ReturnStatus = TRUE;
+					}
+				}
+				break;
+			}
+		}
+		break;
+
+		case OWN_RESOL_OR_PUBLIC_ADDR: /* The OWN_RESOL_OR_PUBLIC_ADDR will never be configured in 4.1 version */
+		case OWN_RESOL_OR_RANDOM_ADDR: /* The OWN_RESOL_OR_RANDOM_ADDR will never be configured in 4.1 version */
+			break;
+		}
+
+	}
+
+	return ( ReturnStatus );
 }
 
 

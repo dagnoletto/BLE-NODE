@@ -47,6 +47,7 @@ typedef struct
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
 uint8_t Check_Scanning_Parameters( SCANNING_PARAMETERS* ScanPar );
+uint8_t Get_Scanner_Address( LOCAL_ADDRESS_TYPE* Type, BD_ADDR_TYPE* ScanA );
 
 
 #endif /* BLE_SCANNING_H_ */
