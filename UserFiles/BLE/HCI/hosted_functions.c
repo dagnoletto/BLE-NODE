@@ -255,7 +255,34 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		break;
 
 	case HCI_LE_CREATE_CONNECTION:
+	{
 		/* This command is "faked" and is used to check the connection complete event. */
+		BD_ADDR_TYPE NullAddress;
+		memset( &NullAddress.Bytes, 0, sizeof(NullAddress.Bytes) );
+
+		BD_ADDR_TYPE Local_Resolvable_Private_Address;
+
+		LOCAL_ADDRESS_TYPE AddrType = LOCAL_PUBLIC_DEV_ADDR;
+
+		switch ( Get_BLE_State() )
+		{
+		case ADVERTISING_STATE:
+			Get_Advertiser_Address( &AddrType, &Local_Resolvable_Private_Address );
+			break;
+
+		case INITIATING_STATE:
+			Get_Initiator_Address( &AddrType, &Local_Resolvable_Private_Address );
+			break;
+
+		default:
+			break;
+		}
+
+		if( ( AddrType != LOCAL_RPA_PUBLIC_IDENTITY ) && ( AddrType != LOCAL_RPA_RANDOM_IDENTITY ) )
+		{
+			memset( &Local_Resolvable_Private_Address.Bytes, 0, sizeof(Local_Resolvable_Private_Address.Bytes) );
+		}
+
 		//TODO: finalizar
 		if( /* !CommandToProcess.OpCode.Val */0 )
 		{
@@ -264,18 +291,15 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		{
 			/* The state machine is busy processing another request, but this event must not be missed out.
 			 * In this case, just forward the original event data with null info whenever different from the original */
-			BD_ADDR_TYPE NullAddress;
-			memset( &NullAddress.Bytes, 0, sizeof(NullAddress.Bytes) );
-
-			//TODO: carregar Local_Resolvable_Proivate_Addres quando possível. O peer será zero porque por peer_address_type é do tipo random (0x01)
 
 			HCI_LE_Enhanced_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
-					EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), &NullAddress,
+					EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), &Local_Resolvable_Private_Address,
 					&NullAddress, ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],
 					( EventPacketPtr->Event_Parameter[15] << 8 ) | EventPacketPtr->Event_Parameter[14], ( EventPacketPtr->Event_Parameter[17] << 8 ) | EventPacketPtr->Event_Parameter[16],
 					EventPacketPtr->Event_Parameter[18] );
 		}
-		break;
+	}
+	break;
 
 	case HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST:
 		EventPacketPtr->Parameter_Total_Length = 4;
