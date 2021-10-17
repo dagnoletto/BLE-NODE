@@ -41,6 +41,7 @@ typedef struct
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
 uint8_t Check_Initiating_Parameters( INITIATING_PARAMETERS* InitPar );
+uint8_t Get_Initiator_Address( LOCAL_ADDRESS_TYPE* Type, BD_ADDR_TYPE* InitA );
 
 
 #endif /* BLE_INITIATING_H_ */

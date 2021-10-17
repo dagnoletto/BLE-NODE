@@ -55,7 +55,7 @@ static void LE_Set_Random_Address_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Address_Resolution_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static uint8_t Check_Scanner_Parameters( SCANNING_PARAMETERS* ScanPar );
 static uint8_t Check_Random_Address_For_Scanning( SCANNING_PARAMETERS* ScanPar );
-static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Identity_Address );
+static uint8_t Check_Local_Resolvable_Private_Address( SCANNING_PARAMETERS* ScanPar );
 
 
 /****************************************************************/
@@ -679,7 +679,7 @@ static uint8_t Check_Scanner_Parameters( SCANNING_PARAMETERS* ScanPar )
 		}else if( ScanPar->Own_Random_Address_Type == RESOLVABLE_PRIVATE )
 		{
 			/* Check resolvable private address is possible to generate */
-			return ( Check_Local_Resolvable_Private_Address( &ScanPar->PeerId ) );
+			return ( Check_Local_Resolvable_Private_Address( ScanPar ) );
 		}else
 		{
 			return (TRUE);
@@ -711,7 +711,7 @@ static uint8_t Check_Random_Address_For_Scanning( SCANNING_PARAMETERS* ScanPar )
 	case RESOLVABLE_PRIVATE:
 		/* Permitted in privacy mode */
 		/* But we need to know if we have record for the peer identity. */
-		return ( Check_Local_Resolvable_Private_Address( &ScanPar->PeerId ) );
+		return ( Check_Local_Resolvable_Private_Address( ScanPar ) );
 		break;
 
 	case NON_RESOLVABLE_PRIVATE:
@@ -731,14 +731,15 @@ static uint8_t Check_Random_Address_For_Scanning( SCANNING_PARAMETERS* ScanPar )
 /* Return:														*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Identity_Address )
+static uint8_t Check_Local_Resolvable_Private_Address( SCANNING_PARAMETERS* ScanPar )
 {
-	RESOLVING_RECORD* RecordPtr = Get_Record_From_Peer_Identity( Peer_Identity_Address );
+	RESOLVING_RECORD* RecordPtr = Get_Record_From_Peer_Identity( &ScanPar->PeerId );
 	if( RecordPtr != NULL )
 	{
 		/* The local IRK must be valid since local identity would be used instead of
-		 * Resolvable private address. */
-		if( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) )
+		 * Resolvable private address. However, if privacy is disable, the active scanner
+		 * may use the identity address whenever the local IRK is null */
+		if( ( ScanPar->Privacy == FALSE ) || ( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) ) )
 		{
 			return (TRUE);
 		}

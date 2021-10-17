@@ -563,9 +563,6 @@ uint8_t Get_Advertiser_Address( LOCAL_ADDRESS_TYPE* Type, BD_ADDR_TYPE* AdvA )
 
 	}
 
-	/* For when ReturnStatus = FALSE: The address was solely specified by the controller, there is no way
-	 * to know. This happen for higher than 4.1 versions. Or another condition prevented
-	 * the advertising address to be found */
 	return ( ReturnStatus );
 }
 

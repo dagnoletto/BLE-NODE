@@ -87,6 +87,7 @@ static INITIATING_PARAMETERS* InitiatingParameters = NULL;
 static INIT_CONFIG InitConfig = { CANCEL_INITIATING, CANCEL_INITIATING, CANCEL_INITIATING };
 static BD_ADDR_TYPE RandomAddress;
 static uint16_t SM_Resolving_List_Index;
+static RESOLVING_RECORD* RecordPtr;
 
 
 /****************************************************************/
@@ -197,13 +198,12 @@ static void Free_Initiating_Parameters( void )
 int8_t Initiating_Config( void )
 {
 	static uint32_t InitConfigTimeout = 0;
-	static RESOLVING_RECORD* ResRecord;
-
-	//TODO: Quando privacidade estiver habilitado, nunca deixar o InitA ser ajustado para identity address
+	static RESOLVING_RECORD* PeerRecordPtr;
 
 	switch( InitConfig.Actual )
 	{
 	case CANCEL_INITIATING:
+		RecordPtr = NULL;
 		InitConfigTimeout = 0;
 		InitiatingParameters->Own_Address_Type = InitiatingParameters->Original_Own_Address_Type;
 		InitiatingParameters->Counter = 0;
@@ -309,20 +309,20 @@ int8_t Initiating_Config( void )
 			InitConfig.Actual = Verify_Local_RPA( &Peer_Id_Addr );
 		}else if( InitiatingParameters->Peer_Address_Type == RANDOM_DEV_ADDR )
 		{
-			RESOLVING_RECORD* RecordPtr;
+			RESOLVING_RECORD* Record;
 			Peer_Id_Addr.Address = InitiatingParameters->Peer_Address;
 
 			for( PEER_ADDR_TYPE i = PEER_PUBLIC_DEV_ADDR; i <= PEER_RANDOM_DEV_ADDR; i++ )
 			{
 				Peer_Id_Addr.Type = i;
-				RecordPtr = Get_Record_From_Peer_Identity( &Peer_Id_Addr );
-				if( RecordPtr != NULL )
+				Record = Get_Record_From_Peer_Identity( &Peer_Id_Addr );
+				if( Record != NULL )
 				{
 					break;
 				}
 			}
 
-			if( RecordPtr != NULL )
+			if( Record != NULL )
 			{
 				/* If the peer address is equal to the identity address, we don't need to resolve anything. Just check if local RPA
 				 * is OK to be generated. */
@@ -347,15 +347,15 @@ int8_t Initiating_Config( void )
 	break;
 
 	case LOAD_RESOLVING_RECORD:
-		ResRecord = Get_Record_From_Index( SM_Resolving_List_Index );
-		if( ResRecord != NULL )
+		PeerRecordPtr = Get_Record_From_Index( SM_Resolving_List_Index );
+		if( PeerRecordPtr != NULL )
 		{
 			/* This is a resolvable private address, we should try to resolve it */
-			if( !Check_NULL_IRK(&ResRecord->Peer.Peer_IRK) )
+			if( !Check_NULL_IRK(&PeerRecordPtr->Peer.Peer_IRK) )
 			{
 				/* The peer IRK for this record is not null, we can proceed with resolution */
 				InitConfig.Actual = RESOLVE_PEER_RPA;
-				if( Resolve_Private_Address( Get_Supported_Commands(), &InitiatingParameters->Peer_Address, &ResRecord->Peer.Peer_IRK, 2, &Check_Private_Addr ) )
+				if( Resolve_Private_Address( Get_Supported_Commands(), &InitiatingParameters->Peer_Address, &PeerRecordPtr->Peer.Peer_IRK, 2, &Check_Private_Addr ) )
 				{
 					InitConfigTimeout = 0;
 				}else
@@ -386,7 +386,7 @@ int8_t Initiating_Config( void )
 		break;
 
 	case PEER_RPA_RESOLVED:
-		InitConfig.Actual = Verify_Local_RPA( &ResRecord->Peer.Peer_Identity_Address );
+		InitConfig.Actual = Verify_Local_RPA( &PeerRecordPtr->Peer.Peer_Identity_Address );
 		break;
 
 	case GENERATE_RANDOM_ADDRESS:
@@ -485,6 +485,90 @@ int8_t Initiating_Config( void )
 	}
 
 	return (FALSE);
+}
+
+
+/****************************************************************/
+/* Get_Initiator_Address()      								*/
+/* Location: 					 								*/
+/* Purpose: Verify the initiating own address.					*/
+/* parameters.													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Get_Initiator_Address( LOCAL_ADDRESS_TYPE* Type, BD_ADDR_TYPE* InitA )
+{
+	uint8_t ReturnStatus = FALSE;
+
+	if( ( InitiatingParameters != NULL ) && ( Get_BLE_State() == INITIATING_STATE ) &&
+			( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 ) )
+	{
+
+		switch( InitiatingParameters->Original_Own_Address_Type )
+		{
+		case OWN_PUBLIC_DEV_ADDR:
+			*InitA = *( Get_Public_Device_Address().AddrPtr );
+			*Type = LOCAL_PUBLIC_DEV_ADDR;
+			ReturnStatus = TRUE;
+			break;
+
+		case OWN_RANDOM_DEV_ADDR:
+			*InitA = RandomAddress;
+			*Type = LOCAL_RANDOM_DEV_ADDR;
+			ReturnStatus = TRUE;
+			break;
+
+		case OWN_RESOL_OR_PUBLIC_ADDR:
+		case OWN_RESOL_OR_RANDOM_ADDR:
+			if( InitiatingParameters->Own_Address_Type == OWN_PUBLIC_DEV_ADDR )
+			{
+				/* Resolving record not found, so use the public address */
+				*InitA = *( Get_Public_Device_Address().AddrPtr );
+				*Type = LOCAL_PUBLIC_DEV_ADDR;
+				ReturnStatus = TRUE;
+			}else if( InitiatingParameters->Own_Address_Type == OWN_RANDOM_DEV_ADDR )
+			{
+				/* Is there a valid resolving record? */
+				if( RecordPtr != NULL )
+				{
+					if( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) )
+					{
+						*InitA = RandomAddress;
+						*Type = ( RecordPtr->Local_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR ) ? LOCAL_RPA_PUBLIC_IDENTITY : LOCAL_RPA_RANDOM_IDENTITY;
+						ReturnStatus = TRUE;
+					}else if( InitiatingParameters->Privacy == FALSE )
+					{
+						if( RecordPtr->Local_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR )
+						{
+							*InitA = RandomAddress;
+							*Type = LOCAL_PUBLIC_IDENTITY_ADDR;
+							ReturnStatus = TRUE;
+						}else if( RecordPtr->Local_Identity_Address.Type == PEER_RANDOM_DEV_ADDR )
+						{
+							*InitA = RandomAddress;
+							*Type = LOCAL_RANDOM_IDENTITY_ADDR;
+							ReturnStatus = TRUE;
+						}
+					}else if( InitiatingParameters->Original_Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR )
+					{
+						*InitA = RandomAddress;
+						*Type = LOCAL_RANDOM_DEV_ADDR;
+						ReturnStatus = TRUE;
+					}
+				}else if( InitiatingParameters->Original_Own_Address_Type == OWN_RESOL_OR_RANDOM_ADDR )
+				{
+					*InitA = RandomAddress;
+					*Type = LOCAL_RANDOM_DEV_ADDR;
+					ReturnStatus = TRUE;
+				}
+			}
+			break;
+		}
+
+	}
+
+	return ( ReturnStatus );
 }
 
 
@@ -853,14 +937,13 @@ static INIT_CONFIG_STEPS No_Local_RPA_Is_Possible( void )
 /****************************************************************/
 static uint8_t Check_Local_Resolvable_Private_Address( IDENTITY_ADDRESS* Peer_Identity_Address )
 {
-	RESOLVING_RECORD* RecordPtr = Get_Record_From_Peer_Identity( Peer_Identity_Address );
+	RecordPtr = Get_Record_From_Peer_Identity( Peer_Identity_Address );
 	if( RecordPtr != NULL )
 	{
 		/* The local IRK must be valid since local identity would be used instead of
-		 * Resolvable private address. */
-		/* TODO: if InitiatingParameters->Privacy is FALSE, maybe the initiator could use
-		 * zero filled local IRK? */
-		if( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) )
+		 * Resolvable private address. If the Privacy is FALSE, the initiator is allowed to use
+		 * zero filled local IRK */
+		if( ( InitiatingParameters->Privacy == FALSE ) || ( !Check_NULL_IRK( &RecordPtr->Peer.Local_IRK ) ) )
 		{
 			return (TRUE);
 		}
