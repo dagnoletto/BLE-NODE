@@ -78,7 +78,14 @@ void SlaveNode( void )
 		if( TimeBase_DelayMs( &Timer, 10000, TRUE ) )
 		{
 			//SlaveStateMachine = CONFIG_STANDBY;
+		}else if( Get_BLE_State() == CONNECTION_STATE )
+		{
+			SlaveStateMachine = CONNECTION_STATE;
 		}
+		break;
+
+	case CONNECTION_STATE:
+		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
 		break;
 
 	default: break;

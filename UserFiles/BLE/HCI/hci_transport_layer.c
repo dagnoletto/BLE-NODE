@@ -65,6 +65,12 @@ static void Fault_Data_Event_Handler( HCI_EVENT_PCKT* EventPacketPtr );
 
 
 /****************************************************************/
+/* extern functions declaration                                 */
+/****************************************************************/
+extern void Enter_Connection_Mode( CONTROLLER_ERROR_CODES Status );
+
+
+/****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
 
@@ -432,7 +438,6 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			{
 			case LE_CONNECTION_COMPLETE:
 				RETURN_ON_FAULT(Status);
-				//TODO: alterar para BLE_STATUS CONNECTED
 				if( Get_Local_Version_Information()->HCI_Version <= CORE_SPEC_4_1 )
 				{
 					/* As we have unmasked the LE_Enhanced_Connection_Complete_event, no higher than 4.1
@@ -442,6 +447,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 					Delegate_Function_To_Host( OpCode, NULL, EventPacketPtr );
 				}else
 				{
+					Enter_Connection_Mode( EventPacketPtr->Event_Parameter[1] );
 					HCI_LE_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
 							EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],
 							( EventPacketPtr->Event_Parameter[15] << 8 ) | EventPacketPtr->Event_Parameter[14], ( EventPacketPtr->Event_Parameter[17] << 8 ) | EventPacketPtr->Event_Parameter[16],
@@ -484,6 +490,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 			case LE_ENHANCED_CONNECTION_COMPLETE:
 				RETURN_ON_FAULT(Status);
+				Enter_Connection_Mode( EventPacketPtr->Event_Parameter[1] );
 				HCI_LE_Enhanced_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
 						EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[12])),
 						(BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[18])), ( EventPacketPtr->Event_Parameter[25] << 8 ) | EventPacketPtr->Event_Parameter[24],

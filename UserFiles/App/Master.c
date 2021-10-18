@@ -117,7 +117,14 @@ void MasterNode( void )
 		if( TimeBase_DelayMs( &Timer, 5000, TRUE ) )
 		{
 			MasterStateMachine = CONFIG_STANDBY;
+		}else if( Get_BLE_State() == CONNECTION_STATE )
+		{
+			MasterStateMachine = CONNECTION_STATE;
 		}
+		break;
+
+	case CONNECTION_STATE:
+		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
 		break;
 
 	default: break;
@@ -333,6 +340,7 @@ void HCI_LE_Enhanced_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_
 		BD_ADDR_TYPE* Peer_Address, BD_ADDR_TYPE* Local_Resolvable_Private_Address, BD_ADDR_TYPE* Peer_Resolvable_Private_Address, uint16_t Connection_Interval,
 		uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy )
 {
+	/* TODO: esta função poderia estar em ble_connection? */
 	uint8_t teste = 0;
 	if(teste)
 	{

@@ -69,6 +69,12 @@ static void Check_Private_Addr(uint8_t resolvstatus, CONTROLLER_ERROR_CODES stat
 
 
 /****************************************************************/
+/* extern functions declaration                                 */
+/****************************************************************/
+extern void Enter_Connection_Mode( CONTROLLER_ERROR_CODES Status );
+
+
+/****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
 static uint8_t Address_Resol_Controller_Cmd = FALSE;
@@ -257,8 +263,8 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 	case HCI_LE_CREATE_CONNECTION:
 	{
 		/* This command is "faked" and is used to check the connection complete event. */
-		BD_ADDR_TYPE NullAddress;
-		memset( &NullAddress.Bytes, 0, sizeof(NullAddress.Bytes) );
+		BD_ADDR_TYPE Peer_Resolvable_Private_Address;
+		memset( &Peer_Resolvable_Private_Address.Bytes, 0, sizeof(Peer_Resolvable_Private_Address.Bytes) );
 
 		BD_ADDR_TYPE Local_Resolvable_Private_Address;
 
@@ -283,18 +289,27 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 			memset( &Local_Resolvable_Private_Address.Bytes, 0, sizeof(Local_Resolvable_Private_Address.Bytes) );
 		}
 
-		//TODO: finalizar
-		if( /* !CommandToProcess.OpCode.Val */0 )
-		{
+		ADDRESS_TYPE Peer_Address_Type = EventPacketPtr->Event_Parameter[5];
 
+		Enter_Connection_Mode( EventPacketPtr->Event_Parameter[1] );
+
+		if( ( !CommandToProcess.OpCode.Val ) && ( EventPacketPtr->Event_Parameter[1] == COMMAND_SUCCESS ) && ( Peer_Address_Type == RANDOM_DEV_ADDR ) )
+		{
+			/* No callback is needed */
+			CommandToProcess.OpCode.Val = HCI_LE_CREATE_CONNECTION;
+			CommandToProcess.ProcessSteps = 0;
+			memcpy( &CommandToProcess.EventPacket.Event_Code, &EventPacketPtr->Event_Code, 14 );
+			memcpy( &CommandToProcess.EventPacket.Event_Parameter[12], &Local_Resolvable_Private_Address.Bytes, sizeof(Local_Resolvable_Private_Address.Bytes) );
+			memcpy( &CommandToProcess.EventPacket.Event_Parameter[18], &Peer_Resolvable_Private_Address.Bytes, sizeof(Peer_Resolvable_Private_Address.Bytes) );
+			memcpy( &CommandToProcess.EventPacket.Event_Parameter[24], &EventPacketPtr->Event_Parameter[12], 7 );
+			CommandToProcess.EventPacket.Parameter_Total_Length = 31;
 		}else
 		{
 			/* The state machine is busy processing another request, but this event must not be missed out.
 			 * In this case, just forward the original event data with null info whenever different from the original */
-
 			HCI_LE_Enhanced_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
 					EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), &Local_Resolvable_Private_Address,
-					&NullAddress, ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],
+					&Peer_Resolvable_Private_Address, ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],
 					( EventPacketPtr->Event_Parameter[15] << 8 ) | EventPacketPtr->Event_Parameter[14], ( EventPacketPtr->Event_Parameter[17] << 8 ) | EventPacketPtr->Event_Parameter[16],
 					EventPacketPtr->Event_Parameter[18] );
 		}
@@ -757,7 +772,9 @@ static BD_ADDR_TYPE* Get_Local_Resolvable_Address( IDENTITY_ADDRESS* PtrId )
 /****************************************************************/
 static void Check_Private_Addr(uint8_t resolvstatus, CONTROLLER_ERROR_CODES status)
 {
-	if( Get_BLE_State() == SCANNING_STATE )
+	BLE_STATES ble_states = Get_BLE_State();
+
+	if( ( ble_states == SCANNING_STATE ) || ( ble_states == CONNECTION_STATE ) )
 	{
 		if( ( CommandToProcess.ProcessSteps == 4 ) && ( CommandToProcess.OpCode.Val == HCI_LE_SET_SCAN_ENABLE ) )
 		{
@@ -768,6 +785,16 @@ static void Check_Private_Addr(uint8_t resolvstatus, CONTROLLER_ERROR_CODES stat
 			}else
 			{
 				CommandToProcess.ProcessSteps = 6; /* Could not be resolved due to controller failure */
+			}
+		}else if( ( CommandToProcess.ProcessSteps == 3 ) && ( CommandToProcess.OpCode.Val == HCI_LE_CREATE_CONNECTION ) )
+		{
+			TimeCounter = 0;
+			if( status == COMMAND_SUCCESS )
+			{
+				CommandToProcess.ProcessSteps = resolvstatus ? 5 : 1; /* 5: status is true / 1: status is false */
+			}else
+			{
+				CommandToProcess.ProcessSteps = 1; /* Could not be resolved due to controller failure */
 			}
 		}
 	}else
@@ -993,6 +1020,102 @@ void Hosted_Functions_Process( void )
 			/* Simply go to the next resolving record */
 			/* End resolution for this resolving record */
 			CommandToProcess.ProcessSteps = 2;
+			break;
+		}
+	}
+	break;
+
+	case HCI_LE_CREATE_CONNECTION:
+	{
+		switch( CommandToProcess.ProcessSteps )
+		{
+		case 0:
+			Address_Ptr = (BD_ADDR_TYPE*)( &(CommandToProcess.EventPacket.Event_Parameter[6]) );
+			RecordCounter = 0;
+			CommandToProcess.ProcessSteps = 1;
+			break;
+
+		case 1:
+			if( state != CONNECTION_STATE )
+			{
+				CommandToProcess.OpCode.Val = 0;
+			}else
+			{
+				Desc = Get_Resolvable_Descriptor_From_Index( RecordCounter );
+				if( Desc != NULL )
+				{
+					RecordCounter++;
+					if( memcmp( &Address_Ptr->Bytes, &Desc->Id.Peer_Identity_Address.Address.Bytes, sizeof(BD_ADDR_TYPE) ) != 0 )
+					{
+						/* Check if IRK values are not NULL and the address is resolvable */
+						if( ( ( Address_Ptr->Bytes[sizeof(BD_ADDR_TYPE) - 1] & 0xC0 ) == 0x40 ) && ( !Check_NULL_IRK(&Desc->Id.Peer_IRK) ) )
+						{
+							/* This shall use peer IRK values */
+							TimeCounter = 0;
+							CommandToProcess.ProcessSteps = 2;
+						}
+					}else
+					{
+						/* The address is equal to the resolving list entry peer's identity. There is no need to resolve anything.
+						 * End the resolving process */
+						CommandToProcess.EventPacket.Event_Parameter[5] = ( Desc->Id.Peer_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR ) ? PUBLIC_IDENTITY_ADDR : RANDOM_IDENTITY_ADDR;
+						CommandToProcess.ProcessSteps = 4;
+					}
+				}else
+				{
+					/* Resolving list ended: end the resolving process */
+					CommandToProcess.ProcessSteps = 4;
+				}
+			}
+			break;
+
+		case 2:
+			CommandToProcess.ProcessSteps = 3;
+			if( Resolve_Private_Address( Get_Supported_Commands(), Address_Ptr, &Desc->Id.Peer_IRK, 1, &Check_Private_Addr ) )
+			{
+				TimeCounter = 0;
+			}else
+			{
+				Cancel_Private_Address_Resolution();
+				/* End resolution for this address */
+				CommandToProcess.ProcessSteps = 1;
+			}
+			break;
+
+		case 3: /* Wait for address resolution to end */
+			if( TimeBase_DelayMs( &TimeCounter, 250, TRUE ) )
+			{
+				Cancel_Private_Address_Resolution();
+				/* End resolution for this resolving record */
+				CommandToProcess.ProcessSteps = 1;
+			}
+			break;
+
+		case 4: /* End address resolution */
+			HCI_LE_Enhanced_Connection_Complete( CommandToProcess.EventPacket.Event_Parameter[1], ( CommandToProcess.EventPacket.Event_Parameter[3] << 8 ) | CommandToProcess.EventPacket.Event_Parameter[2],
+					CommandToProcess.EventPacket.Event_Parameter[4], CommandToProcess.EventPacket.Event_Parameter[5], (BD_ADDR_TYPE*)(&(CommandToProcess.EventPacket.Event_Parameter[6])), (BD_ADDR_TYPE*)(&(CommandToProcess.EventPacket.Event_Parameter[12])),
+					(BD_ADDR_TYPE*)(&(CommandToProcess.EventPacket.Event_Parameter[18])), ( CommandToProcess.EventPacket.Event_Parameter[25] << 8 ) | CommandToProcess.EventPacket.Event_Parameter[24],
+					( CommandToProcess.EventPacket.Event_Parameter[27] << 8 ) | CommandToProcess.EventPacket.Event_Parameter[26], ( CommandToProcess.EventPacket.Event_Parameter[29] << 8 ) | CommandToProcess.EventPacket.Event_Parameter[28],
+					CommandToProcess.EventPacket.Event_Parameter[30] );
+
+			CommandToProcess.OpCode.Val = 0;
+			break;
+
+		case 5: /* Successful address resolution */
+			/* Load the type of identity just resolved */
+			CommandToProcess.EventPacket.Event_Parameter[5] = ( Desc->Id.Peer_Identity_Address.Type == PEER_PUBLIC_DEV_ADDR ) ? PUBLIC_IDENTITY_ADDR : RANDOM_IDENTITY_ADDR;
+
+			/* Populate Peer_Resolvable_Private_Address field */
+			memcpy( &CommandToProcess.EventPacket.Event_Parameter[18], &(Address_Ptr->Bytes), sizeof(BD_ADDR_TYPE) );
+
+			/* Populate Peer_Address with peer identity */
+			*Address_Ptr = Desc->Id.Peer_Identity_Address.Address;
+
+			/* Call the end step */
+			CommandToProcess.ProcessSteps = 4;
+			break;
+
+		default:
 			break;
 		}
 	}

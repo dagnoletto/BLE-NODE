@@ -15,6 +15,7 @@
 #include "ble_advertising.h"
 #include "ble_scanning.h"
 #include "ble_initiating.h"
+#include "ble_connection.h"
 
 
 /****************************************************************/

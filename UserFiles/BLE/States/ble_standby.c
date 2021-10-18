@@ -127,6 +127,7 @@ void Enter_Standby_Mode( void )
 		case SYNCHRONIZATION_STATE:
 		case ISOCHRONOUS_BROADCASTING_STATE:
 			/* TODO: to be implemented */
+			/* TODO: implementar saída de connection state! */
 			FunStat = FALSE;
 			break;
 

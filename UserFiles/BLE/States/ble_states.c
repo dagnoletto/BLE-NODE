@@ -74,6 +74,7 @@ extern int8_t Scanning_Config( void );
 extern void Scanning( void );
 extern int8_t Initiating_Config( void );
 extern void Initiating( void );
+extern void Connection( void );
 
 
 /****************************************************************/
@@ -198,6 +199,7 @@ void Run_BLE( void )
 		break;
 
 	case CONNECTION_STATE:
+		Connection(  );
 		break;
 
 	case SYNCHRONIZATION_STATE:
