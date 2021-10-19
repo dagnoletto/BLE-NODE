@@ -25,6 +25,7 @@ typedef enum
 	SET_RANDOM_ADDRESS,
 	ENABLE_ADDRESS_RESOLUTION,
 	SET_SCAN_PARAMETERS,
+	WAIT_HOST_TO_FINISH,
 	ENABLE_SCANNING,
 	END_SCAN_CONFIG,
 	FAILED_SCAN_CONFIG,
@@ -320,9 +321,19 @@ int8_t Scanning_Config( void )
 
 		case SET_SCAN_PARAMETERS:
 			ScanConfigTimeout = 0;
-			ScanConfig.Next = ENABLE_SCANNING;
+			ScanConfig.Next = WAIT_HOST_TO_FINISH;
 			ScanConfig.Actual = HCI_LE_Set_Scan_Parameters( ScanningParameters->LE_Scan_Type, ScanningParameters->LE_Scan_Interval, ScanningParameters->LE_Scan_Window,
 					ScanningParameters->Own_Address_Type, ScanningParameters->Scanning_Filter_Policy, &LE_Set_Scan_Parameters_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_PARAMETERS;
+			break;
+
+		case WAIT_HOST_TO_FINISH:
+			if( TimeBase_DelayMs( &ScanConfigTimeout, 500, TRUE ) )
+			{
+				ScanConfig.Actual = FAILED_SCAN_CONFIG;
+			}else if( !Get_Hosted_Function().Val )
+			{
+				ScanConfig.Actual = ENABLE_SCANNING;
+			}
 			break;
 
 		case ENABLE_SCANNING:
@@ -764,35 +775,27 @@ static uint8_t Check_Local_Resolvable_Private_Address( SCANNING_PARAMETERS* Scan
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-//TODO: callback implemented in higher layers for now. In the future this function may fill-up a list and the higher layers
-//could retrieve devices from this list
-//void HCI_LE_Advertising_Report( uint8_t Subevent_Code, uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
-//		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
-//{
-//	/* Sub event code for the HCI_LE_Advertising_Report event: page 2382 Core_v5.2 */
-//	if( Subevent_Code == 0x02 )
-//	{
-//		ADVERTISING_REPORT Report;
-//		uint16_t Number_Of_Data_Bytes = 0;
-//		static uint8_t AdvData[40];
-//
-//		for( uint8_t i = 0; i < Num_Reports; i++ )
-//		{
-//			Report.Event_Type = Event_Type[i];
-//			Report.Address_Type = Address_Type[i];
-//			Report.Address = Address[i];
-//			Report.Data_Length = Data_Length[i];
-//			Report.RSSI = RSSI[i];
-//			Report.DataPtr = &AdvData[0];
-//
-//			memcpy( Report.DataPtr, &Data[Number_Of_Data_Bytes], Report.Data_Length );
-//
-//			Number_Of_Data_Bytes += Report.Data_Length;
-//
-//			//TODO: add device to scanned device list
-//		}
-//	}
-//}
+void HCI_LE_Advertising_Report( LEAdvertisingReport* AdvReport )
+{
+	Advertising_Report( AdvReport->Num_Reports, AdvReport->Event_Type, AdvReport->Address_Type,
+			AdvReport->Address, AdvReport->Data_Length, AdvReport->Data, AdvReport->RSSI );
+}
+
+
+/****************************************************************/
+/* Advertising_Report()     	    							*/
+/* Location: 					 								*/
+/* Purpose: Informs the higher layers in the master that new	*/
+/* reports arrived. 											*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
+		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
+{
+
+}
 
 
 /****************************************************************/

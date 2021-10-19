@@ -33,6 +33,7 @@ typedef enum
 	SET_ADV_POWER,
 	SET_ADV_DATA,
 	SET_SCAN_RSP_DATA,
+	WAIT_HOST_TO_FINISH,
 	ENABLE_ADVERTISING,
 	END_ADV_CONFIG,
 	FAILED_ADV_CONFIG,
@@ -453,9 +454,19 @@ int8_t Advertising_Config( void )
 
 	case SET_SCAN_RSP_DATA:
 		AdvConfigTimeout = 0;
-		AdvConfig.Next = ENABLE_ADVERTISING;
+		AdvConfig.Next = WAIT_HOST_TO_FINISH;
 		AdvConfig.Prev = SET_SCAN_RSP_DATA;
 		AdvConfig.Actual = HCI_LE_Set_Scan_Response_Data( AdvertisingParameters->HostData.ScanRsp_Data_Length, AdvertisingParameters->HostData.Scan_Data_Ptr, &LE_Set_Data_Complete, NULL ) ? WAIT_OPERATION : SET_SCAN_RSP_DATA;
+		break;
+
+	case WAIT_HOST_TO_FINISH:
+		if( TimeBase_DelayMs( &AdvConfigTimeout, 500, TRUE ) )
+		{
+			AdvConfig.Actual = FAILED_ADV_CONFIG;
+		}else if( !Get_Hosted_Function().Val )
+		{
+			AdvConfig.Actual = ENABLE_ADVERTISING;
+		}
 		break;
 
 	case ENABLE_ADVERTISING:

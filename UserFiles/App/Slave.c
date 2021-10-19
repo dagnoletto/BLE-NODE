@@ -145,5 +145,24 @@ uint8_t Config_Advertiser(void)
 
 
 /****************************************************************/
+/* Slave_Connection_Complete()     	    						*/
+/* Location: 					 								*/
+/* Purpose: Informs the slave a new connection was established  */
+/* with a master												*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Slave_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
+{
+	uint8_t teste = 0;
+	if(teste)
+	{
+		teste = 0;
+	}
+}
+
+
+/****************************************************************/
 /* End of file	                                                */
 /****************************************************************/

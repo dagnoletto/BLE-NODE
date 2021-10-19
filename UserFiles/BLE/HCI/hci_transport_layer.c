@@ -448,10 +448,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 				}else
 				{
 					Enter_Connection_Mode( EventPacketPtr->Event_Parameter[1] );
-					HCI_LE_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
-							EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],
-							( EventPacketPtr->Event_Parameter[15] << 8 ) | EventPacketPtr->Event_Parameter[14], ( EventPacketPtr->Event_Parameter[17] << 8 ) | EventPacketPtr->Event_Parameter[16],
-							EventPacketPtr->Event_Parameter[18] );
+					HCI_LE_Connection_Complete( (LEConnectionComplete*)( &EventPacketPtr->Event_Parameter[1] ) );
 				}
 				break;
 
@@ -491,11 +488,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			case LE_ENHANCED_CONNECTION_COMPLETE:
 				RETURN_ON_FAULT(Status);
 				Enter_Connection_Mode( EventPacketPtr->Event_Parameter[1] );
-				HCI_LE_Enhanced_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
-						EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[12])),
-						(BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[18])), ( EventPacketPtr->Event_Parameter[25] << 8 ) | EventPacketPtr->Event_Parameter[24],
-						( EventPacketPtr->Event_Parameter[27] << 8 ) | EventPacketPtr->Event_Parameter[26], ( EventPacketPtr->Event_Parameter[29] << 8 ) | EventPacketPtr->Event_Parameter[28],
-						EventPacketPtr->Event_Parameter[30] );
+				HCI_LE_Enhanced_Connection_Complete( (LEEnhancedConnectionComplete*)( &EventPacketPtr->Event_Parameter[1] ) );
 				break;
 			}
 			break;
@@ -1117,17 +1110,25 @@ void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBac
 /****************************************************************/
 void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr )
 {
-	uint8_t Num_Reports = EventPacketPtr->Event_Parameter[1];
-	uint16_t Data_Length_OffSet = ( Num_Reports * 8 ) + 2;
+	LEAdvertisingReport AdvReport;
+	AdvReport.Num_Reports = EventPacketPtr->Event_Parameter[1];
+
+	uint16_t Data_Length_OffSet = ( AdvReport.Num_Reports * 8 ) + 2;
 	uint16_t Number_Of_Data_Bytes = 0;
 
-	for( uint8_t i = 0; i < Num_Reports; i++ )
+	for( uint8_t i = 0; i < AdvReport.Num_Reports; i++ )
 	{
 		Number_Of_Data_Bytes += EventPacketPtr->Event_Parameter[Data_Length_OffSet + i];
 	}
 
-	HCI_LE_Advertising_Report( Num_Reports, &(EventPacketPtr->Event_Parameter[2]), &(EventPacketPtr->Event_Parameter[Num_Reports + 2]), (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[ ( Num_Reports * 2 ) + 2 ]) ),
-			&(EventPacketPtr->Event_Parameter[Data_Length_OffSet]), &( EventPacketPtr->Event_Parameter[Data_Length_OffSet + Num_Reports] ), (int8_t*)(&(EventPacketPtr->Event_Parameter[( Num_Reports * 9 ) + Number_Of_Data_Bytes + 2])) );
+	AdvReport.Event_Type = &(EventPacketPtr->Event_Parameter[2]);
+	AdvReport.Address_Type = &(EventPacketPtr->Event_Parameter[AdvReport.Num_Reports + 2]);
+	AdvReport.Address = (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[ ( AdvReport.Num_Reports * 2 ) + 2 ]) );
+	AdvReport.Data_Length = &(EventPacketPtr->Event_Parameter[Data_Length_OffSet]);
+	AdvReport.Data = &( EventPacketPtr->Event_Parameter[Data_Length_OffSet + AdvReport.Num_Reports] );
+	AdvReport.RSSI = (int8_t*)(&(EventPacketPtr->Event_Parameter[( AdvReport.Num_Reports * 9 ) + Number_Of_Data_Bytes + 2]));
+
+	HCI_LE_Advertising_Report( &AdvReport );
 }
 
 

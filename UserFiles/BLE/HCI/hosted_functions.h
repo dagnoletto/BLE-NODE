@@ -45,6 +45,7 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		HCI_EVENT_PCKT* EventPacketPtr );
 void Hosted_Functions_Process( void );
 void Hosted_Functions_Enter_Standby( void );
+HCI_COMMAND_OPCODE Get_Hosted_Function( void );
 uint8_t Hosted_Address_Resolution_Status( void );
 
 

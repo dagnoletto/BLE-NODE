@@ -21,6 +21,8 @@
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+void Master_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData );
+void Slave_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData );
 
 
 #endif /* BLE_CONNECTION_H_ */

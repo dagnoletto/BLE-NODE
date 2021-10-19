@@ -2396,9 +2396,7 @@ __attribute__((weak)) void HCI_Encryption_Key_Refresh_Complete( CONTROLLER_ERROR
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-__attribute__((weak)) void HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, BLE_ROLE Role, PEER_ADDR_TYPE Peer_Address_Type,
-		BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
-		uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy )
+__attribute__((weak)) void HCI_LE_Connection_Complete( LEConnectionComplete* ConnCpltData )
 {
 	/* The user should implement at higher layers since it is weak. */
 }
@@ -2432,9 +2430,7 @@ __attribute__((weak)) void HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES St
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-__attribute__((weak)) void HCI_LE_Enhanced_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, BLE_ROLE Role, ADDRESS_TYPE Peer_Address_Type,
-		BD_ADDR_TYPE* Peer_Address, BD_ADDR_TYPE* Local_Resolvable_Private_Address, BD_ADDR_TYPE* Peer_Resolvable_Private_Address, uint16_t Connection_Interval,
-		uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy )
+__attribute__((weak)) void HCI_LE_Enhanced_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
 {
 	/* The user should implement at higher layers since it is weak. */
 }
@@ -2456,8 +2452,7 @@ __attribute__((weak)) void HCI_LE_Enhanced_Connection_Complete( CONTROLLER_ERROR
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-__attribute__((weak)) void 	HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
-		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
+__attribute__((weak)) void HCI_LE_Advertising_Report( LEAdvertisingReport* AdvReport )
 {
 	/* The user should implement at higher layers since it is weak. */
 }

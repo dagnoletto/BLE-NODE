@@ -48,6 +48,8 @@ typedef struct
 /****************************************************************/
 uint8_t Check_Scanning_Parameters( SCANNING_PARAMETERS* ScanPar );
 uint8_t Get_Scanner_Address( LOCAL_ADDRESS_TYPE* Type, BD_ADDR_TYPE* ScanA );
+void Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
+		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] );
 
 
 #endif /* BLE_SCANNING_H_ */

@@ -29,6 +29,7 @@ typedef enum
 	WAIT_FOR_NEW_LOCAL_READ,
 	SET_RANDOM_ADDRESS,
 	VERIFY_PEER_ADDRESS,
+	WAIT_HOST_TO_FINISH,
 	CREATE_CONNECTION,
 	END_INIT_CONFIG,
 	FAILED_INIT_CONFIG,
@@ -435,7 +436,7 @@ int8_t Initiating_Config( void )
 		{
 		case PUBLIC_DEV_ADDR:
 		case RANDOM_DEV_ADDR:
-			InitConfig.Actual = CREATE_CONNECTION;
+			InitConfig.Actual = WAIT_HOST_TO_FINISH;
 			break;
 
 		case PUBLIC_IDENTITY_ADDR:
@@ -446,11 +447,21 @@ int8_t Initiating_Config( void )
 				InitConfig.Actual = FAILED_INIT_CONFIG;
 			}else
 			{
-				InitConfig.Actual = CREATE_CONNECTION;
+				InitConfig.Actual = WAIT_HOST_TO_FINISH;
 			}
 			break;
 		}
 		break;
+
+		case WAIT_HOST_TO_FINISH:
+			if( TimeBase_DelayMs( &InitConfigTimeout, 500, TRUE ) )
+			{
+				InitConfig.Actual = FAILED_INIT_CONFIG;
+			}else if( !Get_Hosted_Function().Val )
+			{
+				InitConfig.Actual = CREATE_CONNECTION;
+			}
+			break;
 
 		case CREATE_CONNECTION:
 			InitConfigTimeout = 0;

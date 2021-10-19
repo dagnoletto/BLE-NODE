@@ -307,11 +307,13 @@ void Delegate_Function_To_Host( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCall
 		{
 			/* The state machine is busy processing another request, but this event must not be missed out.
 			 * In this case, just forward the original event data with null info whenever different from the original */
-			HCI_LE_Enhanced_Connection_Complete( EventPacketPtr->Event_Parameter[1], ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2],
-					EventPacketPtr->Event_Parameter[4], EventPacketPtr->Event_Parameter[5], (BD_ADDR_TYPE*)(&(EventPacketPtr->Event_Parameter[6])), &Local_Resolvable_Private_Address,
-					&Peer_Resolvable_Private_Address, ( EventPacketPtr->Event_Parameter[13] << 8 ) | EventPacketPtr->Event_Parameter[12],
-					( EventPacketPtr->Event_Parameter[15] << 8 ) | EventPacketPtr->Event_Parameter[14], ( EventPacketPtr->Event_Parameter[17] << 8 ) | EventPacketPtr->Event_Parameter[16],
-					EventPacketPtr->Event_Parameter[18] );
+			LEEnhancedConnectionComplete Data;
+			memcpy( &Data, &EventPacketPtr->Event_Parameter[1], 11 );
+			Data.Local_Resolvable_Private_Address = Local_Resolvable_Private_Address;
+			Data.Peer_Resolvable_Private_Address = Peer_Resolvable_Private_Address;
+			memcpy( &Data.Connection_Interval, &EventPacketPtr->Event_Parameter[12], 7 );
+
+			HCI_LE_Enhanced_Connection_Complete( &Data );
 		}
 	}
 	break;
@@ -1092,11 +1094,7 @@ void Hosted_Functions_Process( void )
 			break;
 
 		case 4: /* End address resolution */
-			HCI_LE_Enhanced_Connection_Complete( CommandToProcess.EventPacket.Event_Parameter[1], ( CommandToProcess.EventPacket.Event_Parameter[3] << 8 ) | CommandToProcess.EventPacket.Event_Parameter[2],
-					CommandToProcess.EventPacket.Event_Parameter[4], CommandToProcess.EventPacket.Event_Parameter[5], (BD_ADDR_TYPE*)(&(CommandToProcess.EventPacket.Event_Parameter[6])), (BD_ADDR_TYPE*)(&(CommandToProcess.EventPacket.Event_Parameter[12])),
-					(BD_ADDR_TYPE*)(&(CommandToProcess.EventPacket.Event_Parameter[18])), ( CommandToProcess.EventPacket.Event_Parameter[25] << 8 ) | CommandToProcess.EventPacket.Event_Parameter[24],
-					( CommandToProcess.EventPacket.Event_Parameter[27] << 8 ) | CommandToProcess.EventPacket.Event_Parameter[26], ( CommandToProcess.EventPacket.Event_Parameter[29] << 8 ) | CommandToProcess.EventPacket.Event_Parameter[28],
-					CommandToProcess.EventPacket.Event_Parameter[30] );
+			HCI_LE_Enhanced_Connection_Complete( (LEEnhancedConnectionComplete*)( &CommandToProcess.EventPacket.Event_Parameter[1] ) );
 
 			CommandToProcess.OpCode.Val = 0;
 			break;
@@ -1242,6 +1240,19 @@ void Hosted_Functions_Enter_Standby( void )
 	CommandToProcess.OpCode.Val = 0;
 	CommandToProcess.ProcessSteps = 0;
 	Cancel_Device_Address_Generation();
+}
+
+
+/****************************************************************/
+/* Get_Hosted_Function()            			       		    */
+/* Purpose: Check which hosted function is running.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+HCI_COMMAND_OPCODE Get_Hosted_Function( void )
+{
+	return (CommandToProcess.OpCode);
 }
 
 

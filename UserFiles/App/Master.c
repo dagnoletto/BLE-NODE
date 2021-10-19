@@ -233,24 +233,19 @@ uint8_t Config_Initiating(void)
 
 
 /****************************************************************/
-/* HCI_LE_Advertising_Report()                					*/
-/* Location: 2382 Core_v5.2		 								*/
-/* Purpose: The HCI_LE_Advertising_Report event indicates that 	*/
-/* one or more Bluetooth devices have responded to an active 	*/
-/* scan or have broadcast advertisements that were received 	*/
-/* during a passive scan. The Controller may queue these 		*/
-/* advertising reports and send information from multiple 		*/
-/* devices in one HCI_LE_Advertising_Report event. This event 	*/
-/* shall only be generated if scanning was enabled using the	*/
-/* HCI_LE_Set_Scan_Enable command. It only reports advertising  */
-/* events that used legacy advertising PDUs.					*/
+/* Advertising_Report()     	    							*/
+/* Location: 					 								*/
+/* Purpose: Informs the master that new reports arrived. 		*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
+void Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
 		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] )
 {
+	//TODO: In the future this function may fill-up a list and the higher layers
+	//could retrieve devices from this list
+
 	//static uint8_t AdvData[40];
 
 	/* Sub event code for the HCI_LE_Advertising_Report event: page 2382 Core_v5.2 */
@@ -309,38 +304,16 @@ void HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8
 
 
 /****************************************************************/
-/* HCI_LE_Enhanced_Connection_Complete()               			*/
-/* Location: 2394 Core_v5.2		 								*/
-/* Purpose: The HCI_LE_Enhanced_Connection_Complete event 		*/
-/* indicates to both of the Hosts forming the connection that a */
-/* new connection has been created. Upon the creation of the 	*/
-/* connection a Connection_Handle shall be assigned by the		*/
-/* Controller, and passed to the Host in this event. If the 	*/
-/* connection creation fails, this event shall be provided to 	*/
-/* the Host that had issued the HCI_LE_Create_Connection or 	*/
-/* HCI_LE_Extended_Create_Connection command. If this event is 	*/
-/* unmasked and the HCI_LE_Connection_Complete event is 		*/
-/* unmasked, only the HCI_LE_Enhanced_Connection_Complete event */
-/* is sent when a new connection has been created. This event 	*/
-/* indicates to the Host that issued an 						*/
-/* HCI_LE_Create_Connection or 									*/
-/* HCI_LE_Extended_Create_Connection command and received an	*/
-/* HCI_Command_Status event if the connection creation failed 	*/
-/* or was successful. The Peer_Address, 						*/
-/* Peer_Resolvable_Private_Address, and							*/
-/* Local_Resolvable_Private_Address shall always reflect the 	*/
-/* most recent packet sent and received on air. The 			*/
-/* Master_Clock_Accuracy parameter is only valid for a slave. 	*/
-/* On a master, this parameter shall be set to 0x00.			*/
+/* Master_Connection_Complete()     	    					*/
+/* Location: 					 								*/
+/* Purpose: Informs the master a new connection was established */
+/* with a slave													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_LE_Enhanced_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, BLE_ROLE Role, ADDRESS_TYPE Peer_Address_Type,
-		BD_ADDR_TYPE* Peer_Address, BD_ADDR_TYPE* Local_Resolvable_Private_Address, BD_ADDR_TYPE* Peer_Resolvable_Private_Address, uint16_t Connection_Interval,
-		uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy )
+void Master_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
 {
-	/* TODO: esta função poderia estar em ble_connection? */
 	uint8_t teste = 0;
 	if(teste)
 	{

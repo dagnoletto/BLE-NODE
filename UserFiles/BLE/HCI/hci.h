@@ -1217,6 +1217,42 @@ typedef void (*LEReadSupportedStatesComplete)( CONTROLLER_ERROR_CODES Status, SU
 typedef void (*LEReadResolvingListSizeComplete)( CONTROLLER_ERROR_CODES Status, uint8_t Resolving_List_Size );
 typedef void (*LEReadPeerResolvableAddressComplete)( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Peer_Resolvable_Address );
 typedef void (*LEReadLocalResolvableAddressComplete)( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
+typedef struct
+{
+	CONTROLLER_ERROR_CODES Status 	 :8;
+	uint16_t Connection_Handle;
+	BLE_ROLE Role					 :8;
+	PEER_ADDR_TYPE Peer_Address_Type :8;
+	BD_ADDR_TYPE Peer_Address;
+	uint16_t Connection_Interval;
+	uint16_t Connection_Latency;
+	uint16_t Supervision_Timeout;
+	uint8_t Master_Clock_Accuracy;
+}__attribute__((packed)) LEConnectionComplete;
+typedef struct
+{
+	CONTROLLER_ERROR_CODES Status 	 :8;
+	uint16_t Connection_Handle;
+	BLE_ROLE Role 					 :8;
+	ADDRESS_TYPE Peer_Address_Type 	 :8;
+	BD_ADDR_TYPE Peer_Address;
+	BD_ADDR_TYPE Local_Resolvable_Private_Address;
+	BD_ADDR_TYPE Peer_Resolvable_Private_Address;
+	uint16_t Connection_Interval;
+	uint16_t Connection_Latency;
+	uint16_t Supervision_Timeout;
+	uint8_t Master_Clock_Accuracy;
+}__attribute__((packed)) LEEnhancedConnectionComplete;
+typedef struct
+{
+	uint8_t Num_Reports;
+	uint8_t* Event_Type;
+	uint8_t* Address_Type;
+	BD_ADDR_TYPE* Address;
+	uint8_t* Data_Length;
+	uint8_t* Data;
+	int8_t* RSSI;
+}LEAdvertisingReport;
 
 
 /*------------------------ COMMANDS AND SOME EVENTS -------------------------------*/
@@ -1253,12 +1289,8 @@ uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Wi
 		ADDRESS_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, OWN_ADDR_TYPE Own_Address_Type,
 		uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
 		uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length, DefCmdStatus StatusCallBack );
-void 	HCI_LE_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, BLE_ROLE Role, PEER_ADDR_TYPE Peer_Address_Type,
-		BD_ADDR_TYPE* Peer_Address, uint16_t Connection_Interval, uint16_t Connection_Latency,
-		uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy );
-void 	HCI_LE_Enhanced_Connection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, BLE_ROLE Role, ADDRESS_TYPE Peer_Address_Type,
-		BD_ADDR_TYPE* Peer_Address, BD_ADDR_TYPE* Local_Resolvable_Private_Address, BD_ADDR_TYPE* Peer_Resolvable_Private_Address, uint16_t Connection_Interval,
-		uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint8_t Master_Clock_Accuracy );
+void 	HCI_LE_Connection_Complete( LEConnectionComplete* ConnCpltData );
+void 	HCI_LE_Enhanced_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData );
 uint8_t HCI_LE_Create_Connection_Cancel( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Read_White_List_Size( LEReadWhiteListSizeComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_LE_Clear_White_List( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
@@ -1311,8 +1343,7 @@ void 	HCI_Hardware_Error( BLE_HW_ERROR_CODE Hardware_Code );
 void 	HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_Handle[], uint16_t Num_Completed_Packets[] );
 void 	HCI_Data_Buffer_Overflow( uint8_t Link_Type );
 void	HCI_Encryption_Key_Refresh_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle );
-void 	HCI_LE_Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Address_Type[], BD_ADDR_TYPE Address[],
-		uint8_t Data_Length[], uint8_t Data[], int8_t RSSI[] );
+void 	HCI_LE_Advertising_Report( LEAdvertisingReport* AdvReport );
 void 	HCI_LE_Long_Term_Key_Request( uint16_t Connection_Handle, uint8_t Random_Number[8], uint16_t Encrypted_Diversifier );
 
 
