@@ -19,6 +19,9 @@
 /* Local functions declaration                                  */
 /****************************************************************/
 void Connection( void );
+static int16_t Search_Connection_Handle( uint16_t ConnHandle );
+static int16_t Add_Connection_Handle( uint16_t ConnHandle );
+static int16_t Remove_Connection_Handle( uint16_t ConnHandle );
 
 
 /****************************************************************/
@@ -32,6 +35,7 @@ extern uint8_t Exit_Initiating_Mode( BLE_STATES CurrentState );
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
+#define MAX_NUMBER_OF_CONNECTIONS ( sizeof(Connection_Handle_List)/sizeof(typeof(Connection_Handle_List)) )
 
 
 /****************************************************************/
@@ -42,6 +46,10 @@ extern uint8_t Exit_Initiating_Mode( BLE_STATES CurrentState );
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
+static uint16_t Connection_Handle_List[] = {
+		CONN_HANDLE_NULL, CONN_HANDLE_NULL,
+		CONN_HANDLE_NULL, CONN_HANDLE_NULL
+};
 
 
 /****************************************************************/
@@ -73,7 +81,7 @@ void Enter_Connection_Mode( CONTROLLER_ERROR_CODES Status )
 		default: break;
 		}
 
-		if ( FunStat )
+		if ( ( FunStat ) && ( state != CONNECTION_STATE ) )
 		{
 			Set_BLE_State( CONNECTION_STATE );
 		}
@@ -81,6 +89,148 @@ void Enter_Connection_Mode( CONTROLLER_ERROR_CODES Status )
 	{
 		Enter_Standby_Mode(  );
 	}
+}
+
+
+/****************************************************************/
+/* Get_Max_Number_Of_Connections()        						*/
+/* Location: 					 								*/
+/* Purpose: Check how many connections the device can support.	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Get_Max_Number_Of_Connections( void )
+{
+	return ( MAX_NUMBER_OF_CONNECTIONS );
+}
+
+
+/****************************************************************/
+/* Get_Number_Of_Active_Connections()        					*/
+/* Location: 					 								*/
+/* Purpose: Check how many connections the device is holding.	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t Get_Number_Of_Active_Connections( void )
+{
+	uint8_t ConnHandleCounter = 0;
+
+	for( uint8_t i = 0; i < MAX_NUMBER_OF_CONNECTIONS; i++ )
+	{
+		if ( Connection_Handle_List[i] != CONN_HANDLE_NULL )
+		{
+			ConnHandleCounter++;
+		}
+	}
+
+	return ( ConnHandleCounter );
+}
+
+
+/****************************************************************/
+/* Get_Connection_Handle()        								*/
+/* Location: 					 								*/
+/* Purpose: Retrieve the connection handle for the passed 		*/
+/* index.														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint16_t Get_Connection_Handle( uint8_t Index )
+{
+	if( Index < MAX_NUMBER_OF_CONNECTIONS )
+	{
+		return ( Connection_Handle_List[Index] );
+	}
+
+	return ( CONN_HANDLE_NULL );
+}
+
+
+/****************************************************************/
+/* Search_Connection_Handle()        							*/
+/* Location: 					 								*/
+/* Purpose: Verify if a certain connection handle exists.		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static int16_t Search_Connection_Handle( uint16_t ConnHandle )
+{
+	if( ConnHandle != CONN_HANDLE_NULL )
+	{
+		for( uint8_t i = 0; i < MAX_NUMBER_OF_CONNECTIONS; i++ )
+		{
+			if ( Connection_Handle_List[i] == ConnHandle )
+			{
+				return ( i ); /* return the list index */
+			}
+		}
+	}
+
+	return ( -1 ); /* Not found */
+}
+
+
+/****************************************************************/
+/* Add_Connection_Handle()        								*/
+/* Location: 					 								*/
+/* Purpose: Add connection handle to the list.					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static int16_t Add_Connection_Handle( uint16_t ConnHandle )
+{
+	/* Check if the handle is already loaded */
+	int16_t index = Search_Connection_Handle( ConnHandle );
+
+	if( index < 0 )
+	{
+		/* There is no handler with this code */
+		if( ConnHandle != CONN_HANDLE_NULL )
+		{
+			for( uint8_t i = 0; i < MAX_NUMBER_OF_CONNECTIONS; i++ )
+			{
+				/* Search for available index */
+				if ( Connection_Handle_List[i] == CONN_HANDLE_NULL )
+				{
+					Connection_Handle_List[i] = ConnHandle;
+					return ( i );
+				}
+			}
+		}
+
+		return ( -1 ); /* There is no room */
+	}else
+	{
+		return ( index );
+	}
+}
+
+
+/****************************************************************/
+/* Remove_Connection_Handle()        							*/
+/* Location: 					 								*/
+/* Purpose: Remove connection handle from the list.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static int16_t Remove_Connection_Handle( uint16_t ConnHandle )
+{
+	/* Check if the handle is loaded */
+	int16_t index = Search_Connection_Handle( ConnHandle );
+
+	if( index >= 0 )
+	{
+		Connection_Handle_List[index] = CONN_HANDLE_NULL;
+	}
+
+	return ( index );
 }
 
 
@@ -128,6 +278,7 @@ void Connection( void )
 /****************************************************************/
 void HCI_LE_Enhanced_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
 {
+	Add_Connection_Handle( ConnCpltData->Connection_Handle );
 	if( ConnCpltData->Role == MASTER )
 	{
 		Master_Connection_Complete( ConnCpltData );

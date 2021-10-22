@@ -18,6 +18,7 @@ typedef enum
 	DISABLE_ADVERTISING,
 	DISABLE_SCANNING,
 	DISABLE_INITIATING,
+	DISABLE_ALL_CONNECTIONS,
 	SEND_STANDBY_CMD,
 	END_STANDBY_CONFIG,
 	WAIT_OPERATION,
@@ -28,6 +29,7 @@ typedef struct
 {
 	STANDBY_CONFIG_STEPS Actual;
 	STANDBY_CONFIG_STEPS BaseStep;
+	uint8_t ConnHandleCounter;
 }STANDBY_CONFIG;
 
 
@@ -124,6 +126,11 @@ void Enter_Standby_Mode( void )
 			break;
 
 		case CONNECTION_STATE:
+			FunStat = TRUE;
+			StandbyConfig.ConnHandleCounter = Get_Max_Number_Of_Connections( );
+			StandbyConfig.BaseStep = DISABLE_ALL_CONNECTIONS;
+			break;
+
 		case SYNCHRONIZATION_STATE:
 		case ISOCHRONOUS_BROADCASTING_STATE:
 			/* TODO: to be implemented */
@@ -174,6 +181,21 @@ int8_t Standby_Config( void )
 		StandbyConfig.Actual = WAIT_OPERATION;
 		HCI_LE_Create_Connection_Cancel( &LE_Create_Connection_Cancel_Complete, NULL );
 		break;
+
+	case DISABLE_ALL_CONNECTIONS:
+	{
+		uint16_t ConnHandle;
+		while ( StandbyConfig.ConnHandleCounter )
+		{
+			StandbyConfig.ConnHandleCounter--;
+			ConnHandle = Get_Connection_Handle( StandbyConfig.ConnHandleCounter );
+			if( ConnHandle != CONN_HANDLE_NULL )
+			{
+				/* TODO: enviar solicitação de disconnect */
+			}
+		}
+	}
+	break;
 
 	case SEND_STANDBY_CMD:
 		StandbyConfigTimeout = 0;
