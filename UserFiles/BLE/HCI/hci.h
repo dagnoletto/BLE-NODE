@@ -1171,6 +1171,22 @@ typedef enum /* BLE device role */
 }BLE_ROLE;
 
 
+typedef enum
+{
+	CONN_HANDLE_FREE     = 0x0,
+	CONN_HANDLE_FULL     = 0x1,
+	CONN_HANDLE_FAILED   = 0x2,
+}CONN_HANDLE_STATUS;
+
+
+typedef struct
+{
+	uint16_t 		   Handle : 12;
+	CONN_HANDLE_STATUS Status :  4;
+	BLE_ROLE Role 			  :  8;
+}__attribute__((packed)) CONNECTION_HANDLE;
+
+
 typedef enum /* According to ST User Manual UM1865 - Rev 8, page 109 */
 {
 	/* These Hardware_Codes will be implementation-specific, and can be

@@ -41,6 +41,7 @@ void Standby( void );
 static void LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
+static void Disconnect_Status( CONTROLLER_ERROR_CODES Status );
 static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status );
 
 
@@ -51,6 +52,8 @@ extern void Set_BLE_State( BLE_STATES NewBLEState );
 extern uint8_t Exit_Advertising_Mode( BLE_STATES CurrentState );
 extern uint8_t Exit_Scanning_Mode( BLE_STATES CurrentState );
 extern uint8_t Exit_Initiating_Mode( BLE_STATES CurrentState );
+extern CONNECTION_HANDLE* Get_Connection_Handle( uint8_t Index );
+extern void Remove_Connection_Index( uint8_t Index );
 
 
 /****************************************************************/
@@ -123,6 +126,27 @@ void Enter_Standby_Mode( void )
 		case CONFIG_STANDBY:
 			/* Already in stand-by configuration, do not restart */
 			FunStat = FALSE;
+
+			/* Except if we are receiving a call back from a Disconnections complete */
+			if( ( StandbyConfig.BaseStep == DISABLE_ALL_CONNECTIONS ) &&
+					( StandbyConfig.Actual == WAIT_OPERATION ) )
+			{
+				CONNECTION_HANDLE* ConnHandlePtr = Get_Connection_Handle( StandbyConfig.ConnHandleCounter );
+
+				/* The last disconnection was successful, so a new disconnection can take place */
+				if( ConnHandlePtr != NULL )
+				{
+					if( ConnHandlePtr->Status == CONN_HANDLE_FREE )
+					{
+						FunStat = TRUE;
+					}else if( ConnHandlePtr->Status == CONN_HANDLE_FAILED )
+					{
+						FunStat = TRUE;
+						StandbyConfig.ConnHandleCounter++;
+						ConnHandlePtr->Status = CONN_HANDLE_FULL;
+					}
+				}
+			}
 			break;
 
 		case CONNECTION_STATE:
@@ -134,7 +158,6 @@ void Enter_Standby_Mode( void )
 		case SYNCHRONIZATION_STATE:
 		case ISOCHRONOUS_BROADCASTING_STATE:
 			/* TODO: to be implemented */
-			/* TODO: implementar saída de connection state! */
 			FunStat = FALSE;
 			break;
 
@@ -184,16 +207,25 @@ int8_t Standby_Config( void )
 
 	case DISABLE_ALL_CONNECTIONS:
 	{
-		uint16_t ConnHandle;
+		CONNECTION_HANDLE* ConnHandle;
 		while ( StandbyConfig.ConnHandleCounter )
 		{
 			StandbyConfig.ConnHandleCounter--;
 			ConnHandle = Get_Connection_Handle( StandbyConfig.ConnHandleCounter );
-			if( ConnHandle != CONN_HANDLE_NULL )
+			if( ( ConnHandle != NULL ) && ( ConnHandle->Status != CONN_HANDLE_FREE ) )
 			{
-				/* TODO: enviar solicitação de disconnect */
+				StandbyConfigTimeout = 0;
+				StandbyConfig.Actual = WAIT_OPERATION;
+				HCI_Disconnect( ConnHandle->Handle, REMOTE_USER_TERMINATED_CONNECTION, &Disconnect_Status );
 			}
 		}
+
+		/* Here we assume all disconnections were done */
+		for( uint8_t i = Get_Max_Number_Of_Connections(); i > 0; i-- )
+		{
+			Remove_Connection_Index( i - 1 );
+		}
+		StandbyConfig.Actual = SEND_STANDBY_CMD;
 	}
 	break;
 
@@ -219,6 +251,9 @@ int8_t Standby_Config( void )
 			Clear_Command_CallBack( OpCode );
 
 			OpCode.Val = HCI_LE_SET_ADVERTISING_ENABLE;
+			Clear_Command_CallBack( OpCode );
+
+			OpCode.Val = HCI_DISCONNECT;
 			Clear_Command_CallBack( OpCode );
 
 			StandbyConfig.Actual = StandbyConfig.BaseStep;
@@ -292,6 +327,23 @@ static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status )
 	if( StandbyConfig.Actual == WAIT_OPERATION )
 	{
 		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_STANDBY_CMD : StandbyConfig.BaseStep;
+	}
+}
+
+
+/****************************************************************/
+/* Disconnect_Status()        	    			   				*/
+/* Location: 					 								*/
+/* Purpose: Status callback.									*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Disconnect_Status( CONTROLLER_ERROR_CODES Status )
+{
+	if( ( StandbyConfig.Actual == WAIT_OPERATION ) && ( Status != COMMAND_SUCCESS ) )
+	{
+		StandbyConfig.Actual = StandbyConfig.BaseStep;
 	}
 }
 

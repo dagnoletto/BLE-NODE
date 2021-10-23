@@ -19,9 +19,10 @@
 /* Local functions declaration                                  */
 /****************************************************************/
 void Connection( void );
-static int16_t Search_Connection_Handle( uint16_t ConnHandle );
-static int16_t Add_Connection_Handle( uint16_t ConnHandle );
-static int16_t Remove_Connection_Handle( uint16_t ConnHandle );
+static CONNECTION_HANDLE* Search_Connection_Handle( uint16_t ConnHandle );
+static CONNECTION_HANDLE* Add_Connection_Handle( uint16_t ConnHandle, BLE_ROLE Role );
+static void Change_Connection_Handle_Status( CONNECTION_HANDLE* HandlePtr, CONN_HANDLE_STATUS Status );
+void Remove_Connection_Index( uint8_t Index );
 
 
 /****************************************************************/
@@ -35,7 +36,7 @@ extern uint8_t Exit_Initiating_Mode( BLE_STATES CurrentState );
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
-#define MAX_NUMBER_OF_CONNECTIONS ( sizeof(Connection_Handle_List)/sizeof(typeof(Connection_Handle_List)) )
+#define MAX_NUMBER_OF_CONNECTIONS 4
 
 
 /****************************************************************/
@@ -46,10 +47,7 @@ extern uint8_t Exit_Initiating_Mode( BLE_STATES CurrentState );
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static uint16_t Connection_Handle_List[] = {
-		CONN_HANDLE_NULL, CONN_HANDLE_NULL,
-		CONN_HANDLE_NULL, CONN_HANDLE_NULL
-};
+static CONNECTION_HANDLE Connection_Handle_List[MAX_NUMBER_OF_CONNECTIONS];
 
 
 /****************************************************************/
@@ -120,7 +118,7 @@ uint8_t Get_Number_Of_Active_Connections( void )
 
 	for( uint8_t i = 0; i < MAX_NUMBER_OF_CONNECTIONS; i++ )
 	{
-		if ( Connection_Handle_List[i] != CONN_HANDLE_NULL )
+		if ( Connection_Handle_List[i].Status != CONN_HANDLE_FREE )
 		{
 			ConnHandleCounter++;
 		}
@@ -139,14 +137,14 @@ uint8_t Get_Number_Of_Active_Connections( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint16_t Get_Connection_Handle( uint8_t Index )
+CONNECTION_HANDLE* Get_Connection_Handle( uint8_t Index )
 {
 	if( Index < MAX_NUMBER_OF_CONNECTIONS )
 	{
-		return ( Connection_Handle_List[Index] );
+		return ( &Connection_Handle_List[Index] );
 	}
 
-	return ( CONN_HANDLE_NULL );
+	return ( NULL );
 }
 
 
@@ -158,20 +156,17 @@ uint16_t Get_Connection_Handle( uint8_t Index )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static int16_t Search_Connection_Handle( uint16_t ConnHandle )
+static CONNECTION_HANDLE* Search_Connection_Handle( uint16_t ConnHandle )
 {
-	if( ConnHandle != CONN_HANDLE_NULL )
+	for( uint8_t i = 0; i < MAX_NUMBER_OF_CONNECTIONS; i++ )
 	{
-		for( uint8_t i = 0; i < MAX_NUMBER_OF_CONNECTIONS; i++ )
+		if ( Connection_Handle_List[i].Handle == ConnHandle )
 		{
-			if ( Connection_Handle_List[i] == ConnHandle )
-			{
-				return ( i ); /* return the list index */
-			}
+			return ( &Connection_Handle_List[i] ); /* return the list index */
 		}
 	}
 
-	return ( -1 ); /* Not found */
+	return ( NULL );
 }
 
 
@@ -183,54 +178,73 @@ static int16_t Search_Connection_Handle( uint16_t ConnHandle )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static int16_t Add_Connection_Handle( uint16_t ConnHandle )
+static CONNECTION_HANDLE* Add_Connection_Handle( uint16_t ConnHandle, BLE_ROLE Role )
 {
-	/* Check if the handle is already loaded */
-	int16_t index = Search_Connection_Handle( ConnHandle );
-
-	if( index < 0 )
+	if( ConnHandle <= MAX_CONNECTION_HANDLE )
 	{
-		/* There is no handler with this code */
-		if( ConnHandle != CONN_HANDLE_NULL )
+		/* Check if the handle is already loaded */
+		CONNECTION_HANDLE* HandlePtr = Search_Connection_Handle( ConnHandle );
+
+		if( HandlePtr != NULL ) /* There is already a handler with this code */
 		{
+			if( HandlePtr->Status == CONN_HANDLE_FREE )
+			{
+				HandlePtr->Handle = ConnHandle;
+				HandlePtr->Role = Role;
+				HandlePtr->Status = CONN_HANDLE_FULL;
+				return ( HandlePtr );
+			}
+		}else
+		{
+			/* There is no handler with this code */
 			for( uint8_t i = 0; i < MAX_NUMBER_OF_CONNECTIONS; i++ )
 			{
-				/* Search for available index */
-				if ( Connection_Handle_List[i] == CONN_HANDLE_NULL )
+				/* Search for available room */
+				if ( Connection_Handle_List[i].Status == CONN_HANDLE_FREE )
 				{
-					Connection_Handle_List[i] = ConnHandle;
-					return ( i );
+					Connection_Handle_List[i].Handle = ConnHandle;
+					Connection_Handle_List[i].Role = Role;
+					Connection_Handle_List[i].Status = CONN_HANDLE_FULL;
+					return ( &Connection_Handle_List[i] );
 				}
 			}
 		}
+	}
+	return ( NULL );
+}
 
-		return ( -1 ); /* There is no room */
-	}else
+
+/****************************************************************/
+/* Change_Connection_Handle_Status()   							*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Change_Connection_Handle_Status( CONNECTION_HANDLE* HandlePtr, CONN_HANDLE_STATUS Status )
+{
+	if( HandlePtr != NULL )
 	{
-		return ( index );
+		HandlePtr->Status = Status;
 	}
 }
 
 
 /****************************************************************/
-/* Remove_Connection_Handle()        							*/
+/* Remove_Connection_Index()        							*/
 /* Location: 					 								*/
-/* Purpose: Remove connection handle from the list.				*/
+/* Purpose: Remove connection index from the list.				*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static int16_t Remove_Connection_Handle( uint16_t ConnHandle )
+void Remove_Connection_Index( uint8_t Index )
 {
-	/* Check if the handle is loaded */
-	int16_t index = Search_Connection_Handle( ConnHandle );
-
-	if( index >= 0 )
+	if( Index < MAX_NUMBER_OF_CONNECTIONS )
 	{
-		Connection_Handle_List[index] = CONN_HANDLE_NULL;
+		Connection_Handle_List[Index].Status = CONN_HANDLE_FREE;
 	}
-
-	return ( index );
 }
 
 
@@ -278,13 +292,66 @@ void Connection( void )
 /****************************************************************/
 void HCI_LE_Enhanced_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
 {
-	Add_Connection_Handle( ConnCpltData->Connection_Handle );
+	Add_Connection_Handle( ConnCpltData->Connection_Handle, ConnCpltData->Role );
 	if( ConnCpltData->Role == MASTER )
 	{
 		Master_Connection_Complete( ConnCpltData );
 	}else if( ConnCpltData->Role == SLAVE )
 	{
 		Slave_Connection_Complete( ConnCpltData );
+	}
+}
+
+
+/****************************************************************/
+/* HCI_Disconnection_Complete()        							*/
+/* Location: Page 2296 Core_v5.2								*/
+/* Purpose: The HCI_Disconnection_Complete event occurs when a 	*/
+/* connection is terminated. The status parameter indicates if	*/
+/* the disconnection was successful or not. The reason parameter*/
+/* indicates the reason for the disconnection if the 			*/
+/* disconnection was successful. If the disconnection was not 	*/
+/* successful, the value of the reason parameter shall be 		*/
+/* ignored by the Host. For example, this can be the case if 	*/
+/* the Host has issued the HCI_Disconnect command and there was */
+/* a parameter error, or the command was not presently allowed, */
+/* or a Connection_Handle that didn’t correspond to a 			*/
+/* connection was given. Note: When a physical link fails, one 	*/
+/* HCI_Disconnection_Complete event will be returned for each 	*/
+/* logical channel on the physical link with the corresponding	*/
+/* Connection_Handle as a parameter.							*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason )
+{
+	BLE_STATES state = Get_BLE_State();
+	CONN_HANDLE_STATUS newstatus = ( Status == COMMAND_SUCCESS ) ? CONN_HANDLE_FREE : CONN_HANDLE_FAILED;
+	CONNECTION_HANDLE* HandlePtr = Search_Connection_Handle( Connection_Handle );
+
+	if( state == CONNECTION_STATE )
+	{
+		if( ( newstatus == CONN_HANDLE_FREE ) && ( Get_Number_Of_Active_Connections() == 1 ) )
+		{
+			Change_Connection_Handle_Status( HandlePtr, newstatus );
+			Enter_Standby_Mode();
+		}else
+		{
+			Change_Connection_Handle_Status( HandlePtr, newstatus );
+		}
+	}else if( state == CONFIG_STANDBY )
+	{
+		Change_Connection_Handle_Status( HandlePtr, newstatus );
+		Enter_Standby_Mode();
+	}else
+	{
+		Change_Connection_Handle_Status( HandlePtr, newstatus );
+	}
+
+	if( HandlePtr != NULL )
+	{
+		/* TODO: chamar o handler de master ou slave */
 	}
 }
 
