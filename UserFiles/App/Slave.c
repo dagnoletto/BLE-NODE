@@ -16,6 +16,7 @@
 /* Static functions declaration                                 */
 /****************************************************************/
 static uint8_t Config_Advertiser(void);
+static void Command_Status( CONTROLLER_ERROR_CODES Status );
 
 
 /****************************************************************/
@@ -31,6 +32,7 @@ static uint8_t Config_Advertiser(void);
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
+static MASTER_INFO MasterInfo;
 
 
 /****************************************************************/
@@ -63,6 +65,7 @@ void SlaveNode( void )
 
 	case CONFIG_ADVERTISING:
 		TimerLED = 0;
+		MasterInfo.Connection_Handle = 0xFFFF;
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
 		if( Get_BLE_State() == ADVERTISING_STATE )
 		{
@@ -86,6 +89,21 @@ void SlaveNode( void )
 
 	case CONNECTION_STATE:
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
+		HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
+
+		uint8_t Data[] = { 1 };
+		ACLDataPacketHeader.Handle = MasterInfo.Connection_Handle;
+		ACLDataPacketHeader.PB_Flag = 0x3;
+		ACLDataPacketHeader.BC_Flag = 0x0;
+		ACLDataPacketHeader.Data_Total_Length = sizeof(Data)/sizeof(typeof(Data));
+
+		if( TimeBase_DelayMs( &Timer, 1500, TRUE ) && ( MasterInfo.Connection_Handle != 0xFFFF ) )
+		{
+			//Enter_Standby_Mode();
+			//SlaveStateMachine = CONFIG_STANDBY;
+			//HCI_Disconnect( conhandle, REMOTE_USER_TERMINATED_CONNECTION, &Command_Status );
+			//HCI_Host_ACL_Data( ACLDataPacketHeader, &Data[0] );
+		}
 		break;
 
 	default: break;
@@ -155,10 +173,9 @@ static uint8_t Config_Advertiser(void)
 /****************************************************************/
 void Slave_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
 {
-	uint8_t teste = 0;
-	if(teste)
+	if( ConnCpltData->Status == COMMAND_SUCCESS )
 	{
-		teste = 0;
+		MasterInfo.Connection_Handle = ConnCpltData->Connection_Handle;
 	}
 }
 
@@ -176,6 +193,24 @@ void Slave_Disconnection_Complete( DisconnectionComplete* DisConnCpltData )
 {
 	uint8_t teste = 0;
 	if(teste)
+	{
+		teste = 0;
+	}
+}
+
+
+/****************************************************************/
+/* Command_Status()     	   									*/
+/* Location: 					 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Command_Status( CONTROLLER_ERROR_CODES Status )
+{
+	uint8_t teste = 0;
+	if( Status != COMMAND_SUCCESS && Status != COMMAND_DISALLOWED )
 	{
 		teste = 0;
 	}
