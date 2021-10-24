@@ -15,8 +15,13 @@
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-uint8_t Config_Scanner(void);
-uint8_t Config_Initiating(void);
+static uint8_t Config_Scanner(void);
+static uint8_t Config_Initiating(void);
+static void Command_Status( CONTROLLER_ERROR_CODES Status );
+static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
+		uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
+static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
+		REMOTE_VERSION_INFORMATION* Remote_Version_Information );
 
 
 /****************************************************************/
@@ -32,7 +37,7 @@ uint8_t Config_Initiating(void);
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static SLAVE_ADV_INFO SlaveInfo;
+static SLAVE_INFO SlaveInfo;
 
 
 /****************************************************************/
@@ -59,7 +64,7 @@ void MasterNode( void )
 		}
 		if( ( Get_BLE_State() == STANDBY_STATE ) && ( TimeBase_DelayMs( &Timer, 5000, TRUE ) ) )
 		{
-			if( SlaveInfo.AdvData.Size && SlaveInfo.ScanRspData.Size )
+			if( SlaveInfo.Adv.AdvData.Size && SlaveInfo.Adv.ScanRspData.Size )
 			{
 				MasterStateMachine = Config_Initiating() ? CONFIG_INITIATING : CONFIG_STANDBY;
 			}else
@@ -74,8 +79,8 @@ void MasterNode( void )
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
 		if( Get_BLE_State() == SCANNING_STATE )
 		{
-			SlaveInfo.AdvData.Size = 0;
-			SlaveInfo.ScanRspData.Size = 0;
+			SlaveInfo.Adv.AdvData.Size = 0;
+			SlaveInfo.Adv.ScanRspData.Size = 0;
 			MasterStateMachine = SCANNING_STATE;
 		}
 		break;
@@ -91,7 +96,7 @@ void MasterNode( void )
 			//			SlaveInfo.ScanRspData.Size = 17;
 			//			MasterStateMachine = CONFIG_STANDBY;
 		}
-		if( SlaveInfo.AdvData.Size && SlaveInfo.ScanRspData.Size )
+		if( SlaveInfo.Adv.AdvData.Size && SlaveInfo.Adv.ScanRspData.Size )
 		{
 			MasterStateMachine = CONFIG_STANDBY;
 		}
@@ -103,8 +108,9 @@ void MasterNode( void )
 		if( Get_BLE_State() == INITIATING_STATE )
 		{
 			Timer = 0;
-			SlaveInfo.AdvData.Size = 0;
-			SlaveInfo.ScanRspData.Size = 0;
+			SlaveInfo.Adv.AdvData.Size = 0;
+			SlaveInfo.Adv.ScanRspData.Size = 0;
+			SlaveInfo.Connection_Handle =  0xFFFF;
 			MasterStateMachine = INITIATING_STATE;
 		}
 		break;
@@ -117,15 +123,37 @@ void MasterNode( void )
 		if( TimeBase_DelayMs( &Timer, 5000, TRUE ) )
 		{
 			MasterStateMachine = CONFIG_STANDBY;
-		}else if( Get_BLE_State() == CONNECTION_STATE )
+		}else if( ( Get_BLE_State() == CONNECTION_STATE ) && ( SlaveInfo.Connection_Handle != 0xFFFF ) )
 		{
+			Timer = 0;
 			MasterStateMachine = CONNECTION_STATE;
 		}
 		break;
 
 	case CONNECTION_STATE:
+	{
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
-		break;
+		HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
+
+		uint8_t Data[] = { 1 };
+		ACLDataPacketHeader.Handle = SlaveInfo.Connection_Handle;
+		ACLDataPacketHeader.PB_Flag = 0x3;
+		ACLDataPacketHeader.BC_Flag = 0x0;
+		ACLDataPacketHeader.Data_Total_Length = sizeof(Data)/sizeof(typeof(Data));
+
+		//HCI_Host_ACL_Data( ACLDataPacketHeader, &Data[0] );
+
+		//HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &Command_Status );
+		//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
+		if( TimeBase_DelayMs( &Timer, 100, TRUE ) )
+		{
+			//MasterStateMachine = CONFIG_STANDBY;
+			//HCI_Disconnect( SlaveInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, NULL );
+			//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
+			HCI_Host_ACL_Data( ACLDataPacketHeader, &Data[0] );
+		}
+	}
+	break;
 
 	default: break;
 	}
@@ -140,7 +168,7 @@ void MasterNode( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Config_Scanner(void)
+static uint8_t Config_Scanner(void)
 {
 	DEVICE_IDENTITY Id;
 
@@ -189,7 +217,7 @@ uint8_t Config_Scanner(void)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Config_Initiating(void)
+static uint8_t Config_Initiating(void)
 {
 	DEVICE_IDENTITY Id;
 
@@ -216,16 +244,16 @@ uint8_t Config_Initiating(void)
 	Init.LE_Scan_Interval = 320;
 	Init.LE_Scan_Window = 320;
 	Init.Initiator_Filter_Policy = 0;
-	Init.Peer_Address_Type = SlaveInfo.Address_Type; //PUBLIC_DEV_ADDR;
-	Init.Peer_Address = SlaveInfo.Address; //SlavePublicAddress;
+	Init.Peer_Address_Type = SlaveInfo.Adv.Address_Type; //PUBLIC_DEV_ADDR;
+	Init.Peer_Address = SlaveInfo.Adv.Address; //SlavePublicAddress;
 	Init.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR;//OWN_PUBLIC_DEV_ADDR;
 	Init.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
-	Init.Connection_Interval_Min = 80; /* 80 * 1.25ms = 100ms */
-	Init.Connection_Interval_Max = 80; /* 80 * 1.25ms = 100ms */
+	Init.Connection_Interval_Min = 800; /* 800 * 1.25ms = 1000ms */
+	Init.Connection_Interval_Max = 800; /* 800 * 1.25ms = 1000ms */
 	Init.Connection_Latency = 0;
-	Init.Supervision_Timeout = 80; /* 80 * 10ms = 800ms */
-	Init.Min_CE_Length = 80; /* 80 * 1.25ms = 100ms */
-	Init.Max_CE_Length = 80; /* 80 * 1.25ms = 100ms */
+	Init.Supervision_Timeout = 800; /* 800 * 10ms = 8000ms */
+	Init.Min_CE_Length = 800; /* 800 * 1.25ms = 1000ms */
+	Init.Max_CE_Length = 800; /* 800 * 1.25ms = 1000ms */
 	Init.Privacy = FALSE;
 
 	return ( Enter_Initiating_Mode( &Init ) );
@@ -266,32 +294,32 @@ void Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Addr
 
 		if( ( ( Report.Data_Length == 25 ) && ( Report.Event_Type == ADV_IND_EVT ) ) || ( ( Report.Data_Length == 17 ) && ( Report.Event_Type == SCAN_RSP_EVT ) ) /* memcmp( &SlavePublicAddress, &Report.Address, sizeof(Report.Address) ) == 0 */ )
 		{
-			if( ( SlaveInfo.AdvData.Size ) && ( SlaveInfo.Address_Type == Report.Address_Type ) )
+			if( ( SlaveInfo.Adv.AdvData.Size ) && ( SlaveInfo.Adv.Address_Type == Report.Address_Type ) )
 			{
-				SlaveInfo.Address_Type = Report.Address_Type;
-				SlaveInfo.Address = Report.Address;
-				SlaveInfo.RSSI = Report.RSSI;
+				SlaveInfo.Adv.Address_Type = Report.Address_Type;
+				SlaveInfo.Adv.Address = Report.Address;
+				SlaveInfo.Adv.RSSI = Report.RSSI;
 				if ( Report.Event_Type == SCAN_RSP_EVT )
 				{
-					SlaveInfo.ScanRspData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.ScanRspData.Bytes) );
-					memcpy( &SlaveInfo.ScanRspData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.ScanRspData.Size );
+					SlaveInfo.Adv.ScanRspData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.Adv.ScanRspData.Bytes) );
+					memcpy( &SlaveInfo.Adv.ScanRspData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.Adv.ScanRspData.Size );
 					HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 				}else
 				{
-					SlaveInfo.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.AdvData.Bytes) );
-					memcpy( &SlaveInfo.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.AdvData.Size );
+					SlaveInfo.Adv.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.Adv.AdvData.Bytes) );
+					memcpy( &SlaveInfo.Adv.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.Adv.AdvData.Size );
 				}
 				//HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
 			}else
 			{
-				SlaveInfo.Address_Type = Report.Address_Type;
-				SlaveInfo.Address = Report.Address;
-				SlaveInfo.RSSI = Report.RSSI;
-				SlaveInfo.ScanRspData.Size = 0;
+				SlaveInfo.Adv.Address_Type = Report.Address_Type;
+				SlaveInfo.Adv.Address = Report.Address;
+				SlaveInfo.Adv.RSSI = Report.RSSI;
+				SlaveInfo.Adv.ScanRspData.Size = 0;
 				if ( Report.Event_Type != SCAN_RSP_EVT )
 				{
-					SlaveInfo.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.AdvData.Bytes) );
-					memcpy( &SlaveInfo.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.AdvData.Size );
+					SlaveInfo.Adv.AdvData.Size = MIN( Report.Data_Length, sizeof(SlaveInfo.Adv.AdvData.Bytes) );
+					memcpy( &SlaveInfo.Adv.AdvData.Bytes[0], &Data[Number_Of_Data_Bytes], SlaveInfo.Adv.AdvData.Size );
 				}
 			}
 			//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
@@ -314,10 +342,82 @@ void Advertising_Report( uint8_t Num_Reports, uint8_t Event_Type[], uint8_t Addr
 /****************************************************************/
 void Master_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
 {
+	if( ConnCpltData->Status == COMMAND_SUCCESS )
+	{
+		SlaveInfo.Connection_Handle = ConnCpltData->Connection_Handle;
+	}
+}
+
+
+/****************************************************************/
+/* Master_Disconnection_Complete()     	    					*/
+/* Location: 					 								*/
+/* Purpose: Informs the master a connection was terminated		*/
+/* with a slave													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Master_Disconnection_Complete( DisconnectionComplete* DisConnCpltData )
+{
 	uint8_t teste = 0;
 	if(teste)
 	{
 		teste = 0;
+	}
+}
+
+
+/****************************************************************/
+/* Command_Status()     	   									*/
+/* Location: 					 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Command_Status( CONTROLLER_ERROR_CODES Status )
+{
+	uint8_t teste = 0;
+	if( Status != COMMAND_SUCCESS && Status != COMMAND_DISALLOWED )
+	{
+		teste = 0;
+	}
+}
+
+
+/****************************************************************/
+/* LE_Read_Remote_Features_Complete()     	   					*/
+/* Location: 					 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
+		uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features )
+{
+	if( ( Status == COMMAND_SUCCESS ) && ( SlaveInfo.Connection_Handle == Connection_Handle ) )
+	{
+		SlaveInfo.SupFeatures = *LE_Features;
+	}
+}
+
+
+/****************************************************************/
+/* Read_Remote_VerInfo_Complete()     	   						*/
+/* Location: 					 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
+		REMOTE_VERSION_INFORMATION* Remote_Version_Information )
+{
+	if( Status == COMMAND_SUCCESS )
+	{
+		SlaveInfo.Version = *Remote_Version_Information;
 	}
 }
 

@@ -43,6 +43,15 @@ typedef struct
 }SLAVE_ADV_INFO;
 
 
+typedef struct
+{
+	SLAVE_ADV_INFO Adv;
+	uint16_t Connection_Handle;
+	LE_SUPPORTED_FEATURES SupFeatures;
+	REMOTE_VERSION_INFORMATION Version;
+}SLAVE_INFO;
+
+
 /****************************************************************/
 /* External variables declaration                               */
 /****************************************************************/

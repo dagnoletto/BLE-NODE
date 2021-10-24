@@ -183,8 +183,6 @@ void Enter_Standby_Mode( void )
 /****************************************************************/
 int8_t Standby_Config( void )
 {
-	//TODO: adicionar aqui código para desligar comandos scanning, advertising e initiating
-
 	switch( StandbyConfig.Actual )
 	{
 	case DISABLE_ADVERTISING:
@@ -217,6 +215,7 @@ int8_t Standby_Config( void )
 				StandbyConfigTimeout = 0;
 				StandbyConfig.Actual = WAIT_OPERATION;
 				HCI_Disconnect( ConnHandle->Handle, REMOTE_USER_TERMINATED_CONNECTION, &Disconnect_Status );
+				return (FALSE);
 			}
 		}
 
@@ -225,6 +224,7 @@ int8_t Standby_Config( void )
 		{
 			Remove_Connection_Index( i - 1 );
 		}
+		StandbyConfig.BaseStep = SEND_STANDBY_CMD;
 		StandbyConfig.Actual = SEND_STANDBY_CMD;
 	}
 	break;

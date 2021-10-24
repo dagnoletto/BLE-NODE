@@ -373,9 +373,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 		/*---------- DISCONNECTION_COMPLETE_EVT ------------*//* Page 2296 Core_v5.2 */
 		case DISCONNECTION_COMPLETE:
 			RETURN_ON_FAULT(Status);
-			HCI_Disconnection_Complete( EventPacketPtr->Event_Parameter[0],
-					( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1],
-					EventPacketPtr->Event_Parameter[3] );
+			HCI_Disconnection_Complete( (DisconnectionComplete*)( &EventPacketPtr->Event_Parameter[0] ) );
 			break;
 
 			/*---------- ENCRYPTION_CHANGE_EVT ------------*//* Page 2299 Core_v5.2 */

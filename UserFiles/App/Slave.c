@@ -15,7 +15,7 @@
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-uint8_t Config_Advertiser(void);
+static uint8_t Config_Advertiser(void);
 
 
 /****************************************************************/
@@ -101,7 +101,7 @@ void SlaveNode( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t Config_Advertiser(void)
+static uint8_t Config_Advertiser(void)
 {
 	DEVICE_IDENTITY Id;
 
@@ -154,6 +154,25 @@ uint8_t Config_Advertiser(void)
 /* Description:													*/
 /****************************************************************/
 void Slave_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
+{
+	uint8_t teste = 0;
+	if(teste)
+	{
+		teste = 0;
+	}
+}
+
+
+/****************************************************************/
+/* Slave_Disconnection_Complete()     	    					*/
+/* Location: 					 								*/
+/* Purpose: Informs the slave a connection was terminated		*/
+/* with the master												*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Slave_Disconnection_Complete( DisconnectionComplete* DisConnCpltData )
 {
 	uint8_t teste = 0;
 	if(teste)

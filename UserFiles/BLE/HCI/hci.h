@@ -1235,6 +1235,12 @@ typedef void (*LEReadPeerResolvableAddressComplete)( CONTROLLER_ERROR_CODES Stat
 typedef void (*LEReadLocalResolvableAddressComplete)( CONTROLLER_ERROR_CODES Status, BD_ADDR_TYPE* Local_Resolvable_Address );
 typedef struct
 {
+	CONTROLLER_ERROR_CODES Status :8;
+	uint16_t Connection_Handle;
+	CONTROLLER_ERROR_CODES Reason :8;
+}__attribute__((packed)) DisconnectionComplete;
+typedef struct
+{
 	CONTROLLER_ERROR_CODES Status 	 :8;
 	uint16_t Connection_Handle;
 	BLE_ROLE Role					 :8;
@@ -1273,7 +1279,7 @@ typedef struct
 
 /*------------------------ COMMANDS AND SOME EVENTS -------------------------------*/
 uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason, DefCmdStatus StatusCallBack );
-void	HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason );
+void	HCI_Disconnection_Complete( DisconnectionComplete* DisConnCpltData );
 uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle, ReadRemoteVerInfoComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_Set_Event_Mask( EVENT_MASK Event_Mask, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack );
 uint8_t HCI_Read_Transmit_Power_Level( uint16_t Connection_Handle, uint8_t Type,

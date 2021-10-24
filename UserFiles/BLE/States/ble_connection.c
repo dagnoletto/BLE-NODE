@@ -324,11 +324,11 @@ void HCI_LE_Enhanced_Connection_Complete( LEEnhancedConnectionComplete* ConnCplt
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason )
+void HCI_Disconnection_Complete( DisconnectionComplete* DisConnCpltData )
 {
 	BLE_STATES state = Get_BLE_State();
-	CONN_HANDLE_STATUS newstatus = ( Status == COMMAND_SUCCESS ) ? CONN_HANDLE_FREE : CONN_HANDLE_FAILED;
-	CONNECTION_HANDLE* HandlePtr = Search_Connection_Handle( Connection_Handle );
+	CONN_HANDLE_STATUS newstatus = ( DisConnCpltData->Status == COMMAND_SUCCESS ) ? CONN_HANDLE_FREE : CONN_HANDLE_FAILED;
+	CONNECTION_HANDLE* HandlePtr = Search_Connection_Handle( DisConnCpltData->Connection_Handle );
 
 	if( state == CONNECTION_STATE )
 	{
@@ -351,8 +351,52 @@ void HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connect
 
 	if( HandlePtr != NULL )
 	{
-		/* TODO: chamar o handler de master ou slave */
+		if( HandlePtr->Role == MASTER )
+		{
+			Master_Disconnection_Complete( DisConnCpltData );
+		}else if( HandlePtr->Role == SLAVE )
+		{
+			Slave_Disconnection_Complete( DisConnCpltData );
+		}
 	}
+}
+
+
+/****************************************************************/
+/* HCI_Number_Of_Completed_Packets()                			*/
+/* Location: 2315 Core_v5.2		 								*/
+/* Purpose: The HCI_Number_Of_Completed_Packets event is used 	*/
+/* by the Controller to indicate to the Host how many HCI Data 	*/
+/* packets have been completed (transmitted or flushed) for each*/
+/* Connection_Handle since the previous 						*/
+/* HCI_Number_Of_Completed_Packets event was sent to the Host. 	*/
+/* This means that the corresponding buffer space has been 		*/
+/* freed in the Controller. Based on this information, and the 	*/
+/* Total_Num_ACL_Data_Packets and 								*/
+/* Total_Num_Synchronous_Data_Packets return parameter of the	*/
+/* HCI_Read_Buffer_Size command, the Host can determine for 	*/
+/* which Connection_Handles the following HCI Data packets 		*/
+/* should be sent to the Controller. The 						*/
+/* HCI_Number_Of_Completed_Packets event shall not specify a 	*/
+/* given Connection_Handle before the HCI_Connection_Complete 	*/
+/* event for the corresponding connection or after an event 	*/
+/* indicating disconnection of the corresponding connection. 	*/
+/* While the Controller has HCI Data packets in its buffer, it 	*/
+/* shall keep sending the HCI_Number_Of_Completed_Packets event */
+/* to the Host at least periodically, until it finally reports 	*/
+/* that all the pending ACL Data packets have been transmitted 	*/
+/* or flushed. The rate with which this event is sent is 		*/
+/* manufacturer specific. Note: HCI_Number_Of_Completed_Packets */
+/* events will not report on synchronous Connection_Handles if  */
+/* synchronous Flow Control is disabled.	(See Section 7.3.36 */
+/* and Section 7.3.37.)											*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_Handle[], uint16_t Num_Completed_Packets[] )
+{
+	volatile uint8_t teste = 0;
 }
 
 
@@ -372,6 +416,21 @@ __attribute__((weak)) void Master_Connection_Complete( LEEnhancedConnectionCompl
 
 
 /****************************************************************/
+/* Master_Disconnection_Complete()     	    					*/
+/* Location: 					 								*/
+/* Purpose: Informs the master a connection was terminated		*/
+/* with a slave													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void Master_Disconnection_Complete( DisconnectionComplete* DisConnCpltData )
+{
+	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
 /* Slave_Connection_Complete()     	    						*/
 /* Location: 					 								*/
 /* Purpose: Informs the slave a new connection was established  */
@@ -381,6 +440,21 @@ __attribute__((weak)) void Master_Connection_Complete( LEEnhancedConnectionCompl
 /* Description:													*/
 /****************************************************************/
 __attribute__((weak)) void Slave_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
+{
+	/* The user should implement at higher layers since it is weak. */
+}
+
+
+/****************************************************************/
+/* Slave_Disconnection_Complete()     	    					*/
+/* Location: 					 								*/
+/* Purpose: Informs the slave a connection was terminated		*/
+/* with the master												*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+__attribute__((weak)) void Slave_Disconnection_Complete( DisconnectionComplete* DisConnCpltData )
 {
 	/* The user should implement at higher layers since it is weak. */
 }

@@ -2203,7 +2203,7 @@ uint8_t HCI_LE_Set_Resolvable_Private_Address_Timeout( uint16_t RPA_Timeout, Def
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-__attribute__((weak)) void HCI_Disconnection_Complete( CONTROLLER_ERROR_CODES Status, uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason )
+__attribute__((weak)) void HCI_Disconnection_Complete( DisconnectionComplete* DisConnCpltData )
 {
 	/* The user should implement at higher layers since it is weak. */
 }
