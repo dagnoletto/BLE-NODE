@@ -89,15 +89,15 @@ void SlaveNode( void )
 
 	case CONNECTION_STATE:
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
-		HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
+//		HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
+//
+//		uint8_t Data[] = { 1 };
+//		ACLDataPacketHeader.Handle = MasterInfo.Connection_Handle;
+//		ACLDataPacketHeader.PB_Flag = 0x0;
+//		ACLDataPacketHeader.BC_Flag = 0x0;
+//		ACLDataPacketHeader.Data_Total_Length = sizeof(Data)/sizeof(typeof(Data));
 
-		uint8_t Data[] = { 1 };
-		ACLDataPacketHeader.Handle = MasterInfo.Connection_Handle;
-		ACLDataPacketHeader.PB_Flag = 0x3;
-		ACLDataPacketHeader.BC_Flag = 0x0;
-		ACLDataPacketHeader.Data_Total_Length = sizeof(Data)/sizeof(typeof(Data));
-
-		if( TimeBase_DelayMs( &Timer, 1500, TRUE ) && ( MasterInfo.Connection_Handle != 0xFFFF ) )
+		if( TimeBase_DelayMs( &Timer, 100, TRUE ) && ( MasterInfo.Connection_Handle != 0xFFFF ) )
 		{
 			//Enter_Standby_Mode();
 			//SlaveStateMachine = CONFIG_STANDBY;
@@ -215,6 +215,36 @@ static void Command_Status( CONTROLLER_ERROR_CODES Status )
 		teste = 0;
 	}
 }
+
+
+#if ( BLE_NODE == BLE_SLAVE )
+/****************************************************************/
+/* HCI_Controller_ACL_Data()                					*/
+/* Location: 1892 Core_v5.2		 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] )
+{
+
+}
+
+
+/****************************************************************/
+/* HCI_Number_Of_Completed_Packets()                			*/
+/* Location: 2315 Core_v5.2		 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_Handle[], uint16_t Num_Completed_Packets[] )
+{
+
+}
+#endif
 
 
 /****************************************************************/

@@ -120,7 +120,7 @@ void MasterNode( void )
 		{
 			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
-		if( TimeBase_DelayMs( &Timer, 5000, TRUE ) )
+		if( 0 /* TimeBase_DelayMs( &Timer, 5000, TRUE ) */ )
 		{
 			MasterStateMachine = CONFIG_STANDBY;
 		}else if( ( Get_BLE_State() == CONNECTION_STATE ) && ( SlaveInfo.Connection_Handle != 0xFFFF ) )
@@ -137,7 +137,7 @@ void MasterNode( void )
 
 		uint8_t Data[] = { 1 };
 		ACLDataPacketHeader.Handle = SlaveInfo.Connection_Handle;
-		ACLDataPacketHeader.PB_Flag = 0x3;
+		ACLDataPacketHeader.PB_Flag = 0x0;
 		ACLDataPacketHeader.BC_Flag = 0x0;
 		ACLDataPacketHeader.Data_Total_Length = sizeof(Data)/sizeof(typeof(Data));
 
@@ -145,7 +145,7 @@ void MasterNode( void )
 
 		//HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &Command_Status );
 		//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
-		if( TimeBase_DelayMs( &Timer, 100, TRUE ) )
+		if( TimeBase_DelayMs( &Timer, 10, TRUE ) )
 		{
 			//MasterStateMachine = CONFIG_STANDBY;
 			//HCI_Disconnect( SlaveInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, NULL );
@@ -248,12 +248,12 @@ static uint8_t Config_Initiating(void)
 	Init.Peer_Address = SlaveInfo.Adv.Address; //SlavePublicAddress;
 	Init.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR;//OWN_PUBLIC_DEV_ADDR;
 	Init.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
-	Init.Connection_Interval_Min = 800; /* 800 * 1.25ms = 1000ms */
-	Init.Connection_Interval_Max = 800; /* 800 * 1.25ms = 1000ms */
+	Init.Connection_Interval_Min = 48; /* 48 * 1.25ms = 60ms */
+	Init.Connection_Interval_Max = 48; /* 48 * 1.25ms = 60ms */
 	Init.Connection_Latency = 0;
-	Init.Supervision_Timeout = 800; /* 800 * 10ms = 8000ms */
-	Init.Min_CE_Length = 800; /* 800 * 1.25ms = 1000ms */
-	Init.Max_CE_Length = 800; /* 800 * 1.25ms = 1000ms */
+	Init.Supervision_Timeout = 960; /* 960 * 10ms = 9600ms */
+	Init.Min_CE_Length = 48; /* 48 * 1.25ms = 60ms */
+	Init.Max_CE_Length = 48; /* 48 * 1.25ms = 60ms */
 	Init.Privacy = FALSE;
 
 	return ( Enter_Initiating_Mode( &Init ) );
@@ -420,6 +420,40 @@ static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 		SlaveInfo.Version = *Remote_Version_Information;
 	}
 }
+
+
+#if ( BLE_NODE == BLE_MASTER )
+/****************************************************************/
+/* HCI_Controller_ACL_Data()                					*/
+/* Location: 1892 Core_v5.2		 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] )
+{
+
+}
+
+
+/****************************************************************/
+/* HCI_Number_Of_Completed_Packets()                			*/
+/* Location: 2315 Core_v5.2		 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static uint16_t Npackets = 0;
+void HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_Handle[], uint16_t Num_Completed_Packets[] )
+{
+	if( Num_Handles == 1 )
+	{
+		Npackets += Num_Completed_Packets[0];
+	}
+}
+#endif
 
 
 /****************************************************************/
