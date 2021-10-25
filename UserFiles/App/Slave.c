@@ -226,9 +226,11 @@ static void Command_Status( CONTROLLER_ERROR_CODES Status )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] )
+void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
 {
+	static HCI_ACL_DATA_PCKT_HEADER ACLDataPacketH;
 
+	ACLDataPacketH = *ACLDataPacketHeader;
 }
 
 

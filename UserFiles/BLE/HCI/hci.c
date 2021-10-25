@@ -2536,19 +2536,19 @@ __attribute__((weak)) void HCI_LE_Long_Term_Key_Request( uint16_t Connection_Han
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t HCI_Host_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] )
+uint8_t HCI_Host_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
 {
 	uint8_t Status = FALSE;
 
-	if( ACLDataPacketHeader.Data_Total_Length <= 27 )
+	if( ACLDataPacketHeader->Data_Total_Length <= 27 )
 	{
-		uint16_t ByteArraySize = sizeof(HCI_SERIAL_ACL_DATA_PCKT) + ACLDataPacketHeader.Data_Total_Length;
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_ACL_DATA_PCKT) + ACLDataPacketHeader->Data_Total_Length;
 		HCI_SERIAL_ACL_DATA_PCKT* PcktPtr = malloc( ByteArraySize );
 
 		PcktPtr->PacketType = HCI_ACL_DATA_PACKET;
-		PcktPtr->ACLDataPacket.Header = ACLDataPacketHeader;
+		PcktPtr->ACLDataPacket.Header = *ACLDataPacketHeader;
 
-		memcpy( &(PcktPtr->ACLDataPacket.Data[0]), &Data[0], ACLDataPacketHeader.Data_Total_Length );
+		memcpy( &(PcktPtr->ACLDataPacket.Data[0]), &Data[0], ACLDataPacketHeader->Data_Total_Length );
 
 		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = NULL, .CmdStatusCallBack = NULL };
 
@@ -2590,7 +2590,7 @@ uint8_t HCI_Host_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-__attribute__((weak)) void 	HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] )
+__attribute__((weak)) void 	HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
 {
 	/* The user should implement at higher layers since it is weak. */
 }

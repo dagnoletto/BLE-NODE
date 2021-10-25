@@ -150,7 +150,7 @@ void MasterNode( void )
 			//MasterStateMachine = CONFIG_STANDBY;
 			//HCI_Disconnect( SlaveInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, NULL );
 			//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
-			HCI_Host_ACL_Data( ACLDataPacketHeader, &Data[0] );
+			HCI_Host_ACL_Data( &ACLDataPacketHeader, &Data[0] );
 		}
 	}
 	break;
@@ -431,7 +431,7 @@ static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] )
+void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
 {
 
 }

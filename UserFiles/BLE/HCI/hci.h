@@ -1370,8 +1370,8 @@ void 	HCI_LE_Long_Term_Key_Request( uint16_t Connection_Handle, uint8_t Random_N
 
 
 /*---------------------------- DATA PACKET FUNCTIONS -----------------------------*/
-uint8_t HCI_Host_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] );
-void 	HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader, uint8_t Data[] );
+uint8_t HCI_Host_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] );
+void 	HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] );
 
 
 #endif /* HCI_H_ */

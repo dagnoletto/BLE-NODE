@@ -349,10 +349,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 	{
 	case HCI_ACL_DATA_PACKET:
 		RETURN_ON_FAULT(Status);
-		{
-			HCI_ACL_DATA_PCKT_HEADER Header = *( ( HCI_ACL_DATA_PCKT_HEADER* )( DataPtr + 1 ) );
-			HCI_Controller_ACL_Data( Header, (uint8_t*)( DataPtr + 5 ) );
-		}
+		HCI_Controller_ACL_Data( ( HCI_ACL_DATA_PCKT_HEADER* )( DataPtr + 1 ), (uint8_t*)( DataPtr + 5 ) );
 		break;
 
 	case HCI_SYNCHRONOUS_DATA_PACKET: /* Not used in this controller version */
