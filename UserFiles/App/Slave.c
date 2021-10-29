@@ -89,20 +89,20 @@ void SlaveNode( void )
 
 	case CONNECTION_STATE:
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
-//		HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
-//
-//		uint8_t Data[] = { 1 };
-//		ACLDataPacketHeader.Handle = MasterInfo.Connection_Handle;
-//		ACLDataPacketHeader.PB_Flag = 0x0;
-//		ACLDataPacketHeader.BC_Flag = 0x0;
-//		ACLDataPacketHeader.Data_Total_Length = sizeof(Data)/sizeof(typeof(Data));
+		HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
+
+		uint16_t Data[] = { 0, 6 };
+		ACLDataPacketHeader.Handle = MasterInfo.Connection_Handle;
+		ACLDataPacketHeader.PB_Flag = 0x0;
+		ACLDataPacketHeader.BC_Flag = 0x0;
+		ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
 
 		if( TimeBase_DelayMs( &Timer, 100, TRUE ) && ( MasterInfo.Connection_Handle != 0xFFFF ) )
 		{
 			//Enter_Standby_Mode();
 			//SlaveStateMachine = CONFIG_STANDBY;
 			//HCI_Disconnect( conhandle, REMOTE_USER_TERMINATED_CONNECTION, &Command_Status );
-			//HCI_Host_ACL_Data( ACLDataPacketHeader, &Data[0] );
+			HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
 		}
 		break;
 
@@ -228,9 +228,16 @@ static void Command_Status( CONTROLLER_ERROR_CODES Status )
 /****************************************************************/
 void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
 {
-	static HCI_ACL_DATA_PCKT_HEADER ACLDataPacketH;
-
-	ACLDataPacketH = *ACLDataPacketHeader;
+	static uint8_t ctn = 0;
+	static HCI_ACL_DATA_PCKT_HEADER ACLDataPacketH[10];
+	static uint8_t Datarec[10][20];
+	
+	ACLDataPacketH[ctn] = *ACLDataPacketHeader;
+	memcpy( &Datarec[ctn][0], &Data[0], ACLDataPacketHeader->Data_Total_Length );
+	if( ctn < 9 )
+	{
+		ctn++;
+	}
 }
 
 

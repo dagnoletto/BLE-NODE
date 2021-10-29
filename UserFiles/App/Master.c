@@ -135,11 +135,11 @@ void MasterNode( void )
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
 		HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
 
-		uint8_t Data[] = { 1 };
+		uint8_t Data[7] = { 3, 0, 4, 0, 2, 15, 2 };
 		ACLDataPacketHeader.Handle = SlaveInfo.Connection_Handle;
 		ACLDataPacketHeader.PB_Flag = 0x0;
 		ACLDataPacketHeader.BC_Flag = 0x0;
-		ACLDataPacketHeader.Data_Total_Length = sizeof(Data)/sizeof(typeof(Data));
+		ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
 
 		//HCI_Host_ACL_Data( ACLDataPacketHeader, &Data[0] );
 
@@ -150,7 +150,7 @@ void MasterNode( void )
 			//MasterStateMachine = CONFIG_STANDBY;
 			//HCI_Disconnect( SlaveInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, NULL );
 			//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
-			HCI_Host_ACL_Data( &ACLDataPacketHeader, &Data[0] );
+			HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
 		}
 	}
 	break;
@@ -433,7 +433,7 @@ static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 /****************************************************************/
 void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
 {
-
+	HCI_ACL_DATA_PCKT_HEADER Header = *ACLDataPacketHeader;
 }
 
 
