@@ -25,6 +25,9 @@ static CMD_CALLBACK* INFO_PARAMETERS_CMD_HANDLER(HCI_COMMAND_OPCODE OpCode);
 static CMD_CALLBACK* STATUS_PARAMETERS_CMD_HANDLER(HCI_COMMAND_OPCODE OpCode);
 static CMD_CALLBACK* TESTING_CMD_HANDLER(HCI_COMMAND_OPCODE OpCode);
 static CMD_CALLBACK* LE_CONTROLLER_CMD_HANDLER(HCI_COMMAND_OPCODE OpCode);
+static uint8_t Check_Data_Packets_Available( void );
+static void Decrement_HCI_Data_Packets( void );
+static void Increment_HCI_Data_Packets( void );
 static void Set_Number_Of_HCI_Command_Packets( uint8_t Num_HCI_Cmd_Packets );
 static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
@@ -86,6 +89,7 @@ extern void Enter_Connection_Mode( CONTROLLER_ERROR_CODES Status );
 /* Assumes the controller can handle at least one HCI Command
  * before the first Set_Number_Of_HCI_Command_Packets() is called */
 static uint8_t Num_HCI_Command_Packets = 1;
+static uint8_t Num_LE_ACL_Data_Packets = 0;
 
 
 /* Command callback (not all commands have callback). At least one
@@ -155,6 +159,85 @@ static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(	VS_ACI_HAL_TONE_START, 							&Co
 static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(	VS_ACI_HAL_TONE_STOP, 							&Command_Complete);
 static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(	VS_ACI_HAL_GET_LINK_STATUS, 					&Hal_Get_Link_Status_Complete);
 static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(	VS_ACI_HAL_GET_ANCHOR_PERIOD, 					&Hal_Get_Anchor_Period_Complete);
+
+
+/****************************************************************/
+/* Set_Number_Of_HCI_Data_Packets()         					*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Set_Number_Of_HCI_Data_Packets( uint8_t Num_HCI_Data_Packets )
+{
+	Num_LE_ACL_Data_Packets = Num_HCI_Data_Packets;
+}
+
+
+/****************************************************************/
+/* Check_Data_Packets_Available()         						*/
+/* Location: 					 								*/
+/* Purpose: 													*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Check_Data_Packets_Available( void )
+{
+	uint8_t status;
+
+	EnterCritical();
+
+	/* If there is room for commands */
+	status = Num_LE_ACL_Data_Packets ? TRUE : FALSE;
+
+	ExitCritical();
+
+	return (status);
+}
+
+
+/****************************************************************/
+/* Decrement_HCI_Data_Packets()         						*/
+/* Location: 					 								*/
+/* Purpose: Decrement available HCI data packets.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Decrement_HCI_Data_Packets( void )
+{
+	EnterCritical();
+
+	if ( Num_LE_ACL_Data_Packets )
+	{
+		Num_LE_ACL_Data_Packets--;
+	}
+
+	ExitCritical();
+}
+
+
+/****************************************************************/
+/* Increment_HCI_Data_Packets()         						*/
+/* Location: 					 								*/
+/* Purpose: Increment available HCI data packets.				*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Increment_HCI_Data_Packets( void )
+{
+	EnterCritical();
+
+	if ( !Num_LE_ACL_Data_Packets )
+	{
+		Num_LE_ACL_Data_Packets++;
+	}
+
+	ExitCritical();
+}
 
 
 /****************************************************************/
@@ -408,6 +491,7 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			/*---------- NUMBER_OF_COMPLETED_PACKETS_EVT ------------*//* Page 2315 Core_v5.2 */
 		case NUMBER_OF_COMPLETED_PACKETS:
 			RETURN_ON_FAULT(Status);
+			Increment_HCI_Data_Packets(); /* TODO: calculate the tital number of completed packets and include in this function call */
 			{
 				uint16_t Offset = EventPacketPtr->Event_Parameter[0] * 2;
 

@@ -96,8 +96,6 @@ static BLE_STATUS Controller_Reset_Flag = BLE_ERROR;
 static SUPPORTED_COMMANDS HCI_Supported_Commands;
 static SUPPORTED_FEATURES HCI_LMP_Features;
 static LE_SUPPORTED_FEATURES HCI_LE_Features;
-static uint16_t LE_ACL_Data_Packet_Length_Supported;
-static uint8_t Total_Num_LE_ACL_Data_Packets_Supported;
 static LOCAL_VERSION_INFORMATION LocalInfo;
 static uint8_t ControllerResolvingListSize;
 
@@ -601,13 +599,12 @@ static void LE_Read_Buffer_Size_Complete( CONTROLLER_ERROR_CODES Status, uint16_
 {
 	if( Status == COMMAND_SUCCESS )
 	{
-		LE_ACL_Data_Packet_Length_Supported = LE_ACL_Data_Packet_Length;
-		Total_Num_LE_ACL_Data_Packets_Supported = Total_Num_LE_ACL_Data_Packets;
-		if( ( !LE_ACL_Data_Packet_Length_Supported ) || ( !Total_Num_LE_ACL_Data_Packets_Supported ) )
+		if( ( !LE_ACL_Data_Packet_Length ) || ( !Total_Num_LE_ACL_Data_Packets ) )
 		{
 			BLEInitSteps = READ_BUFFER_SIZE;
 		}else
 		{
+			Set_Number_Of_HCI_Data_Packets( Total_Num_LE_ACL_Data_Packets );
 			BLEInitSteps = LE_LOCAL_SUPPORTED_FEATURES;
 		}
 	}else

@@ -141,16 +141,17 @@ void MasterNode( void )
 		ACLDataPacketHeader.BC_Flag = 0x0;
 		ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
 
-		//HCI_Host_ACL_Data( ACLDataPacketHeader, &Data[0] );
+		HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
 
 		//HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &Command_Status );
 		//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
-		if( TimeBase_DelayMs( &Timer, 10, TRUE ) )
+		if( TimeBase_DelayMs( &Timer, 1000, TRUE ) )
 		{
 			//MasterStateMachine = CONFIG_STANDBY;
 			//HCI_Disconnect( SlaveInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, NULL );
 			//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
-			HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
+			//HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &Command_Status );
+			//HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
 		}
 	}
 	break;
@@ -394,9 +395,11 @@ static void Command_Status( CONTROLLER_ERROR_CODES Status )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
+static uint8_t ctn = 0;
 static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
 		uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features )
 {
+	ctn++;
 	if( ( Status == COMMAND_SUCCESS ) && ( SlaveInfo.Connection_Handle == Connection_Handle ) )
 	{
 		SlaveInfo.SupFeatures = *LE_Features;

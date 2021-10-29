@@ -129,6 +129,7 @@ void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBac
 		HCI_EVENT_PCKT* EventPacketPtr );
 void Command_Complete_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
 		HCI_EVENT_PCKT* EventPacketPtr );
+void Set_Number_Of_HCI_Data_Packets( uint8_t Num_HCI_Data_Packets );
 
 
 /****************************************************************/
