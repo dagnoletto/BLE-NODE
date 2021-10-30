@@ -123,13 +123,12 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 		TRANSFER_CALL_BACK_MODE CallBackMode,
 		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack);
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
-void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr );
+void Set_Default_Number_Of_HCI_Data_Packets( void );
 void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode );
 void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
 		HCI_EVENT_PCKT* EventPacketPtr );
 void Command_Complete_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
 		HCI_EVENT_PCKT* EventPacketPtr );
-void Set_Number_Of_HCI_Data_Packets( uint16_t Num_HCI_Data_Packets );
 
 
 /****************************************************************/

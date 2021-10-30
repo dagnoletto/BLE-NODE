@@ -53,6 +53,7 @@ void MasterNode( void )
 	static BLE_STATES MasterStateMachine = CONFIG_STANDBY;
 	static uint32_t TimerLED = 0;
 	static uint32_t Timer = 0;
+	static uint32_t Timer2 = 0;
 
 	switch( MasterStateMachine )
 	{
@@ -126,6 +127,7 @@ void MasterNode( void )
 		}else if( ( Get_BLE_State() == CONNECTION_STATE ) && ( SlaveInfo.Connection_Handle != 0xFFFF ) )
 		{
 			Timer = 0;
+			Timer2 = 0;
 			MasterStateMachine = CONNECTION_STATE;
 		}
 		break;
@@ -141,16 +143,47 @@ void MasterNode( void )
 		ACLDataPacketHeader.BC_Flag = 0x0;
 		ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
 
-		HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
+		if( TimeBase_DelayMs( &Timer2, 10, TRUE ) )
+		{
+			static uint8_t nseq = 0;
+			if( HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] ) )
+			{
+				nseq = 0;
+			}else
+			{
+				nseq++;
+				if(nseq > 5)
+				{
+					Set_Default_Number_Of_HCI_Data_Packets();
+					nseq = 0;
+				}
+			}
+		}
 
 		//HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &Command_Status );
 		//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
 		if( TimeBase_DelayMs( &Timer, 1000, TRUE ) )
 		{
+			static uint8_t cmdCounter = 0;
 			//MasterStateMachine = CONFIG_STANDBY;
 			//HCI_Disconnect( SlaveInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, NULL );
 			//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
-			//HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &Command_Status );
+
+//			if( HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &Command_Status ) )
+//			{
+//				cmdCounter = 0;
+//			}else
+//			{
+//				cmdCounter++;
+//			}
+//			if( cmdCounter > 5 )
+//			{
+//				HCI_COMMAND_OPCODE OpCode;
+//				cmdCounter = 0;
+//				OpCode.Val = HCI_LE_READ_REMOTE_FEATURES;
+//				Clear_Command_CallBack( OpCode );
+//			}
+
 			//HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
 		}
 	}

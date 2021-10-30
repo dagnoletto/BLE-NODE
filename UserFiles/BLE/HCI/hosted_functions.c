@@ -71,6 +71,7 @@ static void Check_Private_Addr(uint8_t resolvstatus, CONTROLLER_ERROR_CODES stat
 /****************************************************************/
 /* extern functions declaration                                 */
 /****************************************************************/
+extern void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr );
 extern void Enter_Connection_Mode( CONTROLLER_ERROR_CODES Status );
 
 

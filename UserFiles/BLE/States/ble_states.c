@@ -85,6 +85,7 @@ extern void Connection( void );
 /****************************************************************/
 /* Global variables definition                                  */
 /****************************************************************/
+uint16_t Default_Num_LE_ACL_Data_Packets = 0;
 
 
 /****************************************************************/
@@ -604,7 +605,8 @@ static void LE_Read_Buffer_Size_Complete( CONTROLLER_ERROR_CODES Status, uint16_
 			BLEInitSteps = READ_BUFFER_SIZE;
 		}else
 		{
-			Set_Number_Of_HCI_Data_Packets( Total_Num_LE_ACL_Data_Packets );
+			Default_Num_LE_ACL_Data_Packets = Total_Num_LE_ACL_Data_Packets;
+			Set_Default_Number_Of_HCI_Data_Packets( );
 			BLEInitSteps = LE_LOCAL_SUPPORTED_FEATURES;
 		}
 	}else

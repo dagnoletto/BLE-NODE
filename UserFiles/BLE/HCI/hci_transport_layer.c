@@ -67,6 +67,9 @@ static void Hal_Get_Anchor_Period_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT
 static void Fault_Data_Event_Handler( HCI_EVENT_PCKT* EventPacketPtr );
 
 
+void LE_Advertising_Report_Handler( HCI_EVENT_PCKT* EventPacketPtr );
+
+
 /****************************************************************/
 /* extern functions declaration                                 */
 /****************************************************************/
@@ -81,6 +84,7 @@ extern void Enter_Connection_Mode( CONTROLLER_ERROR_CODES Status );
 /****************************************************************/
 /* Global variables definition                                  */
 /****************************************************************/
+extern uint16_t Default_Num_LE_ACL_Data_Packets;
 
 
 /****************************************************************/
@@ -162,19 +166,19 @@ static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(	VS_ACI_HAL_GET_ANCHOR_PERIOD, 			
 
 
 /****************************************************************/
-/* Set_Number_Of_HCI_Data_Packets()         					*/
+/* Set_Default_Number_Of_HCI_Data_Packets()         			*/
 /* Location: 					 								*/
 /* Purpose: 													*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void Set_Number_Of_HCI_Data_Packets( uint16_t Num_HCI_Data_Packets )
+void Set_Default_Number_Of_HCI_Data_Packets( void )
 {
 	/* This assignment must not be interrupted */
 	EnterCritical();
 
-	Num_LE_ACL_Data_Packets = Num_HCI_Data_Packets;
+	Num_LE_ACL_Data_Packets = Default_Num_LE_ACL_Data_Packets;
 
 	ExitCritical();
 }
@@ -1190,7 +1194,8 @@ void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBac
 			ExitCritical();
 		}
 
-		CmdCallBack->Status = FREE;
+		CmdCallBack->Status = ( CmdCallBack->CmdCompleteCallBack != NULL ) ? BUSY : FREE;
+
 	}else if( CmdCallBack == NULL )
 	{
 		/* Call unknown OpMode */
