@@ -27,7 +27,7 @@ static CMD_CALLBACK* TESTING_CMD_HANDLER(HCI_COMMAND_OPCODE OpCode);
 static CMD_CALLBACK* LE_CONTROLLER_CMD_HANDLER(HCI_COMMAND_OPCODE OpCode);
 static uint8_t Check_Data_Packets_Available( void );
 static void Decrement_HCI_Data_Packets( void );
-static void Increment_HCI_Data_Packets( void );
+static void Increment_HCI_Data_Packets( uint16_t Num_Cplt_Packets );
 static void Set_Number_Of_HCI_Command_Packets( uint8_t Num_HCI_Cmd_Packets );
 static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
@@ -89,7 +89,7 @@ extern void Enter_Connection_Mode( CONTROLLER_ERROR_CODES Status );
 /* Assumes the controller can handle at least one HCI Command
  * before the first Set_Number_Of_HCI_Command_Packets() is called */
 static uint8_t Num_HCI_Command_Packets = 1;
-static uint8_t Num_LE_ACL_Data_Packets = 0;
+static uint16_t Num_LE_ACL_Data_Packets = 0;
 
 
 /* Command callback (not all commands have callback). At least one
@@ -169,9 +169,14 @@ static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(	VS_ACI_HAL_GET_ANCHOR_PERIOD, 			
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void Set_Number_Of_HCI_Data_Packets( uint8_t Num_HCI_Data_Packets )
+void Set_Number_Of_HCI_Data_Packets( uint16_t Num_HCI_Data_Packets )
 {
+	/* This assignment must not be interrupted */
+	EnterCritical();
+
 	Num_LE_ACL_Data_Packets = Num_HCI_Data_Packets;
+
+	ExitCritical();
 }
 
 
@@ -227,14 +232,11 @@ static void Decrement_HCI_Data_Packets( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Increment_HCI_Data_Packets( void )
+static void Increment_HCI_Data_Packets( uint16_t Num_Cplt_Packets )
 {
 	EnterCritical();
 
-	if ( !Num_LE_ACL_Data_Packets )
-	{
-		Num_LE_ACL_Data_Packets++;
-	}
+	Num_LE_ACL_Data_Packets += Num_Cplt_Packets;
 
 	ExitCritical();
 }
@@ -368,6 +370,12 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 				}
 			}
 		}
+	}else if ( CmdPacket->PacketType == HCI_ACL_DATA_PACKET )
+	{
+		if( !Check_Data_Packets_Available() )
+		{
+			return (FALSE);
+		}
 	}
 
 	do
@@ -390,6 +398,9 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 				CallBackPtr->CmdStatusCallBack = CmdCallBack->CmdStatusCallBack;
 				CallBackPtr->Status = BUSY;
 			}
+		}else if ( CmdPacket->PacketType == HCI_ACL_DATA_PACKET )
+		{
+			Decrement_HCI_Data_Packets(  );
 		}
 
 		/* This is the first successfully enqueued write message, so, request transmission */
@@ -491,11 +502,22 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			/*---------- NUMBER_OF_COMPLETED_PACKETS_EVT ------------*//* Page 2315 Core_v5.2 */
 		case NUMBER_OF_COMPLETED_PACKETS:
 			RETURN_ON_FAULT(Status);
-			Increment_HCI_Data_Packets(); /* TODO: calculate the tital number of completed packets and include in this function call */
 			{
-				uint16_t Offset = EventPacketPtr->Event_Parameter[0] * 2;
+				uint16_t Num_Completed_Packets_Total = 0;
 
-				HCI_Number_Of_Completed_Packets( EventPacketPtr->Event_Parameter[0], (uint16_t*)( &EventPacketPtr->Event_Parameter[1] ), (uint16_t*)( &EventPacketPtr->Event_Parameter[Offset + 1] ) );
+				uint16_t Offset = EventPacketPtr->Event_Parameter[0] * 2;
+				uint16_t* Num_Completed_Packets_Ptr = (uint16_t*)( &EventPacketPtr->Event_Parameter[Offset + 1] );
+
+				for( uint8_t i = 0; i < EventPacketPtr->Event_Parameter[0]; i++ )
+				{
+					Num_Completed_Packets_Total += Num_Completed_Packets_Ptr[i];
+				}
+
+				/* Here we assume the controller uses a single buffer for all connection_handles. So, the
+				 * number of completed packets is, in fact, the number of free positions in the buffer. */
+				Increment_HCI_Data_Packets( Num_Completed_Packets_Total );
+
+				HCI_Number_Of_Completed_Packets( EventPacketPtr->Event_Parameter[0], (uint16_t*)( &EventPacketPtr->Event_Parameter[1] ), Num_Completed_Packets_Ptr );
 			}
 			break;
 
