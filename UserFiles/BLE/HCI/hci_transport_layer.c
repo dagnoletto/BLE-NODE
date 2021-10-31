@@ -33,8 +33,10 @@ static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
 static void Increment_HCI_Command_Packets( void );
 
-static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr );
-static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr );
+static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
+		HCI_EVENT_PCKT* EventPacketPtr, uint8_t Num_HCI_Cmd_Packets );
+static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
+		HCI_EVENT_PCKT* EventPacketPtr, uint8_t Num_HCI_Cmd_Packets );
 
 static void Command_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr );
 static void Read_Remote_Version_Information_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr );
@@ -482,19 +484,20 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 			/*---------- READ_REMOTE_VERSION_INFORMATION_COMPLETE_EVT ------------*//* Page 2304 Core_v5.2 */
 		case READ_REMOTE_VERSION_INFORMATION_COMPLETE:
 			OpCode.Val = HCI_READ_REMOTE_VERSION_INFORMATION;
-			Finish_Command( Status, OpCode, EventPacketPtr );
+			/* This command does not have the Num_HCI_Command_Packets field, so just passes the current value of this variable */
+			Finish_Command( Status, OpCode, EventPacketPtr, Num_HCI_Command_Packets );
 			break;
 
 			/*---------- COMMAND_COMPLETE_EVT ------------*//* Page 2308 Core_v5.2 */
 		case COMMAND_COMPLETE:
 			OpCode.Val = ( EventPacketPtr->Event_Parameter[2] << 8 ) | EventPacketPtr->Event_Parameter[1];
-			Finish_Command( Status, OpCode, EventPacketPtr );
+			Finish_Command( Status, OpCode, EventPacketPtr, EventPacketPtr->Event_Parameter[0] );
 			break;
 
 			/*---------- COMMAND_STATUS_EVT --------------*//* Page 2310 Core_v5.2 */
 		case COMMAND_STATUS:
 			OpCode.Val = ( EventPacketPtr->Event_Parameter[3] << 8 ) | EventPacketPtr->Event_Parameter[2];
-			Finish_Status( Status, OpCode, EventPacketPtr );
+			Finish_Status( Status, OpCode, EventPacketPtr, EventPacketPtr->Event_Parameter[1] );
 			break;
 
 			/*---------- HARDWARE_ERROR_EVT ------------*//* Page 2312 Core_v5.2 */
@@ -580,7 +583,8 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 
 			case LE_READ_REMOTE_FEATURES_COMPLETE:
 				OpCode.Val = HCI_LE_READ_REMOTE_FEATURES;
-				Finish_Command( Status, OpCode, EventPacketPtr );
+				/* This command does not have the Num_HCI_Command_Packets field, so just passes the current value of this variable */
+				Finish_Command( Status, OpCode, EventPacketPtr, Num_HCI_Command_Packets );
 				break;
 
 			case LE_LONG_TERM_KEY_REQUEST:
@@ -641,13 +645,14 @@ void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr )
+static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
+		HCI_EVENT_PCKT* EventPacketPtr, uint8_t Num_HCI_Cmd_Packets )
 {
 	CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
 
 	if( Status == TRANSFER_DONE )
 	{
-		Set_Number_Of_HCI_Command_Packets( EventPacketPtr->Event_Parameter[0] );
+		Set_Number_Of_HCI_Command_Packets( Num_HCI_Cmd_Packets );
 	}else if( CmdCallBack != NULL )
 	{
 		/* Message reception failed: clear callback functions */
@@ -1117,11 +1122,12 @@ static void Hal_Get_Anchor_Period_Complete( void* CmdCallBackFun, HCI_EVENT_PCKT
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode, HCI_EVENT_PCKT* EventPacketPtr )
+static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
+		HCI_EVENT_PCKT* EventPacketPtr, uint8_t Num_HCI_Cmd_Packets )
 {
 	if( Status == TRANSFER_DONE )
 	{
-		Set_Number_Of_HCI_Command_Packets( EventPacketPtr->Event_Parameter[1] );
+		Set_Number_Of_HCI_Command_Packets( Num_HCI_Cmd_Packets );
 	}else
 	{
 		/* Message reception failed: just returns. */

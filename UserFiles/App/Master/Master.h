@@ -45,6 +45,7 @@ typedef struct
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
 void MasterNode( void );
+void Client( void );
 
 
 /****************************************************************/
@@ -55,6 +56,7 @@ void MasterNode( void );
 /****************************************************************/
 /* External variables declaration                               */
 /****************************************************************/
+SLAVE_INFO SlaveInfo;
 
 
 #endif /* MASTER_H_ */

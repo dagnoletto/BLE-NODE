@@ -17,11 +17,6 @@
 /****************************************************************/
 static uint8_t Config_Scanner(void);
 static uint8_t Config_Initiating(void);
-static void Command_Status( CONTROLLER_ERROR_CODES Status );
-static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
-		uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
-static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
-		REMOTE_VERSION_INFORMATION* Remote_Version_Information );
 
 
 /****************************************************************/
@@ -37,7 +32,7 @@ static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static SLAVE_INFO SlaveInfo;
+SLAVE_INFO SlaveInfo;
 
 
 /****************************************************************/
@@ -53,7 +48,6 @@ void MasterNode( void )
 	static BLE_STATES MasterStateMachine = CONFIG_STANDBY;
 	static uint32_t TimerLED = 0;
 	static uint32_t Timer = 0;
-	static uint32_t Timer2 = 0;
 
 	switch( MasterStateMachine )
 	{
@@ -127,67 +121,13 @@ void MasterNode( void )
 		}else if( ( Get_BLE_State() == CONNECTION_STATE ) && ( SlaveInfo.Connection_Handle != 0xFFFF ) )
 		{
 			Timer = 0;
-			Timer2 = 0;
 			MasterStateMachine = CONNECTION_STATE;
 		}
 		break;
 
 	case CONNECTION_STATE:
-	{
-		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
-		HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
-
-		uint8_t Data[7] = { 3, 0, 4, 0, 2, 15, 2 };
-		ACLDataPacketHeader.Handle = SlaveInfo.Connection_Handle;
-		ACLDataPacketHeader.PB_Flag = 0x0;
-		ACLDataPacketHeader.BC_Flag = 0x0;
-		ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
-
-		if( TimeBase_DelayMs( &Timer2, 10, TRUE ) )
-		{
-			static uint8_t nseq = 0;
-			if( HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] ) )
-			{
-				nseq = 0;
-			}else
-			{
-				nseq++;
-				if(nseq > 5)
-				{
-					Set_Default_Number_Of_HCI_Data_Packets();
-					nseq = 0;
-				}
-			}
-		}
-
-		//HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &Command_Status );
-		//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
-		if( TimeBase_DelayMs( &Timer, 1000, TRUE ) )
-		{
-			static uint8_t cmdCounter = 0;
-			//MasterStateMachine = CONFIG_STANDBY;
-			//HCI_Disconnect( SlaveInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, NULL );
-			//HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Command_Status );
-
-//			if( HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &Command_Status ) )
-//			{
-//				cmdCounter = 0;
-//			}else
-//			{
-//				cmdCounter++;
-//			}
-//			if( cmdCounter > 5 )
-//			{
-//				HCI_COMMAND_OPCODE OpCode;
-//				cmdCounter = 0;
-//				OpCode.Val = HCI_LE_READ_REMOTE_FEATURES;
-//				Clear_Command_CallBack( OpCode );
-//			}
-
-			//HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
-		}
-	}
-	break;
+		Client( );
+		break;
 
 	default: break;
 	}
@@ -400,96 +340,6 @@ void Master_Disconnection_Complete( DisconnectionComplete* DisConnCpltData )
 		teste = 0;
 	}
 }
-
-
-/****************************************************************/
-/* Command_Status()     	   									*/
-/* Location: 					 								*/
-/* Purpose:														*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Command_Status( CONTROLLER_ERROR_CODES Status )
-{
-	uint8_t teste = 0;
-	if( Status != COMMAND_SUCCESS && Status != COMMAND_DISALLOWED )
-	{
-		teste = 0;
-	}
-}
-
-
-/****************************************************************/
-/* LE_Read_Remote_Features_Complete()     	   					*/
-/* Location: 					 								*/
-/* Purpose:														*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static uint8_t ctn = 0;
-static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
-		uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features )
-{
-	ctn++;
-	if( ( Status == COMMAND_SUCCESS ) && ( SlaveInfo.Connection_Handle == Connection_Handle ) )
-	{
-		SlaveInfo.SupFeatures = *LE_Features;
-	}
-}
-
-
-/****************************************************************/
-/* Read_Remote_VerInfo_Complete()     	   						*/
-/* Location: 					 								*/
-/* Purpose:														*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
-		REMOTE_VERSION_INFORMATION* Remote_Version_Information )
-{
-	if( Status == COMMAND_SUCCESS )
-	{
-		SlaveInfo.Version = *Remote_Version_Information;
-	}
-}
-
-
-#if ( BLE_NODE == BLE_MASTER )
-/****************************************************************/
-/* HCI_Controller_ACL_Data()                					*/
-/* Location: 1892 Core_v5.2		 								*/
-/* Purpose:														*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
-{
-	HCI_ACL_DATA_PCKT_HEADER Header = *ACLDataPacketHeader;
-}
-
-
-/****************************************************************/
-/* HCI_Number_Of_Completed_Packets()                			*/
-/* Location: 2315 Core_v5.2		 								*/
-/* Purpose: 													*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static uint16_t Npackets = 0;
-void HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_Handle[], uint16_t Num_Completed_Packets[] )
-{
-	if( Num_Handles == 1 )
-	{
-		Npackets += Num_Completed_Packets[0];
-	}
-}
-#endif
 
 
 /****************************************************************/
