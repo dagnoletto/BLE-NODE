@@ -318,9 +318,11 @@ static uint8_t BLE_Init( void )
 			EVENT_MASK Event_Mask;
 			memset( &Event_Mask, 0, sizeof(Event_Mask) );
 
-			/* Flush occurred might also be important. HCI_Data_Buffer_Overflow also? */
+			/* TODO: Add more events as needed */
+			Event_Mask.Bits.Disconnection_Complete_event = 1;
 			Event_Mask.Bits.Read_Remote_Supported_Features_Complete_event = 1;
 			Event_Mask.Bits.Read_Remote_Version_Information_Complete_event = 1;
+			Event_Mask.Bits.Data_Buffer_Overflow_event = 1;
 			Event_Mask.Bits.Hardware_Error_event = 1;
 			Event_Mask.Bits.Read_Remote_Extended_Features_Complete_event = 1;
 			Event_Mask.Bits.LE_Meta_event = 1;

@@ -16,7 +16,6 @@
 /* Static functions declaration                                 */
 /****************************************************************/
 static uint8_t Config_Advertiser(void);
-static void Command_Status( CONTROLLER_ERROR_CODES Status );
 
 
 /****************************************************************/
@@ -32,7 +31,7 @@ static void Command_Status( CONTROLLER_ERROR_CODES Status );
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static MASTER_INFO MasterInfo;
+MASTER_INFO MasterInfo;
 
 
 /****************************************************************/
@@ -81,28 +80,17 @@ void SlaveNode( void )
 		if( TimeBase_DelayMs( &Timer, 10000, TRUE ) )
 		{
 			//SlaveStateMachine = CONFIG_STANDBY;
-		}else if( Get_BLE_State() == CONNECTION_STATE )
+		}else if( ( Get_BLE_State() == CONNECTION_STATE ) && ( MasterInfo.Connection_Handle != 0xFFFF ) )
 		{
 			SlaveStateMachine = CONNECTION_STATE;
 		}
 		break;
 
 	case CONNECTION_STATE:
-		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
-		HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
-
-		uint16_t Data[] = { 0, 6 };
-		ACLDataPacketHeader.Handle = MasterInfo.Connection_Handle;
-		ACLDataPacketHeader.PB_Flag = 0x0;
-		ACLDataPacketHeader.BC_Flag = 0x0;
-		ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
-
-		if( TimeBase_DelayMs( &Timer, 100, TRUE ) && ( MasterInfo.Connection_Handle != 0xFFFF ) )
+		SlaveStateMachine = Get_BLE_State();
+		if( SlaveStateMachine == CONNECTION_STATE )
 		{
-			//Enter_Standby_Mode();
-			//SlaveStateMachine = CONFIG_STANDBY;
-			//HCI_Disconnect( conhandle, REMOTE_USER_TERMINATED_CONNECTION, &Command_Status );
-			HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
+			Server( );
 		}
 		break;
 
@@ -191,69 +179,8 @@ void Slave_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
 /****************************************************************/
 void Slave_Disconnection_Complete( DisconnectionComplete* DisConnCpltData )
 {
-	uint8_t teste = 0;
-	if(teste)
-	{
-		teste = 0;
-	}
+	Reset_Server( );
 }
-
-
-/****************************************************************/
-/* Command_Status()     	   									*/
-/* Location: 					 								*/
-/* Purpose:														*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Command_Status( CONTROLLER_ERROR_CODES Status )
-{
-	uint8_t teste = 0;
-	if( Status != COMMAND_SUCCESS && Status != COMMAND_DISALLOWED )
-	{
-		teste = 0;
-	}
-}
-
-
-#if ( BLE_NODE == BLE_SLAVE )
-/****************************************************************/
-/* HCI_Controller_ACL_Data()                					*/
-/* Location: 1892 Core_v5.2		 								*/
-/* Purpose:														*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
-{
-	static uint8_t ctn = 0;
-	static HCI_ACL_DATA_PCKT_HEADER ACLDataPacketH[10];
-	static uint8_t Datarec[10][20];
-	
-	ACLDataPacketH[ctn] = *ACLDataPacketHeader;
-	memcpy( &Datarec[ctn][0], &Data[0], ACLDataPacketHeader->Data_Total_Length );
-	if( ctn < 9 )
-	{
-		ctn++;
-	}
-}
-
-
-/****************************************************************/
-/* HCI_Number_Of_Completed_Packets()                			*/
-/* Location: 2315 Core_v5.2		 								*/
-/* Purpose: 													*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-void HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_Handle[], uint16_t Num_Completed_Packets[] )
-{
-
-}
-#endif
 
 
 /****************************************************************/

@@ -105,7 +105,7 @@ void MasterNode( void )
 			Timer = 0;
 			SlaveInfo.Adv.AdvData.Size = 0;
 			SlaveInfo.Adv.ScanRspData.Size = 0;
-			SlaveInfo.Connection_Handle =  0xFFFF;
+			SlaveInfo.Connection_Handle = 0xFFFF;
 			MasterStateMachine = INITIATING_STATE;
 		}
 		break;
@@ -126,7 +126,11 @@ void MasterNode( void )
 		break;
 
 	case CONNECTION_STATE:
-		Client( );
+		MasterStateMachine = Get_BLE_State();
+		if( MasterStateMachine == CONNECTION_STATE )
+		{
+			Client( );
+		}
 		break;
 
 	default: break;
@@ -334,11 +338,7 @@ void Master_Connection_Complete( LEEnhancedConnectionComplete* ConnCpltData )
 /****************************************************************/
 void Master_Disconnection_Complete( DisconnectionComplete* DisConnCpltData )
 {
-	uint8_t teste = 0;
-	if(teste)
-	{
-		teste = 0;
-	}
+	Reset_Client( );
 }
 
 

@@ -3,7 +3,7 @@
 /****************************************************************/
 /* Includes                                                     */
 /****************************************************************/
-#include "Master.h"
+#include "Slave.h"
 #include "App.h"
 
 
@@ -16,13 +16,13 @@ typedef enum
 	READ_REMOTE_FEATURES,
 	SEND_DATA,
 	WAIT_COMMAND_TO_FINISH
-}CLIENT_STATES;
+}SERVER_STATES;
 
 
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-//static void Command_Status( CONTROLLER_ERROR_CODES Status );
+static void Command_Status( CONTROLLER_ERROR_CODES Status );
 static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
 		uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
 static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
@@ -42,25 +42,25 @@ static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 /****************************************************************/
 /* Local variables definition                                   */
 /****************************************************************/
-static CLIENT_STATES ClientStateMachine = READ_REMOTE_VERSION_INFO;
+static SERVER_STATES ServerStateMachine = READ_REMOTE_VERSION_INFO;
 
 
 /****************************************************************/
-/* Client()														*/
+/* Server()														*/
 /* Location: 					 								*/
-/* Purpose: Run client code										*/
+/* Purpose: Run server code										*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void Client( void )
+void Server( void )
 {
 	static uint32_t Timer = 0;
 
-	switch ( ClientStateMachine )
+	switch ( ServerStateMachine )
 	{
 	case READ_REMOTE_VERSION_INFO:
-		if ( !HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, NULL ) && TimeBase_DelayMs( &Timer, 1000, TRUE ) )
+		if ( !HCI_Read_Remote_Version_Information( MasterInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, NULL ) && TimeBase_DelayMs( &Timer, 1000, TRUE ) )
 		{
 			HCI_COMMAND_OPCODE OpCode = { .Val = HCI_READ_REMOTE_VERSION_INFORMATION };
 			Clear_Command_CallBack( OpCode );
@@ -68,7 +68,7 @@ void Client( void )
 		break;
 
 	case READ_REMOTE_FEATURES:
-		if ( !HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, NULL ) && TimeBase_DelayMs( &Timer, 1000, TRUE ) )
+		if ( !HCI_LE_Read_Remote_Features( MasterInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, NULL ) && TimeBase_DelayMs( &Timer, 1000, TRUE ) )
 		{
 			HCI_COMMAND_OPCODE OpCode = { .Val = HCI_LE_READ_REMOTE_FEATURES };
 			Clear_Command_CallBack( OpCode );
@@ -77,19 +77,19 @@ void Client( void )
 
 	case SEND_DATA:
 	{
-		static uint32_t Timer2 = 0;
-		static uint32_t Timer3 = 0;
+		static uint32_t Timer = 0;
 		static uint16_t NTries = 0;
+		static uint32_t Timer2 = 0;
 
 		HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
 
-		if( TimeBase_DelayMs( &Timer3, 10, TRUE ) )
+		if( TimeBase_DelayMs( &Timer, 100, TRUE ) )
 		{
 
 			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
 
 			uint8_t Data[7] = { 3, 0, 4, 0, 2, 15, 2 };
-			ACLDataPacketHeader.Handle = SlaveInfo.Connection_Handle;
+			ACLDataPacketHeader.Handle = MasterInfo.Connection_Handle;
 			ACLDataPacketHeader.PB_Flag = 0x0;
 			ACLDataPacketHeader.BC_Flag = 0x0;
 			ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
@@ -108,9 +108,9 @@ void Client( void )
 			}
 		}
 
-		if( TimeBase_DelayMs( &Timer2, 5000, TRUE ) )
+		if( TimeBase_DelayMs( &Timer2, 2500, TRUE ) )
 		{
-			HCI_Disconnect( SlaveInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, NULL );
+			//HCI_Disconnect( MasterInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, &Command_Status );
 		}
 	}
 	break;
@@ -125,16 +125,16 @@ void Client( void )
 
 
 /****************************************************************/
-/* Reset_Client()												*/
+/* Reset_Server()												*/
 /* Location: 					 								*/
-/* Purpose: Reset client code									*/
+/* Purpose: Reset server code									*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void Reset_Client( void )
+void Reset_Server( void )
 {
-	ClientStateMachine = READ_REMOTE_VERSION_INFO;
+	ServerStateMachine = READ_REMOTE_VERSION_INFO;
 }
 
 
@@ -146,13 +146,13 @@ void Reset_Client( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-//static void Command_Status( CONTROLLER_ERROR_CODES Status )
-//{
-//	if( Status != COMMAND_SUCCESS && Status != COMMAND_DISALLOWED )
-//	{
-//
-//	}
-//}
+static void Command_Status( CONTROLLER_ERROR_CODES Status )
+{
+	if( Status != COMMAND_SUCCESS && Status != COMMAND_DISALLOWED )
+	{
+
+	}
+}
 
 
 /****************************************************************/
@@ -168,8 +168,8 @@ static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 {
 	if( Status == COMMAND_SUCCESS )
 	{
-		SlaveInfo.Version = *Remote_Version_Information;
-		ClientStateMachine = READ_REMOTE_FEATURES;
+		MasterInfo.Version = *Remote_Version_Information;
+		ServerStateMachine = SEND_DATA; //READ_REMOTE_FEATURES; //SEND_DATA; //TODO: READ_REMOTE_FEATURES;
 	}
 }
 
@@ -185,15 +185,16 @@ static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
 		uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features )
 {
-	if( ( Status == COMMAND_SUCCESS ) && ( SlaveInfo.Connection_Handle == Connection_Handle ) )
+	if( ( Status == COMMAND_SUCCESS ) && ( MasterInfo.Connection_Handle == Connection_Handle ) )
 	{
-		SlaveInfo.SupFeatures = *LE_Features;
-		ClientStateMachine = SEND_DATA;
+		/* TODO: For some reason, the unknown connection ID is returned when the LE_Read_Remote_Features is issued: we should investigate */
+		MasterInfo.SupFeatures = *LE_Features;
+		ServerStateMachine = SEND_DATA;
 	}
 }
 
 
-#if ( BLE_NODE == BLE_MASTER )
+#if ( BLE_NODE == BLE_SLAVE )
 /****************************************************************/
 /* HCI_Controller_ACL_Data()                					*/
 /* Location: 1892 Core_v5.2		 								*/

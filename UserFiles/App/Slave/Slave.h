@@ -26,6 +26,8 @@ typedef struct
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
 void SlaveNode( void );
+void Server( void );
+void Reset_Server( void );
 
 
 /****************************************************************/
@@ -36,6 +38,7 @@ void SlaveNode( void );
 /****************************************************************/
 /* External variables declaration                               */
 /****************************************************************/
+MASTER_INFO MasterInfo;
 
 
 #endif /* SLAVE_H_ */
