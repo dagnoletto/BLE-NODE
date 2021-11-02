@@ -224,6 +224,20 @@ void HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_H
 		//Npackets += Num_Completed_Packets[0];
 	}
 }
+
+
+/****************************************************************/
+/* HCI_Data_Buffer_Overflow()                					*/
+/* Location: 2325 Core_v5.2		 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_Data_Buffer_Overflow( uint8_t Link_Type )
+{
+
+}
 #endif
 
 
