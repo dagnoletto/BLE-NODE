@@ -47,7 +47,8 @@ typedef enum
 	BUFFER_FREE 		= 0,
 	BUFFER_FULL 		= 1,
 	BUFFER_TRANSMITTING = 2,
-	BUFFER_PAUSED 		= 3
+	BUFFER_PAUSED 		= 3,
+	BUFFER_RESERVED 	= 4
 }BUFFER_STATUS;
 
 
@@ -112,13 +113,12 @@ static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSF
 static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priority);
 static void Init_Buffer_Manager(void);
 static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr);
-static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode, uint8_t Priority);
 inline static BUFFER_DESC* Search_For_Free_Frame(void) __attribute__((always_inline));
 inline static void Release_Frame(void) __attribute__((always_inline));
 static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* ManagerPtr);
 inline static CALLBACK_DESC* Search_For_Free_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
 inline static void Release_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
-static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index);
+static uint8_t Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index);
 inline static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBACK_MANAGEMENT* ManagerPtr ) __attribute__((always_inline));
 static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE TransferMode);
 
@@ -205,7 +205,7 @@ void Run_Bluenrg(void)
 			if( TimeBase_DelayMs( &BufferManager.HoldCounter, BufferManager.HoldTime, TRUE) )
 			{
 				BufferManager.HoldTime = 0;
-				Request_Frame();
+				Bluenrg_Request_Frame();
 			}
 		}
 	}
@@ -361,7 +361,7 @@ static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr)
 /****************************************************************/
 void Bluenrg_IRQ(void)
 {
-	Request_Frame();
+	Bluenrg_Request_Frame();
 }
 
 
@@ -423,24 +423,6 @@ static void Release_Frame(void)
 	FrameHeadReleaseRequest = 0;
 
 	ExitCritical(); /* Critical section exit */
-}
-
-
-/****************************************************************/
-/* Bluenrg_Add_Frame()         	 		              	    	*/
-/* Purpose: Add HCI packet to the transmitting queue			*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-FRAME_ENQUEUE_STATUS Bluenrg_Add_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index)
-{
-	FRAME_ENQUEUE_STATUS Status;
-
-	/* External calls are always write calls. Read calls are triggered by IRQ pin. */
-	Status = Enqueue_Frame(TransferDescPtr, buffer_index, SPI_WRITE, 1);
-
-	return ( Status );
 }
 
 
@@ -532,14 +514,14 @@ static CALLBACK_DESC* Search_For_Free_CallBack(CALLBACK_MANAGEMENT* ManagerPtr)
 
 
 /****************************************************************/
-/* Enqueue_Frame()            	     			               	*/
+/* Bluenrg_Enqueue_Frame()            	                    	*/
 /* Purpose: Enqueue the new frame for transmission in the  		*/
 /* output buffer												*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode, uint8_t Priority)
+FRAME_ENQUEUE_STATUS Bluenrg_Enqueue_Frame(int8_t buffer_index, SPI_TRANSFER_MODE TransferMode, uint8_t Priority)
 {
 	/* BufferTail always represents the last filled buffer.
 	 * BufferHead always represents the first filled buffer.
@@ -550,7 +532,7 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 
 	Status.EnqueuedAtIndex = -1; /* Could not enqueue the frame */
 	Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
-	Status.RequestTransmission = FALSE;
+	Status.BufferUsed = NULL;
 
 	EnterCritical(); /* Critical section enter */
 
@@ -586,11 +568,11 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 
 			ExitCritical();
 
-			BufferPtr->TransferDesc = *TransferDescPtr; /* Occupy this buffer */
+			BufferPtr->TransferDesc.ParentBuffer = BufferPtr;
+			BufferPtr->TransferDesc.RequestTransmission = FALSE;
 			BufferPtr->TransferDesc.Locked = TRUE;
-			BufferPtr->Status = BUFFER_FULL;
+			BufferPtr->Status = BUFFER_RESERVED;
 			BufferPtr->TransferMode = TransferMode;
-			BufferPtr->RemainingBytes = TransferDescPtr->DataSize;
 			BufferPtr->Counter = 0;
 			BufferPtr->Next = Search_For_Free_Frame();
 
@@ -724,6 +706,7 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 			}
 
 			Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
+			Status.BufferUsed = &BufferPtr->TransferDesc;
 
 			EnterCritical();
 
@@ -733,7 +716,7 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 			{
 				ExitCritical();
 				Release_Frame();
-				Status.RequestTransmission = TRUE;
+				BufferPtr->TransferDesc.RequestTransmission = TRUE;
 			}
 			EnterCritical();
 
@@ -741,6 +724,11 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 			Acquire = 0;
 
 			ExitCritical();
+
+			if( ( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) ) )
+			{
+				BufferPtr->TransferDesc.RequestTransmission = TRUE;
+			}
 
 			return (Status);
 
@@ -766,13 +754,31 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 
 
 /****************************************************************/
-/* Request_Frame()            	        						*/
+/* Bluenrg_Set_Buffer_Full()            	       				*/
+/* Purpose: Set buffer since it is supposed to be filled.    	*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Bluenrg_Set_Buffer_Full( void* BufferPtr, uint16_t DataSize )
+{
+	BUFFER_DESC* Buffer = BufferPtr;
+	if( Buffer->Status == BUFFER_RESERVED )
+	{
+		Buffer->RemainingBytes = DataSize;
+		Buffer->Status = BUFFER_FULL;
+	}
+}
+
+
+/****************************************************************/
+/* Bluenrg_Request_Frame()            	        				*/
 /* Purpose: Request buffer transmission.	    		    	*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void Request_Frame(void)
+void Bluenrg_Request_Frame(void)
 {
 	static volatile uint8_t Acquire = 0;
 
@@ -807,7 +813,7 @@ void Request_Frame(void)
 
 	if( !BufferManager.HoldTime ) /* We are not holding */
 	{
-		if( ( BufferManager.BufferHead->Status != BUFFER_FREE ) && ( BufferManager.BufferHead->Status != BUFFER_TRANSMITTING ) )
+		if( ( BufferManager.BufferHead->Status == BUFFER_FULL ) || ( BufferManager.BufferHead->Status == BUFFER_PAUSED ) )
 		{
 			switch( BufferManager.BufferHead->TransferMode )
 			{
@@ -1034,7 +1040,7 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 			Release_Frame();
 		}
 
-		Request_Frame();
+		Bluenrg_Request_Frame();
 	}
 }
 
@@ -1218,19 +1224,27 @@ __attribute__((weak)) void Bluenrg_CallBack_Config(TRANSFER_CALL_BACK_MODE* Call
 /****************************************************************/
 static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priority)
 {
-	TRANSFER_DESCRIPTOR TransferDesc;
+	FRAME_ENQUEUE_STATUS Status = Bluenrg_Enqueue_Frame( 0, HeaderMode, Priority );
 
-	/* Load transmitting queue position */
-	TransferDesc.DataSize = sizeof(SPI_SLAVE_HEADER); /* Put always the size of reading buffer to avoid writing in random memory */
-	TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
-	/* The callback function MUST be configured, although not used in this case */
-	TransferDesc.CallBack = (TransferCallBack)(&Slave_Header_CallBack);
-
-	/* We need to know if we have to read or how much we can write, so put the command in the first position of the queue */
-	/* Acho que não deve empilhar em posição diferente de zero se for um request para slave */
-	if( Enqueue_Frame( &TransferDesc, 0, HeaderMode, Priority ).EnqueuedAtIndex != 0 )
+	if( Status.BufferUsed != NULL )
 	{
-		return (FALSE);
+		/* Load transmitting queue position */
+		Status.BufferUsed->DataSize = sizeof(SPI_SLAVE_HEADER); /* Put always the size of reading buffer to avoid writing in random memory */
+		Status.BufferUsed->CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		/* The callback function MUST be configured, although not used in this case */
+		Status.BufferUsed->CallBack = (TransferCallBack)(&Slave_Header_CallBack);
+
+		Bluenrg_Set_Buffer_Full( Status.BufferUsed->ParentBuffer, sizeof(SPI_SLAVE_HEADER) );
+
+		/* We need to know if we have to read or how much we can write, so put the command in the first position of the queue */
+		/* Acho que não deve empilhar em posição diferente de zero se for um request para slave */
+		if( Status.EnqueuedAtIndex != 0 )
+		{
+			return (FALSE);
+		}
+	}else
+	{
+		return ( FALSE );
 	}
 
 	return (TRUE);
@@ -1244,21 +1258,25 @@ static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priori
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
+static uint8_t Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 {
-	FRAME_ENQUEUE_STATUS Status;
-	TRANSFER_DESCRIPTOR TransferDesc;
-
-	TransferDesc.DataSize = DataSize;
-	TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
-
-	/* The callback function MUST be configured, although not used in this case */
-	TransferDesc.CallBack = (TransferCallBack)(&Bluenrg_CallBack_Config);
-
 	/* Read calls are triggered by IRQ pin. */
-	Status = Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ, 1 );
+	FRAME_ENQUEUE_STATUS Status = Bluenrg_Enqueue_Frame( buffer_index, SPI_READ, 1 );
 
-	return ( Status );
+	if( Status.BufferUsed != NULL )
+	{
+		Status.BufferUsed->DataSize = DataSize;
+		Status.BufferUsed->CallBackMode = CALL_BACK_AFTER_TRANSFER;
+
+		/* The callback function MUST be configured, although not used in this case */
+		Status.BufferUsed->CallBack = (TransferCallBack)(&Bluenrg_CallBack_Config);
+
+		Bluenrg_Set_Buffer_Full( Status.BufferUsed->ParentBuffer, DataSize );
+
+		return (TRUE);
+	}
+
+	return (FALSE);
 }
 
 

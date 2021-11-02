@@ -334,68 +334,57 @@ static void Increment_HCI_Command_Packets( void )
 
 
 /****************************************************************/
-/* HCI_Transmit()                      				            */
-/* Purpose: Higher layers put messages to transmit calling		*/
-/* this function. This function enqueue messages in the 		*/
-/* hardware. 													*/
-/* destination	    											*/
+/* HCI_Get_Transmit_Buffer_Free()           		            */
+/* Purpose: Higher layers get free buffer position here.		*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
-		TRANSFER_CALL_BACK_MODE CallBackMode,
-		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack)
+TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType, HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack)
 {
 	FRAME_ENQUEUE_STATUS Status;
-	HCI_SERIAL_COMMAND_PCKT* CmdPacket = (HCI_SERIAL_COMMAND_PCKT*)( DataPtr ); /* Assume it is a command packet */
+	Status.BufferUsed = NULL;
+
 	CMD_CALLBACK* CallBackPtr = NULL;
 
 	int8_t Ntries = 3;
 
-	TRANSFER_DESCRIPTOR TransferDesc;
-
-	TransferDesc.CallBack = CallBack;
-	TransferDesc.CallBackMode = CallBackMode;
-	TransferDesc.DataSize = DataSize;
-	/* The data MUST be ready at the buffer BEFORE the frame is enqueued */
-	memcpy( (uint8_t*)(TransferDesc.Data), DataPtr, TransferDesc.DataSize );
-
-	if ( CmdPacket->PacketType == HCI_COMMAND_PACKET )
+	if ( PcktType == HCI_COMMAND_PACKET )
 	{
 		if( !Check_Command_Packets_Available() )
 		{
-			return (FALSE);
+			return (Status.BufferUsed);
 		}else
 		{
-			CallBackPtr = Get_Command_CallBack( CmdPacket->CmdPacket.OpCode );
+			CallBackPtr = Get_Command_CallBack( OpCode );
 			if( CallBackPtr != NULL )
 			{
 				if( CallBackPtr->Status )
 				{
-					return (FALSE); /* This command was already loaded and is waiting for conclusion */
+					return (Status.BufferUsed); /* This command was already loaded and is waiting for conclusion */
 				}
 			}
 		}
-	}else if ( CmdPacket->PacketType == HCI_ACL_DATA_PACKET )
+	}else if ( PcktType == HCI_ACL_DATA_PACKET )
 	{
 		if( !Check_Data_Packets_Available() )
 		{
-			return (FALSE);
+			return (Status.BufferUsed);
 		}
 	}
 
 	do
 	{
 		/* As the buffer could be blocked awaiting another operation, you should try some times. */
-		Status = Bluenrg_Add_Frame( &TransferDesc, 7 );
+		Status = Bluenrg_Enqueue_Frame(7, SPI_WRITE, 1);
+
 		Ntries--;
 	}while( ( Status.EnqueuedAtIndex < 0 ) &&  ( Ntries > 0 ) );
 
 
 	if( Status.EnqueuedAtIndex >= 0 ) /* Successfully enqueued */
 	{
-		if( CmdPacket->PacketType == HCI_COMMAND_PACKET )
+		if( PcktType == HCI_COMMAND_PACKET )
 		{
 			Decrement_HCI_Command_Packets(  );
 
@@ -405,27 +394,31 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 				CallBackPtr->CmdStatusCallBack = CmdCallBack->CmdStatusCallBack;
 				CallBackPtr->Status = BUSY;
 			}
-		}else if ( CmdPacket->PacketType == HCI_ACL_DATA_PACKET )
+		}else if ( PcktType == HCI_ACL_DATA_PACKET )
 		{
 			Decrement_HCI_Data_Packets(  );
 		}
+	}
 
-		/* This is the first successfully enqueued write message, so, request transmission */
-		if( ( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) ) || ( Status.RequestTransmission ) )
-		{
-			/* Request transmission */
-			Request_Frame();
-		}
+	return (Status.BufferUsed);
+}
 
-		return (TRUE);
-	}else
+
+/****************************************************************/
+/* HCI_Set_Transmit_Buffer_Full()        			            */
+/* Purpose: Higher layers set buffer full here.					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_Set_Transmit_Buffer_Full(TRANSFER_DESCRIPTOR* TxDescriptor)
+{
+	Bluenrg_Set_Buffer_Full( TxDescriptor->ParentBuffer, TxDescriptor->DataSize );
+
+	if( TxDescriptor->RequestTransmission )
 	{
-		if( Status.RequestTransmission )
-		{
-			/* Request transmission */
-			Request_Frame();
-		}
-		return (FALSE);
+		/* Request transmission */
+		Bluenrg_Request_Frame();
 	}
 }
 

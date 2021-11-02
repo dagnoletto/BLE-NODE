@@ -84,11 +84,16 @@ typedef uint8_t (*TransferCallBack)(void* DataPtr, uint16_t DataSize, TRANSFER_S
 
 typedef struct
 {
+	struct
+	{
+		uint8_t Data[255]; /* TODO: Check if this the maximum allowed for HCI */
+	}__attribute__ ((packed,aligned(1)));
 	uint8_t Locked;
-	uint8_t Data[255]; /* TODO: Check if this the maximum allowed for HCI */
 	uint16_t DataSize;
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
+	uint8_t RequestTransmission; /* If TRUE, the higher layers can request transmission of newly enqueued frame */
+	void* ParentBuffer;
 }TRANSFER_DESCRIPTOR;
 
 
@@ -96,7 +101,7 @@ typedef struct
 {
 	int8_t EnqueuedAtIndex; /* If negative, means that frame was not enqueued */
 	int8_t NumberOfEnqueuedFrames;
-	uint8_t RequestTransmission; /* If TRUE, the higher layers can request transmission of newly enqueued frame */
+	TRANSFER_DESCRIPTOR* BufferUsed;
 }FRAME_ENQUEUE_STATUS;
 
 
@@ -120,9 +125,9 @@ typedef struct
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
-		TRANSFER_CALL_BACK_MODE CallBackMode,
-		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack);
+TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType,
+		HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack);
+void HCI_Set_Transmit_Buffer_Full(TRANSFER_DESCRIPTOR* TxDescriptor);
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
 void Set_Default_Number_Of_HCI_Data_Packets( void );
 void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode );
