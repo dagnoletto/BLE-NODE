@@ -357,8 +357,9 @@ uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
 
 	TransferDesc.CallBack = CallBack;
 	TransferDesc.CallBackMode = CallBackMode;
-	TransferDesc.DataPtr = (uint8_t*)DataPtr;
 	TransferDesc.DataSize = DataSize;
+	/* The data MUST be ready at the buffer BEFORE the frame is enqueued */
+	memcpy( (uint8_t*)(TransferDesc.Data), DataPtr, TransferDesc.DataSize );
 
 	if ( CmdPacket->PacketType == HCI_COMMAND_PACKET )
 	{

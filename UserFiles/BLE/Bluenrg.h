@@ -58,8 +58,6 @@ void Request_Frame(void);
 void Clr_Bluenrg_Reset_Pin(void);
 void Set_Bluenrg_Reset_Pin(void);
 uint8_t Get_Bluenrg_IRQ_Pin(void);
-uint8_t* Bluenrg_malloc_Request(uint16_t DataSize);
-void Bluenrg_free_Request(uint8_t* DataPtr);
 int8_t Bluenrg_Get_Max_Transfer_Queue_Size(void);
 int8_t Bluenrg_Get_Max_CallBack_Queue_Size(void);
 

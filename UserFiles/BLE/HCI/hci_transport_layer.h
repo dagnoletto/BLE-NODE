@@ -84,7 +84,7 @@ typedef uint8_t (*TransferCallBack)(void* DataPtr, uint16_t DataSize, TRANSFER_S
 
 typedef struct
 {
-	uint8_t* DataPtr;
+	uint8_t Data[255]; /* TODO: Check if this the maximum allowed for HCI */
 	uint16_t DataSize;
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */

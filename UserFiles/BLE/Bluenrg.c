@@ -119,8 +119,6 @@ static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* Manage
 inline static CALLBACK_DESC* Search_For_Free_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
 inline static void Release_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
 static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index);
-static uint8_t* Internal_malloc(TRANSFER_DESCRIPTOR* TransferDescPtr, uint16_t DataSize);
-static void Internal_free(TRANSFER_DESCRIPTOR* TransferDescPtr);
 inline static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBACK_MANAGEMENT* ManagerPtr ) __attribute__((always_inline));;
 static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE TransferMode);
 
@@ -135,16 +133,13 @@ static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE 
 /****************************************************************/
 const SPI_MASTER_HEADER SPIMasterHeaderWrite = { .CTRL = CTRL_WRITE, .Dummy = {0,0,0,} };
 const SPI_MASTER_HEADER SPIMasterHeaderRead  = { .CTRL = CTRL_READ, .Dummy = {0,0,0,} };
-static SPI_SLAVE_HEADER SPISlaveHeader;
 static BUFFER_MANAGEMENT BufferManager;
 static CALLBACK_MANAGEMENT ReadCallBackManager;
 static CALLBACK_MANAGEMENT WriteCallBackManager;
-static uint8_t LocalBytes[SIZE_OF_LOCAL_MEMORY_BUFFER];
 static uint8_t DummyByte;
 static uint32_t TimerResetActive = 0;
 static uint8_t ResetBluenrgRequest = TRUE;
 static uint8_t FirstBluenrgReset = TRUE;
-static uint8_t LocalMemoryUsed = FALSE;
 static volatile uint8_t BlockFrameHead = 0;
 static volatile uint8_t BlockRequestFrame = 0;
 static volatile uint8_t FrameHeadRelease = 0;
@@ -245,8 +240,6 @@ static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE 
 			while( Transmitter_Multiplexer( TransferDescPtr, Status ) != TRUE );
 		}
 
-		Internal_free( TransferDescPtr );
-
 		Release_CallBack( ManagerPtr );
 
 		NumberOfCallbacksPerCall--;
@@ -278,13 +271,6 @@ static void Init_Buffer_Manager(void)
 {
 	for( int8_t i = 0; i < SIZE_OF_FRAME_BUFFER; i++ )
 	{
-		if(FirstBluenrgReset)
-		{
-			BufferManager.Buffer[i].TransferDesc.DataPtr = NULL;
-		}else
-		{
-			Internal_free( &BufferManager.Buffer[i].TransferDesc );
-		}
 		BufferManager.Buffer[i].Status = BUFFER_FREE; /* Buffer is free */
 	}
 
@@ -325,7 +311,6 @@ static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr)
 		if( FirstBluenrgReset )
 		{
 			ManagerPtr->CallBack[i].Status = BUFFER_FREE; /* Buffer is free */
-			ManagerPtr->CallBack[i].TransferDesc.DataPtr = NULL;
 		}else if( &ManagerPtr->CallBack[i] == ManagerPtr->CallBackHead )
 		{
 			if( ManagerPtr->CallBackHead->Status == BUFFER_FULL ) /* The buffer is being or will be handled */
@@ -334,12 +319,10 @@ static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr)
 			}else
 			{
 				ManagerPtr->CallBack[i].Status = BUFFER_FREE; /* Buffer is free */
-				Internal_free( &ManagerPtr->CallBack[i].TransferDesc );
 			}
 		}else
 		{
 			ManagerPtr->CallBack[i].Status = BUFFER_FREE; /* Buffer is free */
-			Internal_free( &ManagerPtr->CallBack[i].TransferDesc );
 		}
 	}
 
@@ -447,30 +430,9 @@ static void Release_Frame(void)
 FRAME_ENQUEUE_STATUS Bluenrg_Add_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index)
 {
 	FRAME_ENQUEUE_STATUS Status;
-	uint8_t* DataPtr = TransferDescPtr->DataPtr; /* Save the caller's data pointer */
-	TransferDescPtr->DataPtr = NULL; /* Buffer not allocated */
 
-	if( Internal_malloc( TransferDescPtr, TransferDescPtr->DataSize ) != NULL )
-	{
-		/* The data MUST be ready at the buffer BEFORE the frame is enqueued */
-		memcpy( (uint8_t*)(TransferDescPtr->DataPtr), DataPtr, TransferDescPtr->DataSize );
-
-		/* External calls are always write calls. Read calls are triggered by IRQ pin. */
-		Status = Enqueue_Frame(TransferDescPtr, buffer_index, SPI_WRITE, 1);
-
-		if( Status.EnqueuedAtIndex < 0 )
-		{
-			/* It was not possible to enqueue the frame, so dispose allocated memory  */
-			Internal_free( TransferDescPtr );
-		}
-	}else
-	{
-		Status.EnqueuedAtIndex = -1; /* Memory could'nt be allocated */
-		Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
-		Status.RequestTransmission = FALSE;
-
-		Bluenrg_Error( NO_MEMORY_AVAILABLE );
-	}
+	/* External calls are always write calls. Read calls are triggered by IRQ pin. */
+	Status = Enqueue_Frame(TransferDescPtr, buffer_index, SPI_WRITE, 1);
 
 	return ( Status );
 }
@@ -629,20 +591,20 @@ static FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, 
 			if( TransferMode == SPI_HEADER_READ )
 			{
 				BufferPtr->TxPtr = (uint8_t*)&SPIMasterHeaderRead.CTRL;
-				BufferPtr->RxPtr = TransferDescPtr->DataPtr;
+				BufferPtr->RxPtr = &BufferPtr->TransferDesc.Data[0];
 			}else if( TransferMode == SPI_HEADER_WRITE )
 			{
 				BufferPtr->TxPtr = (uint8_t*)&SPIMasterHeaderWrite.CTRL;
-				BufferPtr->RxPtr = TransferDescPtr->DataPtr;
+				BufferPtr->RxPtr = &BufferPtr->TransferDesc.Data[0];
 			}else if( TransferMode == SPI_WRITE )
 			{
-				BufferPtr->TxPtr = TransferDescPtr->DataPtr;
+				BufferPtr->TxPtr = &BufferPtr->TransferDesc.Data[0];
 				BufferPtr->RxPtr = &DummyByte; /* Just to have a valid pointer */
 			}else
 			{
 				/* The slave header always precede the read operation, so we don't need a full valid TX dummy buffer */
 				BufferPtr->TxPtr = &DummyByte; /* Just to have a valid pointer */
-				BufferPtr->RxPtr = TransferDescPtr->DataPtr;
+				BufferPtr->RxPtr = &BufferPtr->TransferDesc.Data[0];
 			}
 
 			BufferManager.NumberOfFilledBuffers++;
@@ -1000,15 +962,9 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 					{
 						ReleaseSPI = Slave_Header_CallBack( TransferDescPtr, BufferManager.BufferHead->TransferMode );
 
-						/* The SPI_HEADER_READ must not be deallocated since its memory is not dynamic. Just "lies" that memory is freed. */
-						TransferDescPtr->DataPtr = NULL;
-
 					}else if( BufferManager.BufferHead->TransferMode == SPI_WRITE )
 					{
-						if( Transmitter_Multiplexer( TransferDescPtr, BufferManager.BufferHead->TransferStatus ) == TRUE )
-						{
-							Internal_free( TransferDescPtr );
-						}else
+						if( Transmitter_Multiplexer( TransferDescPtr, BufferManager.BufferHead->TransferStatus ) != TRUE )
 						{
 							/* The handler is blocked by some other process. Put the callback in the queue to be processed later. */
 							Safe_Enqueue_CallBack( TransferDescPtr, &WriteCallBackManager );
@@ -1016,15 +972,12 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 					}else /* SPI_READ */
 					{
 						/* Call application to check what to do with the data */
-						Bluenrg_CallBack_Config( &(TransferDescPtr->CallBackMode), (HCI_PACKET_TYPE)(*TransferDescPtr->DataPtr), (TransferDescPtr->DataPtr + 1) );
+						Bluenrg_CallBack_Config( &(TransferDescPtr->CallBackMode), (HCI_PACKET_TYPE)(TransferDescPtr->Data[0]), (&TransferDescPtr->Data[1]) );
 
 						/* The SPI read enqueues the multiplexer function */
 						if( TransferDescPtr->CallBackMode == CALL_BACK_AFTER_TRANSFER )
 						{
-							if( Receiver_Multiplexer( TransferDescPtr, BufferManager.BufferHead->TransferStatus ) == TRUE )
-							{
-								Internal_free( TransferDescPtr );
-							}else
+							if( Receiver_Multiplexer( TransferDescPtr, BufferManager.BufferHead->TransferStatus ) != TRUE )
 							{
 								Safe_Enqueue_CallBack( TransferDescPtr, &ReadCallBackManager );
 							}
@@ -1047,9 +1000,6 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 
 					Safe_Enqueue_CallBack( TransferDescPtr, ManagerPtr );
 				}
-			}else
-			{
-				Internal_free( TransferDescPtr );
 			}
 
 			/* After a read or write we should always release the SPI. For the following reasons: */
@@ -1106,11 +1056,8 @@ static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBAC
 
 	if( Enqueue_CallBack( BufferManager.BufferHead, ManagerPtr ) != TRUE )
 	{
-		Internal_free( TransferDescPtr );
 		Bluenrg_Error( QUEUE_IS_FULL );
 	}
-	/* This is not a real deallocation, because the callback queue might still be using the pointer. It is just to free the buffer for new allocation */
-	TransferDescPtr->DataPtr = NULL;
 
 	EnterCritical(); /* Critical section enter */
 
@@ -1157,7 +1104,7 @@ static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_T
 	uint8_t static NoAllowedWriteCounter = 0;
 	uint8_t static ErroneousResponseCounter = 0;
 
-	SPI_SLAVE_HEADER* Header = (SPI_SLAVE_HEADER*)( TransferDescPtr->DataPtr );
+	SPI_SLAVE_HEADER* Header = (SPI_SLAVE_HEADER*)( &TransferDescPtr->Data[0] );
 
 	if( Header->READY == DEVICE_READY )
 	{
@@ -1263,8 +1210,7 @@ static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priori
 	TRANSFER_DESCRIPTOR TransferDesc;
 
 	/* Load transmitting queue position */
-	TransferDesc.DataPtr = &SPISlaveHeader.READY;
-	TransferDesc.DataSize = sizeof(SPISlaveHeader); /* Put always the size of reading buffer to avoid writing in random memory */
+	TransferDesc.DataSize = sizeof(SPI_SLAVE_HEADER); /* Put always the size of reading buffer to avoid writing in random memory */
 	TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
 	/* The callback function MUST be configured, although not used in this case */
 	TransferDesc.CallBack = (TransferCallBack)(&Slave_Header_CallBack);
@@ -1292,32 +1238,14 @@ static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 	FRAME_ENQUEUE_STATUS Status;
 	TRANSFER_DESCRIPTOR TransferDesc;
 
-	/* Load queue position */
-	TransferDesc.DataPtr = NULL; /* Just for the allocate function to know that it is free */
-	if( Internal_malloc( &TransferDesc, DataSize ) != NULL )
-	{
-		TransferDesc.DataSize = DataSize;
-		TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+	TransferDesc.DataSize = DataSize;
+	TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
 
-		/* The callback function MUST be configured, although not used in this case */
-		TransferDesc.CallBack = (TransferCallBack)(&Bluenrg_CallBack_Config);
+	/* The callback function MUST be configured, although not used in this case */
+	TransferDesc.CallBack = (TransferCallBack)(&Bluenrg_CallBack_Config);
 
-		/* Read calls are triggered by IRQ pin. */
-		Status = Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ, 1 );
-
-		if( Status.EnqueuedAtIndex < 0 )
-		{
-			/* It was not possible to enqueue the frame, so dispose allocated memory  */
-			Internal_free( &TransferDesc );
-		}
-	}else
-	{
-		Status.EnqueuedAtIndex = -1; /* Memory could'nt be allocated */
-		Status.NumberOfEnqueuedFrames = BufferManager.NumberOfFilledBuffers;
-		Status.RequestTransmission = FALSE;
-
-		Bluenrg_Error( NO_MEMORY_AVAILABLE );
-	}
+	/* Read calls are triggered by IRQ pin. */
+	Status = Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ, 1 );
 
 	return ( Status );
 }
@@ -1347,7 +1275,7 @@ static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSF
 
 	ExitCritical(); /* Critical section exit */
 
-	HCI_Receive( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, Status );
+	HCI_Receive( &TransferDescPtr->Data[0], TransferDescPtr->DataSize, Status );
 
 	EnterCritical(); /* Critical section enter */
 
@@ -1383,7 +1311,7 @@ static uint8_t Transmitter_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRA
 
 	ExitCritical(); /* Critical section exit */
 
-	TransferDescPtr->CallBack( TransferDescPtr->DataPtr, TransferDescPtr->DataSize, Status );
+	TransferDescPtr->CallBack( &TransferDescPtr->Data[0], TransferDescPtr->DataSize, Status );
 
 	EnterCritical(); /* Critical section enter */
 
@@ -1393,92 +1321,6 @@ static uint8_t Transmitter_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRA
 
 	return (TRUE);
 
-}
-
-
-/****************************************************************/
-/* Internal_malloc()     	  		 	                	    */
-/* Purpose: Allocates memory for read and write operations 		*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static uint8_t* Internal_malloc(TRANSFER_DESCRIPTOR* TransferDescPtr, uint16_t DataSize)
-{
-	/* Function used whenever operations need memory. If local buffer is not being used,
-	 * return it, otherwise, request from external sources */
-
-	/* First make sure the memory is freed */
-	Internal_free( TransferDescPtr );
-
-	if( ( !LocalMemoryUsed ) && ( DataSize <= SIZE_OF_LOCAL_MEMORY_BUFFER ) )
-	{
-		LocalMemoryUsed = TRUE;
-		TransferDescPtr->DataPtr = &(LocalBytes[0]);
-	}else
-	{
-		TransferDescPtr->DataPtr = Bluenrg_malloc_Request(DataSize);
-	}
-
-	return ( TransferDescPtr->DataPtr );
-}
-
-
-/****************************************************************/
-/* Bluenrg_malloc_Request()     	  		 	           	    */
-/* Purpose: Allocates memory for read and write operations 		*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-__attribute__((weak)) uint8_t* Bluenrg_malloc_Request(uint16_t DataSize)
-{
-	/* This function can be implemented externally also to have
-	 * control over allocation */
-	return ( malloc( DataSize ) );
-}
-
-
-/****************************************************************/
-/* Internal_free()     	  		 	               		 	    */
-/* Purpose: Deallocates memory for read and write operations 	*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Internal_free(TRANSFER_DESCRIPTOR* TransferDescPtr)
-{
-	uint8_t* DataPtr = TransferDescPtr->DataPtr;
-
-	if( DataPtr != NULL ) /* There is memory allocated */
-	{
-		if( DataPtr == ( &(LocalBytes[0]) ) )
-		{
-			/* It is local allocation */
-			LocalMemoryUsed = FALSE;
-		}else
-		{
-			/* It is external allocation */
-			Bluenrg_free_Request(DataPtr);
-		}
-
-		TransferDescPtr->DataPtr = NULL;
-	}
-}
-
-
-/****************************************************************/
-/* Bluenrg_free_Request()     	  		 		       	    	*/
-/* Purpose: Deallocates memory for read and write operations 	*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-__attribute__((weak)) void Bluenrg_free_Request(uint8_t* DataPtr)
-{
-	/* This function can be implemented externally also to have
-	 * control over deallocation */
-	free( DataPtr );
 }
 
 
