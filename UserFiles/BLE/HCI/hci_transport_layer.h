@@ -125,8 +125,10 @@ typedef struct
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType,
-		HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack);
+TRANSFER_DESCRIPTOR* HCI_Get_Command_Transmit_Buffer_Free(uint16_t OpCodeVal,
+		void* CmdComplete, void* CmdStatus );
+TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType, uint16_t OpCodeVal,
+		void* CmdComplete, void* CmdStatus );
 void HCI_Set_Transmit_Buffer_Full(TRANSFER_DESCRIPTOR* TxDescriptor);
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
 void Set_Default_Number_Of_HCI_Data_Packets( void );

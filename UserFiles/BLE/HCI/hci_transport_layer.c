@@ -33,6 +33,9 @@ static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
 static void Increment_HCI_Command_Packets( void );
 
+static uint8_t Verify_Command_Availability( FRAME_ENQUEUE_STATUS* EnqueueStatus, uint16_t OpCodeVal,
+		void* CmdComplete, void* CmdStatus );
+
 static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
 		HCI_EVENT_PCKT* EventPacketPtr, uint8_t Num_HCI_Cmd_Packets );
 static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
@@ -340,8 +343,10 @@ static void Increment_HCI_Command_Packets( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType, HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack)
+TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType, uint16_t OpCodeVal,
+		void* CmdComplete, void* CmdStatus )
 {
+	/* TODO: adicionar bloqueio se o mesmo opcode estiver sendo chamado de outra thread */
 	FRAME_ENQUEUE_STATUS Status;
 	Status.BufferUsed = NULL;
 
@@ -356,6 +361,8 @@ TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType, HCI_
 			return (Status.BufferUsed);
 		}else
 		{
+			HCI_COMMAND_OPCODE OpCode;
+			OpCode.Val = OpCodeVal;
 			CallBackPtr = Get_Command_CallBack( OpCode );
 			if( CallBackPtr != NULL )
 			{
@@ -390,8 +397,8 @@ TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType, HCI_
 
 			if( CallBackPtr != NULL )
 			{
-				CallBackPtr->CmdCompleteCallBack = CmdCallBack->CmdCompleteCallBack;
-				CallBackPtr->CmdStatusCallBack = CmdCallBack->CmdStatusCallBack;
+				CallBackPtr->CmdCompleteCallBack = CmdComplete;
+				CallBackPtr->CmdStatusCallBack = CmdStatus;
 				CallBackPtr->Status = BUSY;
 			}
 		}else if ( PcktType == HCI_ACL_DATA_PACKET )
@@ -401,6 +408,103 @@ TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType, HCI_
 	}
 
 	return (Status.BufferUsed);
+}
+
+
+/****************************************************************/
+/* HCI_Get_Command_Transmit_Buffer_Free()       	            */
+/* Purpose: Higher layers get free buffer position here.		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+TRANSFER_DESCRIPTOR* HCI_Get_Command_Transmit_Buffer_Free(uint16_t OpCodeVal,
+		void* CmdComplete, void* CmdStatus )
+{
+	FRAME_ENQUEUE_STATUS Status;
+
+	while( !Verify_Command_Availability( &Status, OpCodeVal, CmdComplete, CmdStatus ) );
+
+	return (Status.BufferUsed);
+}
+
+
+/****************************************************************/
+/* Verify_Command_Availability()        			            */
+/* Purpose: Thread safe command is available.					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Verify_Command_Availability( FRAME_ENQUEUE_STATUS* EnqueueStatus, uint16_t OpCodeVal,
+		void* CmdComplete, void* CmdStatus )
+{
+	static volatile uint8_t Acquire = 0;
+
+	EnterCritical(); /* Critical section enter */
+
+	Acquire++;
+
+	if( Acquire != 1 ) /* Cannot enqueue while a frame is being released */
+	{
+		ExitCritical(); /* Critical section exit */
+		return (FALSE); /* This function is already being handled and we are not going to mix it up */
+	}
+
+	ExitCritical();
+
+	CMD_CALLBACK* CallBackPtr = NULL;
+	uint8_t CmdAvailable = FALSE;
+	int8_t Ntries = 3;
+
+	EnqueueStatus->BufferUsed = NULL;
+
+	if( Check_Command_Packets_Available() )
+	{
+		CmdAvailable = TRUE;
+		HCI_COMMAND_OPCODE OpCode;
+		OpCode.Val = OpCodeVal;
+		CallBackPtr = Get_Command_CallBack( OpCode );
+		if( CallBackPtr != NULL )
+		{
+			if( CallBackPtr->Status )
+			{
+				CmdAvailable = FALSE; /* This command was already loaded and is waiting for conclusion */
+			}
+		}
+	}
+
+	if( CmdAvailable )
+	{
+		do
+		{
+			/* As the buffer could be blocked awaiting another operation, you should try some times. */
+			*EnqueueStatus = Bluenrg_Enqueue_Frame(7, SPI_WRITE, 1);
+
+			Ntries--;
+		}while( ( EnqueueStatus->BufferUsed == NULL ) &&  ( Ntries > 0 ) );
+	}
+
+
+	if( EnqueueStatus->BufferUsed != NULL ) /* Successfully enqueued */
+	{
+		Decrement_HCI_Command_Packets(  );
+
+		if( CallBackPtr != NULL )
+		{
+			CallBackPtr->CmdCompleteCallBack = CmdComplete;
+			CallBackPtr->CmdStatusCallBack = CmdStatus;
+			CallBackPtr->Status = BUSY;
+		}
+	}
+
+	EnterCritical(); /* Critical section enter */
+
+	Acquire = 0;
+
+	ExitCritical(); /* Critical section exit */
+
+	return (TRUE);
 }
 
 
