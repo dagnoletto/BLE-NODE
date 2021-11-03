@@ -84,11 +84,14 @@ typedef uint8_t (*TransferCallBack)(void* DataPtr, uint16_t DataSize, TRANSFER_S
 
 typedef struct
 {
-	struct
-	{
-		uint8_t Data[255]; /* TODO: Check if this the maximum allowed for HCI */
-	}__attribute__ ((packed,aligned(1)));
-	uint16_t DataSize;
+	uint8_t Bytes[255]; /* TODO: Check if this the maximum allowed for HCI */
+	uint16_t Size;
+}TRANSFER_DESC_DATA __attribute__ ((packed,aligned(1)));
+
+
+typedef struct
+{
+	TRANSFER_DESC_DATA Data;
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
 	uint8_t RequestTransmission; /* If TRUE, the higher layers can request transmission of newly enqueued frame */
