@@ -94,18 +94,18 @@ void Client( void )
 			ACLDataPacketHeader.BC_Flag = 0x0;
 			ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
 
-			if( HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] ) )
-			{
-				NTries = 5;
-			}else if( NTries )
-			{
-				NTries--;
-				if( !NTries )
-				{
-					NTries = 5;
-					Set_Default_Number_Of_HCI_Data_Packets();
-				}
-			}
+//			if( HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] ) )
+//			{
+//				NTries = 5;
+//			}else if( NTries )
+//			{
+//				NTries--;
+//				if( !NTries )
+//				{
+//					NTries = 5;
+//					Set_Default_Number_Of_HCI_Data_Packets();
+//				}
+//			}
 		}
 
 		if( TimeBase_DelayMs( &Timer2, 5000, TRUE ) )

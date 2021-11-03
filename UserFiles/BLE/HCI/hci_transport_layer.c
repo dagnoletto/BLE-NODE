@@ -519,7 +519,7 @@ void HCI_Set_Transmit_Buffer_Full(TRANSFER_DESCRIPTOR* TxDescriptor)
 {
 	Bluenrg_Set_Buffer_Full( TxDescriptor->ParentBuffer, TxDescriptor->DataSize );
 
-	if( TxDescriptor->RequestTransmission )
+	if( /*TxDescriptor->RequestTransmission*/1/*TODO */ )
 	{
 		/* Request transmission */
 		Bluenrg_Request_Frame();

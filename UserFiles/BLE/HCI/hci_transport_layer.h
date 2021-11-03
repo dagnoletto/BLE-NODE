@@ -88,7 +88,6 @@ typedef struct
 	{
 		uint8_t Data[255]; /* TODO: Check if this the maximum allowed for HCI */
 	}__attribute__ ((packed,aligned(1)));
-	uint8_t Locked;
 	uint16_t DataSize;
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */

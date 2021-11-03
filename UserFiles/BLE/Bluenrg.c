@@ -84,7 +84,7 @@ typedef struct
 	uint8_t Status; /* It indicates the BUFFER_STATUS */
 	uint8_t TransferStatus; /* It indicates the TRANSFER_STATUS */
 	void* Next;
-	TRANSFER_DESCRIPTOR* TransferDescPtr;
+	TRANSFER_DESCRIPTOR TransferDesc;
 }CALLBACK_DESC;
 
 
@@ -228,7 +228,7 @@ static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE 
 
 	while( ( ManagerPtr->CallBackHead->Status == BUFFER_FULL ) && ( NumberOfCallbacksPerCall > 0 ) )
 	{
-		TransferDescPtr = ManagerPtr->CallBackHead->TransferDescPtr;
+		TransferDescPtr = &ManagerPtr->CallBackHead->TransferDesc;
 		Status = ManagerPtr->CallBackHead->TransferStatus;
 
 		/* Blocks until the resource is acquired */
@@ -239,8 +239,6 @@ static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE 
 		{
 			while( Transmitter_Multiplexer( TransferDescPtr, Status ) != TRUE );
 		}
-
-		TransferDescPtr->Locked = FALSE;
 
 		Release_CallBack( ManagerPtr );
 
@@ -273,10 +271,6 @@ static void Init_Buffer_Manager(void)
 {
 	for( int8_t i = 0; i < SIZE_OF_FRAME_BUFFER; i++ )
 	{
-		if(FirstBluenrgReset)
-		{
-			BufferManager.Buffer[i].TransferDesc.Locked = FALSE;
-		}
 		BufferManager.Buffer[i].Status = BUFFER_FREE; /* Buffer is free */
 	}
 
@@ -472,7 +466,14 @@ static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* Manage
 	{
 		if( CallBackPtr->Status == BUFFER_FREE ) /* Check if buffer is free */
 		{
-			CallBackPtr->TransferDescPtr = &Buffer->TransferDesc; /* Occupy this buffer */
+			/* Occupy this buffer */
+			CallBackPtr->TransferDesc.CallBackMode = Buffer->TransferDesc.CallBackMode;
+			CallBackPtr->TransferDesc.CallBack = Buffer->TransferDesc.CallBack;
+			CallBackPtr->TransferDesc.RequestTransmission = Buffer->TransferDesc.RequestTransmission;
+			CallBackPtr->TransferDesc.ParentBuffer = Buffer->TransferDesc.ParentBuffer;
+			CallBackPtr->TransferDesc.DataSize = Buffer->TransferDesc.DataSize;
+			memcpy( &CallBackPtr->TransferDesc.Data[0], &Buffer->TransferDesc.Data[0], Buffer->TransferDesc.DataSize );
+
 			CallBackPtr->Status = BUFFER_FULL;
 			CallBackPtr->Next = Search_For_Free_CallBack( ManagerPtr );
 
@@ -570,7 +571,6 @@ FRAME_ENQUEUE_STATUS Bluenrg_Enqueue_Frame(int8_t buffer_index, SPI_TRANSFER_MOD
 
 			BufferPtr->TransferDesc.ParentBuffer = BufferPtr;
 			BufferPtr->TransferDesc.RequestTransmission = FALSE;
-			BufferPtr->TransferDesc.Locked = TRUE;
 			BufferPtr->Status = BUFFER_RESERVED;
 			BufferPtr->TransferMode = TransferMode;
 			BufferPtr->Counter = 0;
@@ -973,7 +973,6 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 					if( ( BufferManager.BufferHead->TransferMode == SPI_HEADER_READ ) || ( BufferManager.BufferHead->TransferMode == SPI_HEADER_WRITE ) )
 					{
 						ReleaseSPI = Slave_Header_CallBack( TransferDescPtr, BufferManager.BufferHead->TransferMode );
-						TransferDescPtr->Locked = FALSE;
 
 					}else if( BufferManager.BufferHead->TransferMode == SPI_WRITE )
 					{
@@ -1013,9 +1012,6 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 
 					Safe_Enqueue_CallBack( TransferDescPtr, ManagerPtr );
 				}
-			}else
-			{
-				TransferDescPtr->Locked = FALSE;
 			}
 
 			/* After a read or write we should always release the SPI. For the following reasons: */
@@ -1072,7 +1068,6 @@ static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBAC
 
 	if( Enqueue_CallBack( BufferManager.BufferHead, ManagerPtr ) != TRUE )
 	{
-		TransferDescPtr->Locked = FALSE;
 		Bluenrg_Error( QUEUE_IS_FULL );
 	}
 
@@ -1098,7 +1093,7 @@ static BUFFER_DESC* Search_For_Free_Frame(void)
 	 * buffer usage to more quickly find a buffer. */
 	for ( int8_t i = 0; i < SIZE_OF_FRAME_BUFFER; i++ )
 	{
-		if( ( BufferManager.Buffer[i].Status == BUFFER_FREE ) && ( BufferManager.Buffer[i].TransferDesc.Locked == FALSE ) )
+		if( ( BufferManager.Buffer[i].Status == BUFFER_FREE ) )
 		{
 			return ( &BufferManager.Buffer[i] );
 		}
@@ -1308,7 +1303,6 @@ static uint8_t Receiver_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSF
 
 	EnterCritical(); /* Critical section enter */
 
-	TransferDescPtr->Locked = FALSE;
 	Acquire = 0;
 
 	ExitCritical(); /* Critical section exit */
@@ -1345,7 +1339,6 @@ static uint8_t Transmitter_Multiplexer(TRANSFER_DESCRIPTOR* TransferDescPtr, TRA
 
 	EnterCritical(); /* Critical section enter */
 
-	TransferDescPtr->Locked = FALSE;
 	Acquire = 0;
 
 	ExitCritical(); /* Critical section exit */
