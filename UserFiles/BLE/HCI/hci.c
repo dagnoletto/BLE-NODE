@@ -62,6 +62,8 @@
 /****************************************************************/
 uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reason, DefCmdStatus StatusCallBack )
 {
+	uint8_t Status = FALSE;
+
 	if( Connection_Handle <= MAX_CONNECTION_HANDLE )
 	{
 
@@ -79,38 +81,30 @@ uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reaso
 			break;
 
 		default:
-			return (FALSE);
+			return (Status);
 			break;
 		}
 
-		TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_DISCONNECT, NULL, StatusCallBack );
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 3;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		if( TxDesc != NULL )
-		{
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = HCI_DISCONNECT;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 3;
 
-			TxDesc->CallBack = NULL;
-			TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-			TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 3;
+		PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
+		PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
+		PcktPtr->CmdPacket.Parameter[2] = Reason;
 
-			HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = NULL, .CmdStatusCallBack = StatusCallBack };
 
-			PcktPtr->PacketType = HCI_COMMAND_PACKET;
-			PcktPtr->CmdPacket.OpCode.Val = HCI_DISCONNECT;
-			PcktPtr->CmdPacket.Parameter_Total_Length = 3;
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-			PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
-			PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
-			PcktPtr->CmdPacket.Parameter[2] = Reason;
-
-			HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-			return (TRUE);
-
-		}
+		free( PcktPtr );
 
 	}
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -128,34 +122,28 @@ uint8_t HCI_Disconnect( uint16_t Connection_Handle, CONTROLLER_ERROR_CODES Reaso
 uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle,
 		ReadRemoteVerInfoComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
+	uint8_t Status = FALSE;
+
 	if( Connection_Handle <= MAX_CONNECTION_HANDLE )
 	{
-		TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_READ_REMOTE_VERSION_INFORMATION,
-				CompleteCallBack, StatusCallBack );
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		if( TxDesc != NULL )
-		{
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = HCI_READ_REMOTE_VERSION_INFORMATION;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 2;
 
-			TxDesc->CallBack = NULL;
-			TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-			TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+		PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
+		PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
 
-			HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-			PcktPtr->PacketType = HCI_COMMAND_PACKET;
-			PcktPtr->CmdPacket.OpCode.Val = HCI_READ_REMOTE_VERSION_INFORMATION;
-			PcktPtr->CmdPacket.Parameter_Total_Length = 2;
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-			PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
-			PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
-
-			HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-			return (TRUE);
-		}
+		free( PcktPtr );
 	}
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -176,31 +164,27 @@ uint8_t HCI_Read_Remote_Version_Information( uint16_t Connection_Handle,
 /****************************************************************/
 uint8_t HCI_Set_Event_Mask( EVENT_MASK Event_Mask, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_SET_EVENT_MASK, CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + sizeof(EVENT_MASK);
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_SET_EVENT_MASK;
+	PcktPtr->CmdPacket.Parameter_Total_Length = sizeof(EVENT_MASK);
+
+	for( int8_t i = 0; i < sizeof(EVENT_MASK); i++ )
 	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + sizeof(EVENT_MASK);
-
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
-
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_SET_EVENT_MASK;
-		PcktPtr->CmdPacket.Parameter_Total_Length = sizeof(EVENT_MASK);
-
-		for( int8_t i = 0; i < sizeof(EVENT_MASK); i++ )
-		{
-			PcktPtr->CmdPacket.Parameter[i] = Event_Mask.Bytes[i];
-		}
-
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-		return (TRUE);
+		PcktPtr->CmdPacket.Parameter[i] = Event_Mask.Bytes[i];
 	}
 
-	return (FALSE);
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
 }
 
 
@@ -218,36 +202,29 @@ uint8_t HCI_Set_Event_Mask( EVENT_MASK Event_Mask, DefCmdComplete CompleteCallBa
 uint8_t HCI_Read_Transmit_Power_Level( uint16_t Connection_Handle, uint8_t Type,
 		TxPwrLvlComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
+	uint8_t Status = FALSE;
+
 	if( ( Connection_Handle <= MAX_CONNECTION_HANDLE ) && ( Type <= 1 ) )
 	{
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 3;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_READ_TRANSMIT_POWER_LEVEL,
-				CompleteCallBack, StatusCallBack );
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = HCI_READ_TRANSMIT_POWER_LEVEL;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 3;
 
-		if( TxDesc != NULL )
-		{
+		PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
+		PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
+		PcktPtr->CmdPacket.Parameter[2] = Type;
 
-			TxDesc->CallBack = NULL;
-			TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-			TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 3;
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-			HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-			PcktPtr->PacketType = HCI_COMMAND_PACKET;
-			PcktPtr->CmdPacket.OpCode.Val = HCI_READ_TRANSMIT_POWER_LEVEL;
-			PcktPtr->CmdPacket.Parameter_Total_Length = 3;
-
-			PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
-			PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
-			PcktPtr->CmdPacket.Parameter[2] = Type;
-
-			HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-			return (TRUE);
-		}
+		free( PcktPtr );
 	}
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -276,26 +253,19 @@ uint8_t HCI_Read_Transmit_Power_Level( uint16_t Connection_Handle, uint8_t Type,
 /****************************************************************/
 uint8_t HCI_Reset( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_RESET, CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_RESET;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_RESET;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -311,27 +281,19 @@ uint8_t HCI_Reset( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack 
 /****************************************************************/
 uint8_t HCI_Read_Local_Version_Information( ReadLocalVerInfoComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_READ_LOCAL_VERSION_INFORMATION,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_READ_LOCAL_VERSION_INFORMATION;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_READ_LOCAL_VERSION_INFORMATION;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -349,27 +311,19 @@ uint8_t HCI_Read_Local_Version_Information( ReadLocalVerInfoComplete CompleteCal
 /****************************************************************/
 uint8_t HCI_Read_Local_Supported_Commands( ReadLocalSupCmdsComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_READ_LOCAL_SUPPORTED_COMMANDS,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_READ_LOCAL_SUPPORTED_COMMANDS;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_READ_LOCAL_SUPPORTED_COMMANDS;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -386,27 +340,19 @@ uint8_t HCI_Read_Local_Supported_Commands( ReadLocalSupCmdsComplete CompleteCall
 /****************************************************************/
 uint8_t HCI_Read_Local_Supported_Features( ReadLocalSupFeaturesComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_READ_LOCAL_SUPPORTED_FEATURES,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_READ_LOCAL_SUPPORTED_FEATURES;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_READ_LOCAL_SUPPORTED_FEATURES;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -427,27 +373,19 @@ uint8_t HCI_Read_Local_Supported_Features( ReadLocalSupFeaturesComplete Complete
 /****************************************************************/
 uint8_t HCI_Read_BD_ADDR( ReadBDADDRComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_READ_BD_ADDR,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_READ_BD_ADDR;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_READ_BD_ADDR;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -462,34 +400,28 @@ uint8_t HCI_Read_BD_ADDR( ReadBDADDRComplete CompleteCallBack, DefCmdStatus Stat
 /****************************************************************/
 uint8_t HCI_Read_RSSI( uint16_t Handle, ReadRSSIComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
+	uint8_t Status = FALSE;
+
 	if( Handle <= MAX_CONNECTION_HANDLE )
 	{
-		TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_READ_RSSI,
-				CompleteCallBack, StatusCallBack );
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		if( TxDesc != NULL )
-		{
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = HCI_READ_RSSI;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 2;
 
-			TxDesc->CallBack = NULL;
-			TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-			TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+		PcktPtr->CmdPacket.Parameter[0] = Handle & 0xFF;
+		PcktPtr->CmdPacket.Parameter[1] = ( Handle >> 8 ) & 0xFF;
 
-			HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-			PcktPtr->PacketType = HCI_COMMAND_PACKET;
-			PcktPtr->CmdPacket.OpCode.Val = HCI_READ_RSSI;
-			PcktPtr->CmdPacket.Parameter_Total_Length = 2;
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-			PcktPtr->CmdPacket.Parameter[0] = Handle & 0xFF;
-			PcktPtr->CmdPacket.Parameter[1] = ( Handle >> 8 ) & 0xFF;
-
-			HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-			return (TRUE);
-		}
+		free( PcktPtr );
 	}
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -514,32 +446,27 @@ uint8_t HCI_Read_RSSI( uint16_t Handle, ReadRSSIComplete CompleteCallBack, DefCm
 /****************************************************************/
 uint8_t HCI_LE_Set_Event_Mask( LE_EVENT_MASK LE_Event_Mask, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_EVENT_MASK,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + sizeof(LE_EVENT_MASK);
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_EVENT_MASK;
+	PcktPtr->CmdPacket.Parameter_Total_Length = sizeof(LE_EVENT_MASK);
+
+	for( int8_t i = 0; i < sizeof(LE_EVENT_MASK); i++ )
 	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + sizeof(LE_EVENT_MASK);
-
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
-
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_EVENT_MASK;
-		PcktPtr->CmdPacket.Parameter_Total_Length = sizeof(LE_EVENT_MASK);
-
-		for( int8_t i = 0; i < sizeof(LE_EVENT_MASK); i++ )
-		{
-			PcktPtr->CmdPacket.Parameter[i] = LE_Event_Mask.Bytes[i];
-		}
-
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-		return (TRUE);
+		PcktPtr->CmdPacket.Parameter[i] = LE_Event_Mask.Bytes[i];
 	}
 
-	return (FALSE);
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
 }
 
 
@@ -595,27 +522,19 @@ uint8_t HCI_LE_Set_Event_Mask( LE_EVENT_MASK LE_Event_Mask, DefCmdComplete Compl
 /****************************************************************/
 uint8_t HCI_LE_Read_Buffer_Size( LEReadBufferSizeComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_READ_BUFFER_SIZE,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_READ_BUFFER_SIZE;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_BUFFER_SIZE;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -630,27 +549,19 @@ uint8_t HCI_LE_Read_Buffer_Size( LEReadBufferSizeComplete CompleteCallBack, DefC
 /****************************************************************/
 uint8_t HCI_LE_Read_Local_Supported_Features( LEReadLocalSuppFeaturesComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_READ_LOCAL_SUPPORTED_FEATURES,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_READ_LOCAL_SUPPORTED_FEATURES;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_LOCAL_SUPPORTED_FEATURES;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -682,32 +593,27 @@ uint8_t HCI_LE_Read_Local_Supported_Features( LEReadLocalSuppFeaturesComplete Co
 /****************************************************************/
 uint8_t HCI_LE_Set_Random_Address( BD_ADDR_TYPE Random_Address, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_RANDOM_ADDRESS,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + sizeof(Random_Address);
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_RANDOM_ADDRESS;
+	PcktPtr->CmdPacket.Parameter_Total_Length = sizeof(Random_Address);
+
+	for( int8_t i = 0; i < sizeof(Random_Address); i++ )
 	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + sizeof(Random_Address);
-
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
-
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_RANDOM_ADDRESS;
-		PcktPtr->CmdPacket.Parameter_Total_Length = sizeof(Random_Address);
-
-		for( int8_t i = 0; i < sizeof(Random_Address); i++ )
-		{
-			PcktPtr->CmdPacket.Parameter[i] = Random_Address.Bytes[i];
-		}
-
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-		return (TRUE);
+		PcktPtr->CmdPacket.Parameter[i] = Random_Address.Bytes[i];
 	}
 
-	return (FALSE);
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
 }
 
 
@@ -752,48 +658,43 @@ uint8_t HCI_LE_Set_Advertising_Parameters( uint16_t Advertising_Interval_Min, ui
 		OWN_ADDR_TYPE Own_Address_Type, PEER_ADDR_TYPE Peer_Address_Type, BD_ADDR_TYPE Peer_Address, ADV_CHANNEL_MAP Advertising_Channel_Map,
 		uint8_t Advertising_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_ADVERTISING_PARAMETERS,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 15;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_ADVERTISING_PARAMETERS;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 15;
+
+	PcktPtr->CmdPacket.Parameter[0] = Advertising_Interval_Min & 0xFF;
+	PcktPtr->CmdPacket.Parameter[1] = ( Advertising_Interval_Min >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[2] = Advertising_Interval_Max & 0xFF;
+	PcktPtr->CmdPacket.Parameter[3] = ( Advertising_Interval_Max >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[4] = Advertising_Type;
+
+	PcktPtr->CmdPacket.Parameter[5] = Own_Address_Type;
+
+	PcktPtr->CmdPacket.Parameter[6] = Peer_Address_Type;
+
+	for( int8_t i = 0; i < sizeof(Peer_Address); i++ )
 	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 15;
-
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
-
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_ADVERTISING_PARAMETERS;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 15;
-
-		PcktPtr->CmdPacket.Parameter[0] = Advertising_Interval_Min & 0xFF;
-		PcktPtr->CmdPacket.Parameter[1] = ( Advertising_Interval_Min >> 8 ) & 0xFF;
-
-		PcktPtr->CmdPacket.Parameter[2] = Advertising_Interval_Max & 0xFF;
-		PcktPtr->CmdPacket.Parameter[3] = ( Advertising_Interval_Max >> 8 ) & 0xFF;
-
-		PcktPtr->CmdPacket.Parameter[4] = Advertising_Type;
-
-		PcktPtr->CmdPacket.Parameter[5] = Own_Address_Type;
-
-		PcktPtr->CmdPacket.Parameter[6] = Peer_Address_Type;
-
-		for( int8_t i = 0; i < sizeof(Peer_Address); i++ )
-		{
-			PcktPtr->CmdPacket.Parameter[i + 7] = Peer_Address.Bytes[i];
-		}
-
-		PcktPtr->CmdPacket.Parameter[13] = Advertising_Channel_Map.Val;
-
-		PcktPtr->CmdPacket.Parameter[14] = Advertising_Filter_Policy;
-
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-		return (TRUE);
+		PcktPtr->CmdPacket.Parameter[i + 7] = Peer_Address.Bytes[i];
 	}
 
-	return (FALSE);
+	PcktPtr->CmdPacket.Parameter[13] = Advertising_Channel_Map.Val;
+
+	PcktPtr->CmdPacket.Parameter[14] = Advertising_Filter_Policy;
+
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
 }
 
 
@@ -811,27 +712,19 @@ uint8_t HCI_LE_Set_Advertising_Parameters( uint16_t Advertising_Interval_Min, ui
 uint8_t HCI_LE_Read_Advertising_Physical_Channel_Tx_Power( LEReadAdvPhyChannelTxPowerComplete CompleteCallBack,
 		DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_ADV_PHY_CHANNEL_TX_POWER;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -856,36 +749,32 @@ uint8_t HCI_LE_Read_Advertising_Physical_Channel_Tx_Power( LEReadAdvPhyChannelTx
 uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Advertising_Data[],
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
+	uint8_t Status = FALSE;
+
 	if( Advertising_Data_Length <= MAX_ADVERTISING_DATA_LENGTH )
 	{
-		TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_ADVERTISING_DATA,
-				CompleteCallBack, StatusCallBack );
 
-		if( TxDesc != NULL )
-		{
-			TxDesc->CallBack = NULL;
-			TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-			TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + MAX_ADVERTISING_DATA_LENGTH + 1;
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + MAX_ADVERTISING_DATA_LENGTH + 1;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-			HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_ADVERTISING_DATA;
+		PcktPtr->CmdPacket.Parameter_Total_Length = MAX_ADVERTISING_DATA_LENGTH + 1;
 
-			PcktPtr->PacketType = HCI_COMMAND_PACKET;
-			PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_ADVERTISING_DATA;
-			PcktPtr->CmdPacket.Parameter_Total_Length = MAX_ADVERTISING_DATA_LENGTH + 1;
+		memset( &( PcktPtr->CmdPacket.Parameter[0] ), 0, PcktPtr->CmdPacket.Parameter_Total_Length );
 
-			memset( &( PcktPtr->CmdPacket.Parameter[0] ), 0, PcktPtr->CmdPacket.Parameter_Total_Length );
+		PcktPtr->CmdPacket.Parameter[0] = Advertising_Data_Length;
 
-			PcktPtr->CmdPacket.Parameter[0] = Advertising_Data_Length;
+		memcpy( &( PcktPtr->CmdPacket.Parameter[1] ), &Advertising_Data[0], Advertising_Data_Length );
 
-			memcpy( &( PcktPtr->CmdPacket.Parameter[1] ), &Advertising_Data[0], Advertising_Data_Length );
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-			HCI_Set_Transmit_Buffer_Full( TxDesc );
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-			return (TRUE);
-		}
+		free( PcktPtr );
 	}
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -909,36 +798,32 @@ uint8_t HCI_LE_Set_Advertising_Data( uint8_t Advertising_Data_Length, uint8_t Ad
 uint8_t HCI_LE_Set_Scan_Response_Data( uint8_t Scan_Response_Data_Length, uint8_t Scan_Response_Data[],
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
+	uint8_t Status = FALSE;
+
 	if( Scan_Response_Data_Length <= MAX_SCAN_RESPONSE_DATA_LENGTH )
 	{
-		TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_SCAN_RESPONSE_DATA,
-				CompleteCallBack, StatusCallBack );
 
-		if( TxDesc != NULL )
-		{
-			TxDesc->CallBack = NULL;
-			TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-			TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + MAX_SCAN_RESPONSE_DATA_LENGTH + 1;
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + MAX_SCAN_RESPONSE_DATA_LENGTH + 1;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-			HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_SCAN_RESPONSE_DATA;
+		PcktPtr->CmdPacket.Parameter_Total_Length = MAX_SCAN_RESPONSE_DATA_LENGTH + 1;
 
-			PcktPtr->PacketType = HCI_COMMAND_PACKET;
-			PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_SCAN_RESPONSE_DATA;
-			PcktPtr->CmdPacket.Parameter_Total_Length = MAX_SCAN_RESPONSE_DATA_LENGTH + 1;
+		memset( &( PcktPtr->CmdPacket.Parameter[0] ), 0, PcktPtr->CmdPacket.Parameter_Total_Length );
 
-			memset( &( PcktPtr->CmdPacket.Parameter[0] ), 0, PcktPtr->CmdPacket.Parameter_Total_Length );
+		PcktPtr->CmdPacket.Parameter[0] = Scan_Response_Data_Length;
 
-			PcktPtr->CmdPacket.Parameter[0] = Scan_Response_Data_Length;
+		memcpy( &( PcktPtr->CmdPacket.Parameter[1] ), &Scan_Response_Data[0], Scan_Response_Data_Length );
 
-			memcpy( &( PcktPtr->CmdPacket.Parameter[1] ), &Scan_Response_Data[0], Scan_Response_Data_Length );
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-			HCI_Set_Transmit_Buffer_Full( TxDesc );
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-			return (TRUE);
-		}
+		free( PcktPtr );
 	}
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -974,29 +859,24 @@ uint8_t HCI_LE_Set_Scan_Response_Data( uint8_t Scan_Response_Data_Length, uint8_
 /****************************************************************/
 uint8_t HCI_LE_Set_Advertising_Enable( uint8_t Advertising_Enable, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_ADVERTISING_ENABLE,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + sizeof(Advertising_Enable);
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + sizeof(Advertising_Enable);
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_ADVERTISING_ENABLE;
+	PcktPtr->CmdPacket.Parameter_Total_Length = sizeof(Advertising_Enable);
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_ADVERTISING_ENABLE;
-		PcktPtr->CmdPacket.Parameter_Total_Length = sizeof(Advertising_Enable);
+	PcktPtr->CmdPacket.Parameter[0] = Advertising_Enable;
 
-		PcktPtr->CmdPacket.Parameter[0] = Advertising_Enable;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1025,39 +905,34 @@ uint8_t HCI_LE_Set_Advertising_Enable( uint8_t Advertising_Enable, DefCmdComplet
 uint8_t HCI_LE_Set_Scan_Parameters( LE_SCAN_TYPE LE_Scan_Type, uint16_t LE_Scan_Interval, uint16_t LE_Scan_Window,
 		OWN_ADDR_TYPE Own_Address_Type, uint8_t Scanning_Filter_Policy, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_SCAN_PARAMETERS,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_SCAN_PARAMETERS;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 7;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_SCAN_PARAMETERS;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 7;
+	PcktPtr->CmdPacket.Parameter[0] = LE_Scan_Type;
 
-		PcktPtr->CmdPacket.Parameter[0] = LE_Scan_Type;
+	PcktPtr->CmdPacket.Parameter[1] = LE_Scan_Interval & 0xFF;
+	PcktPtr->CmdPacket.Parameter[2] = ( LE_Scan_Interval >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[1] = LE_Scan_Interval & 0xFF;
-		PcktPtr->CmdPacket.Parameter[2] = ( LE_Scan_Interval >> 8 ) & 0xFF;
+	PcktPtr->CmdPacket.Parameter[3] = LE_Scan_Window & 0xFF;
+	PcktPtr->CmdPacket.Parameter[4] = ( LE_Scan_Window >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[3] = LE_Scan_Window & 0xFF;
-		PcktPtr->CmdPacket.Parameter[4] = ( LE_Scan_Window >> 8 ) & 0xFF;
+	PcktPtr->CmdPacket.Parameter[5] = Own_Address_Type;
 
-		PcktPtr->CmdPacket.Parameter[5] = Own_Address_Type;
+	PcktPtr->CmdPacket.Parameter[6] = Scanning_Filter_Policy;
 
-		PcktPtr->CmdPacket.Parameter[6] = Scanning_Filter_Policy;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1088,30 +963,25 @@ uint8_t HCI_LE_Set_Scan_Parameters( LE_SCAN_TYPE LE_Scan_Type, uint16_t LE_Scan_
 uint8_t HCI_LE_Set_Scan_Enable( uint8_t LE_Scan_Enable, uint8_t Filter_Duplicates,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_SCAN_ENABLE,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 2;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 2;
+	PcktPtr->CmdPacket.Parameter[0] = LE_Scan_Enable;
+	PcktPtr->CmdPacket.Parameter[1] = Filter_Duplicates;
 
-		PcktPtr->CmdPacket.Parameter[0] = LE_Scan_Enable;
-		PcktPtr->CmdPacket.Parameter[1] = Filter_Duplicates;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1189,62 +1059,57 @@ uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Wi
 		uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max, uint16_t Connection_Latency,
 		uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_CREATE_CONNECTION,
-			NULL, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 25;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_CREATE_CONNECTION;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 25;
+
+	PcktPtr->CmdPacket.Parameter[0] = LE_Scan_Interval & 0xFF;
+	PcktPtr->CmdPacket.Parameter[1] = ( LE_Scan_Interval >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[2] = LE_Scan_Window & 0xFF;
+	PcktPtr->CmdPacket.Parameter[3] = ( LE_Scan_Window >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[4] = Initiator_Filter_Policy;
+
+	PcktPtr->CmdPacket.Parameter[5] = Peer_Address_Type;
+
+	for( int8_t i = 0; i < sizeof(Peer_Address); i++ )
 	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 25;
-
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
-
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_CREATE_CONNECTION;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 25;
-
-		PcktPtr->CmdPacket.Parameter[0] = LE_Scan_Interval & 0xFF;
-		PcktPtr->CmdPacket.Parameter[1] = ( LE_Scan_Interval >> 8 ) & 0xFF;
-
-		PcktPtr->CmdPacket.Parameter[2] = LE_Scan_Window & 0xFF;
-		PcktPtr->CmdPacket.Parameter[3] = ( LE_Scan_Window >> 8 ) & 0xFF;
-
-		PcktPtr->CmdPacket.Parameter[4] = Initiator_Filter_Policy;
-
-		PcktPtr->CmdPacket.Parameter[5] = Peer_Address_Type;
-
-		for( int8_t i = 0; i < sizeof(Peer_Address); i++ )
-		{
-			PcktPtr->CmdPacket.Parameter[i + 6] = Peer_Address.Bytes[i];
-		}
-
-		PcktPtr->CmdPacket.Parameter[12] = Own_Address_Type;
-
-		PcktPtr->CmdPacket.Parameter[13] = Connection_Interval_Min & 0xFF;
-		PcktPtr->CmdPacket.Parameter[14] = ( Connection_Interval_Min >> 8 ) & 0xFF;
-
-		PcktPtr->CmdPacket.Parameter[15] = Connection_Interval_Max & 0xFF;
-		PcktPtr->CmdPacket.Parameter[16] = ( Connection_Interval_Max >> 8 ) & 0xFF;
-
-		PcktPtr->CmdPacket.Parameter[17] = Connection_Latency & 0xFF;
-		PcktPtr->CmdPacket.Parameter[18] = ( Connection_Latency >> 8 ) & 0xFF;
-
-		PcktPtr->CmdPacket.Parameter[19] = Supervision_Timeout & 0xFF;
-		PcktPtr->CmdPacket.Parameter[20] = ( Supervision_Timeout >> 8 ) & 0xFF;
-
-		PcktPtr->CmdPacket.Parameter[21] = Min_CE_Length & 0xFF;
-		PcktPtr->CmdPacket.Parameter[22] = ( Min_CE_Length >> 8 ) & 0xFF;
-
-		PcktPtr->CmdPacket.Parameter[23] = Max_CE_Length & 0xFF;
-		PcktPtr->CmdPacket.Parameter[24] = ( Max_CE_Length >> 8 ) & 0xFF;
-
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-		return (TRUE);
+		PcktPtr->CmdPacket.Parameter[i + 6] = Peer_Address.Bytes[i];
 	}
 
-	return (FALSE);
+	PcktPtr->CmdPacket.Parameter[12] = Own_Address_Type;
+
+	PcktPtr->CmdPacket.Parameter[13] = Connection_Interval_Min & 0xFF;
+	PcktPtr->CmdPacket.Parameter[14] = ( Connection_Interval_Min >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[15] = Connection_Interval_Max & 0xFF;
+	PcktPtr->CmdPacket.Parameter[16] = ( Connection_Interval_Max >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[17] = Connection_Latency & 0xFF;
+	PcktPtr->CmdPacket.Parameter[18] = ( Connection_Latency >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[19] = Supervision_Timeout & 0xFF;
+	PcktPtr->CmdPacket.Parameter[20] = ( Supervision_Timeout >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[21] = Min_CE_Length & 0xFF;
+	PcktPtr->CmdPacket.Parameter[22] = ( Min_CE_Length >> 8 ) & 0xFF;
+
+	PcktPtr->CmdPacket.Parameter[23] = Max_CE_Length & 0xFF;
+	PcktPtr->CmdPacket.Parameter[24] = ( Max_CE_Length >> 8 ) & 0xFF;
+
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = NULL, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
 }
 
 
@@ -1266,27 +1131,19 @@ uint8_t HCI_LE_Create_Connection( uint16_t LE_Scan_Interval, uint16_t LE_Scan_Wi
 /****************************************************************/
 uint8_t HCI_LE_Create_Connection_Cancel( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_CREATE_CONNECTION_CANCEL,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_CREATE_CONNECTION_CANCEL;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_CREATE_CONNECTION_CANCEL;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1305,27 +1162,19 @@ uint8_t HCI_LE_Create_Connection_Cancel( DefCmdComplete CompleteCallBack, DefCmd
 /****************************************************************/
 uint8_t HCI_LE_Read_White_List_Size( LEReadWhiteListSizeComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_READ_WHITE_LIST_SIZE,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_READ_WHITE_LIST_SIZE;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_WHITE_LIST_SIZE;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1348,27 +1197,19 @@ uint8_t HCI_LE_Read_White_List_Size( LEReadWhiteListSizeComplete CompleteCallBac
 /****************************************************************/
 uint8_t HCI_LE_Clear_White_List( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_CLEAR_WHITE_LIST,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_CLEAR_WHITE_LIST;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_CLEAR_WHITE_LIST;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1398,34 +1239,29 @@ uint8_t HCI_LE_Clear_White_List( DefCmdComplete CompleteCallBack, DefCmdStatus S
 uint8_t HCI_LE_Add_Device_To_White_List( uint8_t Address_Type, BD_ADDR_TYPE Address,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_ADD_DEVICE_TO_WHITE_LIST,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_ADD_DEVICE_TO_WHITE_LIST;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 7;
+
+	PcktPtr->CmdPacket.Parameter[0] = Address_Type;
+
+	for( int8_t i = 0; i < sizeof(Address); i++ )
 	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
-
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
-
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_ADD_DEVICE_TO_WHITE_LIST;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 7;
-
-		PcktPtr->CmdPacket.Parameter[0] = Address_Type;
-
-		for( int8_t i = 0; i < sizeof(Address); i++ )
-		{
-			PcktPtr->CmdPacket.Parameter[i + 1] = Address.Bytes[i];
-		}
-
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-		return (TRUE);
+		PcktPtr->CmdPacket.Parameter[i + 1] = Address.Bytes[i];
 	}
 
-	return (FALSE);
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
 }
 
 
@@ -1450,34 +1286,29 @@ uint8_t HCI_LE_Add_Device_To_White_List( uint8_t Address_Type, BD_ADDR_TYPE Addr
 uint8_t HCI_LE_Remove_Device_From_White_List( uint8_t Address_Type, BD_ADDR_TYPE Address,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 7;
+
+	PcktPtr->CmdPacket.Parameter[0] = Address_Type;
+
+	for( int8_t i = 0; i < sizeof(Address); i++ )
 	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
-
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
-
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_REMOVE_DEVICE_FROM_WHITE_LIST;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 7;
-
-		PcktPtr->CmdPacket.Parameter[0] = Address_Type;
-
-		for( int8_t i = 0; i < sizeof(Address); i++ )
-		{
-			PcktPtr->CmdPacket.Parameter[i + 1] = Address.Bytes[i];
-		}
-
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-		return (TRUE);
+		PcktPtr->CmdPacket.Parameter[i + 1] = Address.Bytes[i];
 	}
 
-	return (FALSE);
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
 }
 
 
@@ -1505,32 +1336,27 @@ uint8_t HCI_LE_Remove_Device_From_White_List( uint8_t Address_Type, BD_ADDR_TYPE
 uint8_t HCI_LE_Set_Host_Channel_Classification( CHANNEL_MAP Channel_Map,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + sizeof(Channel_Map);
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION;
+	PcktPtr->CmdPacket.Parameter_Total_Length = sizeof(Channel_Map);
+
+	for( int8_t i = 0; i < sizeof(Channel_Map); i++ )
 	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + sizeof(Channel_Map);
-
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
-
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_HOST_CHANNEL_CLASSIFICATION;
-		PcktPtr->CmdPacket.Parameter_Total_Length = sizeof(Channel_Map);
-
-		for( int8_t i = 0; i < sizeof(Channel_Map); i++ )
-		{
-			PcktPtr->CmdPacket.Parameter[i] = Channel_Map.Bytes[i];
-		}
-
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-		return (TRUE);
+		PcktPtr->CmdPacket.Parameter[i] = Channel_Map.Bytes[i];
 	}
 
-	return (FALSE);
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+
+	free( PcktPtr );
+
+	return (Status);
 }
 
 
@@ -1565,48 +1391,43 @@ uint8_t HCI_LE_Set_Host_Channel_Classification( CHANNEL_MAP Channel_Map,
 uint8_t HCI_LE_Connection_Update( uint16_t Connection_Handle, uint16_t Connection_Interval_Min, uint16_t Connection_Interval_Max,
 		uint16_t Connection_Latency, uint16_t Supervision_Timeout, uint16_t Min_CE_Length, uint16_t Max_CE_Length, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_CONNECTION_UPDATE,
-			NULL, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 14;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 14;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_CONNECTION_UPDATE;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 14;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_CONNECTION_UPDATE;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 14;
+	PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
+	PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
-		PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
+	PcktPtr->CmdPacket.Parameter[2] = Connection_Interval_Min & 0xFF;
+	PcktPtr->CmdPacket.Parameter[3] = ( Connection_Interval_Min >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[2] = Connection_Interval_Min & 0xFF;
-		PcktPtr->CmdPacket.Parameter[3] = ( Connection_Interval_Min >> 8 ) & 0xFF;
+	PcktPtr->CmdPacket.Parameter[4] = Connection_Interval_Max & 0xFF;
+	PcktPtr->CmdPacket.Parameter[5] = ( Connection_Interval_Max >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[4] = Connection_Interval_Max & 0xFF;
-		PcktPtr->CmdPacket.Parameter[5] = ( Connection_Interval_Max >> 8 ) & 0xFF;
+	PcktPtr->CmdPacket.Parameter[6] = Connection_Latency & 0xFF;
+	PcktPtr->CmdPacket.Parameter[7] = ( Connection_Latency >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[6] = Connection_Latency & 0xFF;
-		PcktPtr->CmdPacket.Parameter[7] = ( Connection_Latency >> 8 ) & 0xFF;
+	PcktPtr->CmdPacket.Parameter[8] = Supervision_Timeout & 0xFF;
+	PcktPtr->CmdPacket.Parameter[9] = ( Supervision_Timeout >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[8] = Supervision_Timeout & 0xFF;
-		PcktPtr->CmdPacket.Parameter[9] = ( Supervision_Timeout >> 8 ) & 0xFF;
+	PcktPtr->CmdPacket.Parameter[10] = Min_CE_Length & 0xFF;
+	PcktPtr->CmdPacket.Parameter[11] = ( Min_CE_Length >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[10] = Min_CE_Length & 0xFF;
-		PcktPtr->CmdPacket.Parameter[11] = ( Min_CE_Length >> 8 ) & 0xFF;
+	PcktPtr->CmdPacket.Parameter[12] = Max_CE_Length & 0xFF;
+	PcktPtr->CmdPacket.Parameter[13] = ( Max_CE_Length >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[12] = Max_CE_Length & 0xFF;
-		PcktPtr->CmdPacket.Parameter[13] = ( Max_CE_Length >> 8 ) & 0xFF;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = NULL, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1627,30 +1448,25 @@ uint8_t HCI_LE_Connection_Update( uint16_t Connection_Handle, uint16_t Connectio
 uint8_t HCI_LE_Read_Channel_Map( uint16_t Connection_Handle,
 		LEReadChannelMapComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_READ_CHANNEL_MAP,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_CHANNEL_MAP;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 2;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_CHANNEL_MAP;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 2;
+	PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
+	PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
-		PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1672,30 +1488,25 @@ uint8_t HCI_LE_Read_Channel_Map( uint16_t Connection_Handle,
 uint8_t HCI_LE_Read_Remote_Features( uint16_t Connection_Handle,
 		LEReadRemoteFeaturesComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_READ_REMOTE_FEATURES,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_REMOTE_FEATURES;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 2;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_REMOTE_FEATURES;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 2;
+	PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
+	PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
-		PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1714,30 +1525,25 @@ uint8_t HCI_LE_Read_Remote_Features( uint16_t Connection_Handle,
 uint8_t HCI_LE_Encrypt( uint8_t Key[16], uint8_t Plaintext_Data[16],
 		LEEncryptComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_ENCRYPT,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 32;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 32;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_ENCRYPT;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 32;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_ENCRYPT;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 32;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[0]), &Key[0], 16 );
+	memcpy( &(PcktPtr->CmdPacket.Parameter[16]), &Plaintext_Data[0], 16 );
 
-		memcpy( &(PcktPtr->CmdPacket.Parameter[0]), &Key[0], 16 );
-		memcpy( &(PcktPtr->CmdPacket.Parameter[16]), &Plaintext_Data[0], 16 );
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1754,27 +1560,19 @@ uint8_t HCI_LE_Encrypt( uint8_t Key[16], uint8_t Plaintext_Data[16],
 /****************************************************************/
 uint8_t HCI_LE_Rand( LERandComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_RAND,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_RAND;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_RAND;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1804,37 +1602,32 @@ uint8_t HCI_LE_Rand( LERandComplete CompleteCallBack, DefCmdStatus StatusCallBac
 uint8_t HCI_LE_Enable_Encryption( uint16_t Connection_Handle, uint8_t Random_Number[8],
 		uint16_t Encrypted_Diversifier, uint8_t Long_Term_Key[16], DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_ENABLE_ENCRYPTION,
-			NULL, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 28;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 28;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_ENABLE_ENCRYPTION;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 28;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_ENABLE_ENCRYPTION;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 28;
+	PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
+	PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
-		PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[2]), &Random_Number[0], 8 );
 
-		memcpy( &(PcktPtr->CmdPacket.Parameter[2]), &Random_Number[0], 8 );
+	PcktPtr->CmdPacket.Parameter[10] = Encrypted_Diversifier & 0xFF;
+	PcktPtr->CmdPacket.Parameter[11] = ( Encrypted_Diversifier >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[10] = Encrypted_Diversifier & 0xFF;
-		PcktPtr->CmdPacket.Parameter[11] = ( Encrypted_Diversifier >> 8 ) & 0xFF;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[12]), &Long_Term_Key[0], 16 );
 
-		memcpy( &(PcktPtr->CmdPacket.Parameter[12]), &Long_Term_Key[0], 16 );
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = NULL, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1854,32 +1647,27 @@ uint8_t HCI_LE_Enable_Encryption( uint16_t Connection_Handle, uint8_t Random_Num
 uint8_t HCI_LE_Long_Term_Key_Request_Reply( uint16_t Connection_Handle, uint8_t Long_Term_Key[16],
 		LELongTermKeyRqtReplyComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_LONG_TERM_KEY_REQUEST_REPLY,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 18;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 18;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_LONG_TERM_KEY_REQUEST_REPLY;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 18;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_LONG_TERM_KEY_REQUEST_REPLY;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 18;
+	PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
+	PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
-		PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[2]), &Long_Term_Key[0], 16 );
 
-		memcpy( &(PcktPtr->CmdPacket.Parameter[2]), &Long_Term_Key[0], 16 );
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1897,30 +1685,25 @@ uint8_t HCI_LE_Long_Term_Key_Request_Reply( uint16_t Connection_Handle, uint8_t 
 uint8_t HCI_LE_Long_Term_Key_Request_Negative_Reply( uint16_t Connection_Handle,
 		LELongTermKeyRqtNegReplyComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 2;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_LONG_TERM_KEY_RQT_NEG_REPLY;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 2;
+	PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
+	PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[0] = Connection_Handle & 0xFF;
-		PcktPtr->CmdPacket.Parameter[1] = ( Connection_Handle >> 8 ) & 0xFF;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1944,27 +1727,19 @@ uint8_t HCI_LE_Long_Term_Key_Request_Negative_Reply( uint16_t Connection_Handle,
 /****************************************************************/
 uint8_t HCI_LE_Read_Supported_States( LEReadSupportedStatesComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_READ_SUPPORTED_STATES,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_READ_SUPPORTED_STATES;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_SUPPORTED_STATES;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -1984,32 +1759,27 @@ uint8_t HCI_LE_Read_Supported_States( LEReadSupportedStatesComplete CompleteCall
 /****************************************************************/
 uint8_t HCI_LE_Receiver_Test_v1( uint8_t RX_Channel, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
+	uint8_t Status = FALSE;
+
 	if( RX_Channel <= 0x27 )
 	{
-		TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_RECEIVER_TEST_V1,
-				CompleteCallBack, StatusCallBack );
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 1;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		if( TxDesc != NULL )
-		{
-			TxDesc->CallBack = NULL;
-			TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-			TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 1;
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_RECEIVER_TEST_V1;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 1;
 
-			HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+		PcktPtr->CmdPacket.Parameter[0] = RX_Channel;
 
-			PcktPtr->PacketType = HCI_COMMAND_PACKET;
-			PcktPtr->CmdPacket.OpCode.Val = HCI_LE_RECEIVER_TEST_V1;
-			PcktPtr->CmdPacket.Parameter_Total_Length = 1;
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-			PcktPtr->CmdPacket.Parameter[0] = RX_Channel;
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-			HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-			return (TRUE);
-		}
+		free( PcktPtr );
 	}
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2038,34 +1808,29 @@ uint8_t HCI_LE_Receiver_Test_v1( uint8_t RX_Channel, DefCmdComplete CompleteCall
 uint8_t HCI_LE_Transmitter_Test_v1( uint8_t TX_Channel, uint8_t Test_Data_Length, uint8_t Packet_Payload,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
+	uint8_t Status = FALSE;
+
 	if( TX_Channel <= 0x27 )
 	{
-		TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_TRANSMITTER_TEST_V1,
-				CompleteCallBack, StatusCallBack );
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 3;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		if( TxDesc != NULL )
-		{
-			TxDesc->CallBack = NULL;
-			TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-			TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 3;
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_TRANSMITTER_TEST_V1;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 3;
 
-			HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+		PcktPtr->CmdPacket.Parameter[0] = TX_Channel;
+		PcktPtr->CmdPacket.Parameter[1] = Test_Data_Length;
+		PcktPtr->CmdPacket.Parameter[2] = Packet_Payload;
 
-			PcktPtr->PacketType = HCI_COMMAND_PACKET;
-			PcktPtr->CmdPacket.OpCode.Val = HCI_LE_TRANSMITTER_TEST_V1;
-			PcktPtr->CmdPacket.Parameter_Total_Length = 3;
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-			PcktPtr->CmdPacket.Parameter[0] = TX_Channel;
-			PcktPtr->CmdPacket.Parameter[1] = Test_Data_Length;
-			PcktPtr->CmdPacket.Parameter[2] = Packet_Payload;
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-			HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-			return (TRUE);
-		}
+		free( PcktPtr );
 	}
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2081,27 +1846,19 @@ uint8_t HCI_LE_Transmitter_Test_v1( uint8_t TX_Channel, uint8_t Test_Data_Length
 /****************************************************************/
 uint8_t HCI_LE_Test_End( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_TEST_END,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_TEST_END;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_TEST_END;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2130,32 +1887,27 @@ uint8_t HCI_LE_Test_End( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCal
 uint8_t HCI_LE_Add_Device_To_Resolving_List( PEER_ADDR_TYPE Peer_Identity_Address_Type, BD_ADDR_TYPE Peer_Identity_Address,
 		IRK_TYPE* Peer_IRK, IRK_TYPE* Local_IRK, DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = &Hosted_LE_Add_Device_To_Resolving_List;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 39;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 39;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 39;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_ADD_DEVICE_TO_RESOLVING_LIST;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 39;
+	PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
+	memcpy( &(PcktPtr->CmdPacket.Parameter[sizeof(BD_ADDR_TYPE) + 1]), &(Peer_IRK->Bytes[0]), sizeof(IRK_TYPE) );
+	memcpy( &(PcktPtr->CmdPacket.Parameter[sizeof(IRK_TYPE) + sizeof(BD_ADDR_TYPE) + 1]), &(Local_IRK->Bytes[0]), sizeof(IRK_TYPE) );
 
-		PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
-		memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
-		memcpy( &(PcktPtr->CmdPacket.Parameter[sizeof(BD_ADDR_TYPE) + 1]), &(Peer_IRK->Bytes[0]), sizeof(IRK_TYPE) );
-		memcpy( &(PcktPtr->CmdPacket.Parameter[sizeof(IRK_TYPE) + sizeof(BD_ADDR_TYPE) + 1]), &(Local_IRK->Bytes[0]), sizeof(IRK_TYPE) );
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Add_Device_To_Resolving_List, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2182,30 +1934,25 @@ uint8_t HCI_LE_Add_Device_To_Resolving_List( PEER_ADDR_TYPE Peer_Identity_Addres
 uint8_t HCI_LE_Remove_Device_From_Resolving_List( PEER_ADDR_TYPE Peer_Identity_Address_Type, BD_ADDR_TYPE Peer_Identity_Address,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_REMOVE_DEVICE_FROM_RESOLVING_LIST,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = &Hosted_LE_Remove_Device_From_Resolving_List;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_REMOVE_DEVICE_FROM_RESOLVING_LIST;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 7;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_REMOVE_DEVICE_FROM_RESOLVING_LIST;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 7;
+	PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
 
-		PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
-		memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Remove_Device_From_Resolving_List, &CmdCallBack );
 
-		return (TRUE);
-	}
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2228,27 +1975,19 @@ uint8_t HCI_LE_Remove_Device_From_Resolving_List( PEER_ADDR_TYPE Peer_Identity_A
 /****************************************************************/
 uint8_t HCI_LE_Clear_Resolving_List( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_CLEAR_RESOLVING_LIST,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_CLEAR_RESOLVING_LIST;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_CLEAR_RESOLVING_LIST;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	}
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2266,27 +2005,19 @@ uint8_t HCI_LE_Clear_Resolving_List( DefCmdComplete CompleteCallBack, DefCmdStat
 /****************************************************************/
 uint8_t HCI_LE_Read_Resolving_List_Size( LEReadResolvingListSizeComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_READ_RESOLVING_LIST_SIZE,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = NULL;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT);
+	HCI_SERIAL_COMMAND_PCKT Pckt;
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	Pckt.PacketType = HCI_COMMAND_PACKET;
+	Pckt.CmdPacket.OpCode.Val = HCI_LE_READ_RESOLVING_LIST_SIZE;
+	Pckt.CmdPacket.Parameter_Total_Length = 0;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_RESOLVING_LIST_SIZE;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-		return (TRUE);
-	};
-
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2309,30 +2040,25 @@ uint8_t HCI_LE_Read_Resolving_List_Size( LEReadResolvingListSizeComplete Complet
 uint8_t HCI_LE_Read_Peer_Resolvable_Address( PEER_ADDR_TYPE Peer_Identity_Address_Type, BD_ADDR_TYPE Peer_Identity_Address,
 		LEReadPeerResolvableAddressComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_READ_PEER_RESOLVABLE_ADDRESS,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = &Hosted_LE_Read_Peer_Resolvable_Address;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_PEER_RESOLVABLE_ADDRESS;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 7;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_PEER_RESOLVABLE_ADDRESS;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 7;
+	PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
 
-		PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
-		memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Read_Peer_Resolvable_Address, &CmdCallBack );
 
-		return (TRUE);
-	};
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2354,30 +2080,25 @@ uint8_t HCI_LE_Read_Peer_Resolvable_Address( PEER_ADDR_TYPE Peer_Identity_Addres
 uint8_t HCI_LE_Read_Local_Resolvable_Address( PEER_ADDR_TYPE Peer_Identity_Address_Type, BD_ADDR_TYPE Peer_Identity_Address,
 		LEReadLocalResolvableAddressComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_READ_LOCAL_RESOLVABLE_ADDRESS,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = &Hosted_LE_Read_Local_Resolvable_Address;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 7;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_LOCAL_RESOLVABLE_ADDRESS;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 7;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_READ_LOCAL_RESOLVABLE_ADDRESS;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 7;
+	PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
+	memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
 
-		PcktPtr->CmdPacket.Parameter[0] = Peer_Identity_Address_Type;
-		memcpy( &(PcktPtr->CmdPacket.Parameter[1]), &Peer_Identity_Address.Bytes[0], sizeof(BD_ADDR_TYPE) );
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Read_Local_Resolvable_Address, &CmdCallBack );
 
-		return (TRUE);
-	};
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2404,29 +2125,24 @@ uint8_t HCI_LE_Read_Local_Resolvable_Address( PEER_ADDR_TYPE Peer_Identity_Addre
 uint8_t HCI_LE_Set_Address_Resolution_Enable( uint8_t Address_Resolution_Enable, DefCmdComplete CompleteCallBack,
 		DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_ADDRESS_RESOLUTION_ENABLE,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = &Hosted_LE_Set_Address_Resolution_Enable;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 1;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 1;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_ADDRESS_RESOLUTION_ENABLE;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 1;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_ADDRESS_RESOLUTION_ENABLE;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 1;
+	PcktPtr->CmdPacket.Parameter[0] = Address_Resolution_Enable;
 
-		PcktPtr->CmdPacket.Parameter[0] = Address_Resolution_Enable;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Set_Address_Resolution_Enable, &CmdCallBack );
 
-		return (TRUE);
-	};
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2444,30 +2160,25 @@ uint8_t HCI_LE_Set_Address_Resolution_Enable( uint8_t Address_Resolution_Enable,
 uint8_t HCI_LE_Set_Resolvable_Private_Address_Timeout( uint16_t RPA_Timeout, DefCmdComplete CompleteCallBack,
 		DefCmdStatus StatusCallBack )
 {
-	TRANSFER_DESCRIPTOR* TxDesc = HCI_Get_Command_Transmit_Buffer_Free( HCI_LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT,
-			CompleteCallBack, StatusCallBack );
+	uint8_t Status;
 
-	if( TxDesc != NULL )
-	{
-		TxDesc->CallBack = &Hosted_LE_Set_Resolvable_Private_Address_Timeout;
-		TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		TxDesc->DataSize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
+	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+	PcktPtr->PacketType = HCI_COMMAND_PACKET;
+	PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT;
+	PcktPtr->CmdPacket.Parameter_Total_Length = 2;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = HCI_LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 2;
+	PcktPtr->CmdPacket.Parameter[0] = RPA_Timeout & 0xFF;
+	PcktPtr->CmdPacket.Parameter[1] = ( RPA_Timeout >> 8 ) & 0xFF;
 
-		PcktPtr->CmdPacket.Parameter[0] = RPA_Timeout & 0xFF;
-		PcktPtr->CmdPacket.Parameter[1] = ( RPA_Timeout >> 8 ) & 0xFF;
+	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
 
-		HCI_Set_Transmit_Buffer_Full( TxDesc );
+	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, &Hosted_LE_Set_Resolvable_Private_Address_Timeout, &CmdCallBack );
 
-		return (TRUE);
-	};
+	free( PcktPtr );
 
-	return (FALSE);
+	return (Status);
 }
 
 
@@ -2827,31 +2538,26 @@ __attribute__((weak)) void HCI_LE_Long_Term_Key_Request( uint16_t Connection_Han
 /****************************************************************/
 uint8_t HCI_Host_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
 {
+	uint8_t Status = FALSE;
+
 	if( ACLDataPacketHeader->Data_Total_Length <= 27 )
 	{
-		TRANSFER_DESCRIPTOR* TxDesc;
+		uint16_t ByteArraySize = sizeof(HCI_SERIAL_ACL_DATA_PCKT) + ACLDataPacketHeader->Data_Total_Length;
+		HCI_SERIAL_ACL_DATA_PCKT* PcktPtr = malloc( ByteArraySize );
 
-		TxDesc = HCI_Get_Transmit_Buffer_Free( HCI_ACL_DATA_PACKET, 0, NULL, NULL );
+		PcktPtr->PacketType = HCI_ACL_DATA_PACKET;
+		PcktPtr->ACLDataPacket.Header = *ACLDataPacketHeader;
 
-		if( TxDesc != NULL )
-		{
-			TxDesc->CallBack = NULL;
-			TxDesc->CallBackMode = CALL_BACK_AFTER_TRANSFER;
-			TxDesc->DataSize = sizeof(HCI_SERIAL_ACL_DATA_PCKT) + ACLDataPacketHeader->Data_Total_Length;
+		memcpy( &(PcktPtr->ACLDataPacket.Data[0]), &Data[0], ACLDataPacketHeader->Data_Total_Length );
 
-			HCI_SERIAL_ACL_DATA_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc->Data[0] );
+		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = NULL, .CmdStatusCallBack = NULL };
 
-			PcktPtr->PacketType = HCI_ACL_DATA_PACKET;
-			PcktPtr->ACLDataPacket.Header = *ACLDataPacketHeader;
-			memcpy( &(PcktPtr->ACLDataPacket.Data[0]), &Data[0], ACLDataPacketHeader->Data_Total_Length );
+		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
 
-			HCI_Set_Transmit_Buffer_Full( TxDesc );
-
-			return (TRUE);
-		}
+		free( PcktPtr );
 	}
 
-	return (FALSE);
+	return (Status);
 }
 
 

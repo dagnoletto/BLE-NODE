@@ -86,24 +86,30 @@ typedef struct
 {
 	uint8_t Bytes[255]; /* TODO: Check if this the maximum allowed for HCI */
 	uint16_t Size;
-}TRANSFER_DESC_DATA __attribute__ ((packed,aligned(1)));
+}__attribute__ ((packed,aligned(1))) DESC_DATA;
 
 
 typedef struct
 {
-	TRANSFER_DESC_DATA Data;
+	DESC_DATA* DataPtr;
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
-	uint8_t RequestTransmission; /* If TRUE, the higher layers can request transmission of newly enqueued frame */
-	void* ParentBuffer;
 }TRANSFER_DESCRIPTOR;
+
+
+typedef struct
+{
+	DESC_DATA Data;
+	TRANSFER_CALL_BACK_MODE CallBackMode;
+	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
+}CB_TRANSFER_DESCRIPTOR; /* For the callbacks the data is held in the very descriptor */
 
 
 typedef struct
 {
 	int8_t EnqueuedAtIndex; /* If negative, means that frame was not enqueued */
 	int8_t NumberOfEnqueuedFrames;
-	TRANSFER_DESCRIPTOR* BufferUsed;
+	uint8_t RequestTransmission; /* If TRUE, the higher layers can request transmission of newly enqueued frame */
 }FRAME_ENQUEUE_STATUS;
 
 
@@ -127,11 +133,9 @@ typedef struct
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-TRANSFER_DESCRIPTOR* HCI_Get_Command_Transmit_Buffer_Free(uint16_t OpCodeVal,
-		void* CmdComplete, void* CmdStatus );
-TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType, uint16_t OpCodeVal,
-		void* CmdComplete, void* CmdStatus );
-void HCI_Set_Transmit_Buffer_Full(TRANSFER_DESCRIPTOR* TxDescriptor);
+uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
+		TRANSFER_CALL_BACK_MODE CallBackMode,
+		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack);
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
 void Set_Default_Number_Of_HCI_Data_Packets( void );
 void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode );

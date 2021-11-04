@@ -33,9 +33,6 @@ static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
 static void Increment_HCI_Command_Packets( void );
 
-static uint8_t Verify_Command_Availability( FRAME_ENQUEUE_STATUS* EnqueueStatus, uint16_t OpCodeVal,
-		void* CmdComplete, void* CmdStatus );
-
 static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
 		HCI_EVENT_PCKT* EventPacketPtr, uint8_t Num_HCI_Cmd_Packets );
 static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
@@ -337,193 +334,108 @@ static void Increment_HCI_Command_Packets( void )
 
 
 /****************************************************************/
-/* HCI_Get_Transmit_Buffer_Free()           		            */
-/* Purpose: Higher layers get free buffer position here.		*/
+/* HCI_Transmit()                      				            */
+/* Purpose: Higher layers put messages to transmit calling		*/
+/* this function. This function enqueue messages in the 		*/
+/* hardware. 													*/
+/* destination	    											*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-TRANSFER_DESCRIPTOR* HCI_Get_Transmit_Buffer_Free(HCI_PACKET_TYPE PcktType, uint16_t OpCodeVal,
-		void* CmdComplete, void* CmdStatus )
+uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
+		TRANSFER_CALL_BACK_MODE CallBackMode,
+		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack)
 {
-	/* TODO: adicionar bloqueio se o mesmo opcode estiver sendo chamado de outra thread */
 	FRAME_ENQUEUE_STATUS Status;
-	Status.BufferUsed = NULL;
-
+	HCI_SERIAL_COMMAND_PCKT* CmdPacket = (HCI_SERIAL_COMMAND_PCKT*)( DataPtr ); /* Assume it is a command packet */
 	CMD_CALLBACK* CallBackPtr = NULL;
 
 	int8_t Ntries = 3;
 
-	if ( PcktType == HCI_COMMAND_PACKET )
+	if ( CmdPacket->PacketType == HCI_COMMAND_PACKET )
 	{
 		if( !Check_Command_Packets_Available() )
 		{
-			return (Status.BufferUsed);
+			return (FALSE);
 		}else
 		{
-			HCI_COMMAND_OPCODE OpCode;
-			OpCode.Val = OpCodeVal;
-			CallBackPtr = Get_Command_CallBack( OpCode );
+			CallBackPtr = Get_Command_CallBack( CmdPacket->CmdPacket.OpCode );
 			if( CallBackPtr != NULL )
 			{
 				if( CallBackPtr->Status )
 				{
-					return (Status.BufferUsed); /* This command was already loaded and is waiting for conclusion */
+					return (FALSE); /* This command was already loaded and is waiting for conclusion */
 				}
 			}
 		}
-	}else if ( PcktType == HCI_ACL_DATA_PACKET )
+	}else if ( CmdPacket->PacketType == HCI_ACL_DATA_PACKET )
 	{
 		if( !Check_Data_Packets_Available() )
 		{
-			return (Status.BufferUsed);
+			return (FALSE);
 		}
 	}
 
-	do
+	TRANSFER_DESCRIPTOR TransferDesc;
+	TransferDesc.DataPtr = Search_For_Free_Memory_Buffer(  );
+
+	if( TransferDesc.DataPtr != NULL )
 	{
-		/* As the buffer could be blocked awaiting another operation, you should try some times. */
-		Status = Bluenrg_Enqueue_Frame(7, SPI_WRITE, 1);
+		TransferDesc.CallBack = CallBack;
+		TransferDesc.CallBackMode = CallBackMode;
+		TransferDesc.DataPtr->Size = DataSize;
+		/* The data MUST be ready at the buffer BEFORE the frame is enqueued */
+		memcpy( (uint8_t*)(TransferDesc.DataPtr->Bytes), DataPtr, TransferDesc.DataPtr->Size );
 
-		Ntries--;
-	}while( ( Status.EnqueuedAtIndex < 0 ) &&  ( Ntries > 0 ) );
+		do
+		{
+			/* As the buffer could be blocked awaiting another operation, you should try some times. */
+			Status = Bluenrg_Add_Frame( &TransferDesc, 7 );
+			Ntries--;
+		}while( ( Status.EnqueuedAtIndex < 0 ) &&  ( Ntries > 0 ) );
 
+	}else
+	{
+		return (FALSE);
+	}
 
 	if( Status.EnqueuedAtIndex >= 0 ) /* Successfully enqueued */
 	{
-		if( PcktType == HCI_COMMAND_PACKET )
+		if( CmdPacket->PacketType == HCI_COMMAND_PACKET )
 		{
 			Decrement_HCI_Command_Packets(  );
 
 			if( CallBackPtr != NULL )
 			{
-				CallBackPtr->CmdCompleteCallBack = CmdComplete;
-				CallBackPtr->CmdStatusCallBack = CmdStatus;
+				CallBackPtr->CmdCompleteCallBack = CmdCallBack->CmdCompleteCallBack;
+				CallBackPtr->CmdStatusCallBack = CmdCallBack->CmdStatusCallBack;
 				CallBackPtr->Status = BUSY;
 			}
-		}else if ( PcktType == HCI_ACL_DATA_PACKET )
+		}else if ( CmdPacket->PacketType == HCI_ACL_DATA_PACKET )
 		{
 			Decrement_HCI_Data_Packets(  );
 		}
-	}
 
-	return (Status.BufferUsed);
-}
-
-
-/****************************************************************/
-/* HCI_Get_Command_Transmit_Buffer_Free()       	            */
-/* Purpose: Higher layers get free buffer position here.		*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-TRANSFER_DESCRIPTOR* HCI_Get_Command_Transmit_Buffer_Free(uint16_t OpCodeVal,
-		void* CmdComplete, void* CmdStatus )
-{
-	FRAME_ENQUEUE_STATUS Status;
-
-	while( !Verify_Command_Availability( &Status, OpCodeVal, CmdComplete, CmdStatus ) );
-
-	return (Status.BufferUsed);
-}
-
-
-/****************************************************************/
-/* Verify_Command_Availability()        			            */
-/* Purpose: Thread safe command is available.					*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static uint8_t Verify_Command_Availability( FRAME_ENQUEUE_STATUS* EnqueueStatus, uint16_t OpCodeVal,
-		void* CmdComplete, void* CmdStatus )
-{
-	static volatile uint8_t Acquire = 0;
-
-	EnterCritical(); /* Critical section enter */
-
-	Acquire++;
-
-	if( Acquire != 1 ) /* Cannot enqueue while a frame is being released */
-	{
-		ExitCritical(); /* Critical section exit */
-		return (FALSE); /* This function is already being handled and we are not going to mix it up */
-	}
-
-	ExitCritical();
-
-	CMD_CALLBACK* CallBackPtr = NULL;
-	uint8_t CmdAvailable = FALSE;
-	int8_t Ntries = 3;
-
-	EnqueueStatus->BufferUsed = NULL;
-
-	if( Check_Command_Packets_Available() )
-	{
-		CmdAvailable = TRUE;
-		HCI_COMMAND_OPCODE OpCode;
-		OpCode.Val = OpCodeVal;
-		CallBackPtr = Get_Command_CallBack( OpCode );
-		if( CallBackPtr != NULL )
+		/* This is the first successfully enqueued write message, so, request transmission */
+		if( ( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) ) || ( Status.RequestTransmission ) )
 		{
-			if( CallBackPtr->Status )
-			{
-				CmdAvailable = FALSE; /* This command was already loaded and is waiting for conclusion */
-			}
+			/* Request transmission */
+			Request_Frame();
 		}
-	}
 
-	if( CmdAvailable )
+		return (TRUE);
+	}else
 	{
-		do
+		TransferDesc.DataPtr->Size = 0; /* Release the allocated buffer since no available TX buffer was found */
+		if( Status.RequestTransmission )
 		{
-			/* As the buffer could be blocked awaiting another operation, you should try some times. */
-			*EnqueueStatus = Bluenrg_Enqueue_Frame(7, SPI_WRITE, 1);
-
-			Ntries--;
-		}while( ( EnqueueStatus->BufferUsed == NULL ) &&  ( Ntries > 0 ) );
-	}
-
-
-	if( EnqueueStatus->BufferUsed != NULL ) /* Successfully enqueued */
-	{
-		Decrement_HCI_Command_Packets(  );
-
-		if( CallBackPtr != NULL )
-		{
-			CallBackPtr->CmdCompleteCallBack = CmdComplete;
-			CallBackPtr->CmdStatusCallBack = CmdStatus;
-			CallBackPtr->Status = BUSY;
+			/* Request transmission */
+			Request_Frame();
 		}
+		return (FALSE);
 	}
 
-	EnterCritical(); /* Critical section enter */
-
-	Acquire = 0;
-
-	ExitCritical(); /* Critical section exit */
-
-	return (TRUE);
-}
-
-
-/****************************************************************/
-/* HCI_Set_Transmit_Buffer_Full()        			            */
-/* Purpose: Higher layers set buffer full here.					*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-void HCI_Set_Transmit_Buffer_Full(TRANSFER_DESCRIPTOR* TxDescriptor)
-{
-	Bluenrg_Set_Buffer_Full( TxDescriptor->ParentBuffer, TxDescriptor->DataSize );
-
-	if( /*TxDescriptor->RequestTransmission*/1/*TODO */ )
-	{
-		/* Request transmission */
-		Bluenrg_Request_Frame();
-	}
 }
 
 
