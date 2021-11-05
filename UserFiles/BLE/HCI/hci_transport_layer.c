@@ -33,6 +33,10 @@ static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
 static void Increment_HCI_Command_Packets( void );
 
+static uint8_t Verify_Command_Availability( TRANSFER_DESCRIPTOR* TxDescPtr, uint16_t OpCodeVal,
+		uint8_t Operation, void* CmdComplete, void* CmdStatus );
+static uint8_t Verify_Data_Availability( TRANSFER_DESCRIPTOR* TxDescPtr, uint8_t Operation );
+
 static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
 		HCI_EVENT_PCKT* EventPacketPtr, uint8_t Num_HCI_Cmd_Packets );
 static void Finish_Command( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
@@ -334,7 +338,7 @@ static void Increment_HCI_Command_Packets( void )
 
 
 /****************************************************************/
-/* HCI_Transmit()                      				            */
+/* HCI_Transmit_Command()                     		            */
 /* Purpose: Higher layers put messages to transmit calling		*/
 /* this function. This function enqueue messages in the 		*/
 /* hardware. 													*/
@@ -343,99 +347,329 @@ static void Increment_HCI_Command_Packets( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
-		TRANSFER_CALL_BACK_MODE CallBackMode,
-		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack)
+uint8_t HCI_Transmit_Command( TRANSFER_DESCRIPTOR* TxDescPtr, void* CmdComplete, void* CmdStatus )
 {
-	FRAME_ENQUEUE_STATUS Status;
-	HCI_SERIAL_COMMAND_PCKT* CmdPacket = (HCI_SERIAL_COMMAND_PCKT*)( DataPtr ); /* Assume it is a command packet */
-	CMD_CALLBACK* CallBackPtr = NULL;
+	if( TxDescPtr->DataPtr != NULL )
+	{
+		int8_t Ntries = 3;
 
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDescPtr->DataPtr->Bytes[0] );
+
+		do
+		{
+			if( Verify_Command_Availability( TxDescPtr, PcktPtr->CmdPacket.OpCode.Val, 1, CmdComplete, CmdStatus ) )
+			{
+				return (TRUE);
+			}
+			Ntries--;
+		}while( ( TxDescPtr->DataPtr->Size != 0 ) &&  ( Ntries > 0 ) );
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* HCI_Get_Command_Transmit_Buffer_Free()       	            */
+/* Purpose: Higher layers get free buffer position here.		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+DESC_DATA* HCI_Get_Command_Transmit_Buffer_Free( uint16_t OpCodeVal )
+{
+	TRANSFER_DESCRIPTOR TransferDesc;
 	int8_t Ntries = 3;
 
-	if ( CmdPacket->PacketType == HCI_COMMAND_PACKET )
+	do
 	{
-		if( !Check_Command_Packets_Available() )
+		if( Verify_Command_Availability( &TransferDesc, OpCodeVal, 0, NULL, NULL ) )
 		{
-			return (FALSE);
-		}else
-		{
-			CallBackPtr = Get_Command_CallBack( CmdPacket->CmdPacket.OpCode );
-			if( CallBackPtr != NULL )
-			{
-				if( CallBackPtr->Status )
-				{
-					return (FALSE); /* This command was already loaded and is waiting for conclusion */
-				}
-			}
+			return (TransferDesc.DataPtr);
 		}
-	}else if ( CmdPacket->PacketType == HCI_ACL_DATA_PACKET )
+		Ntries--;
+	}while( Ntries > 0 );
+
+	TransferDesc.DataPtr = NULL;
+
+	return (TransferDesc.DataPtr);
+}
+
+
+/****************************************************************/
+/* Verify_Command_Availability()        			            */
+/* Purpose: Thread safe command is available.					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Verify_Command_Availability( TRANSFER_DESCRIPTOR* TxDescPtr, uint16_t OpCodeVal,
+		uint8_t Operation, void* CmdComplete, void* CmdStatus )
+{
+	static volatile uint8_t Acquire = 0;
+
+	EnterCritical(); /* Critical section enter */
+
+	Acquire++;
+
+	if( Acquire != 1 ) /* Cannot enqueue while a frame is being released */
 	{
-		if( !Check_Data_Packets_Available() )
+		ExitCritical(); /* Critical section exit */
+		return (FALSE); /* This function is already being handled and we are not going to mix it up */
+	}
+
+	ExitCritical();
+
+	CMD_CALLBACK* CallBackPtr = NULL;
+	uint8_t CmdAvailable = FALSE;
+
+	if( Check_Command_Packets_Available() )
+	{
+		CmdAvailable = TRUE;
+		HCI_COMMAND_OPCODE OpCode;
+		OpCode.Val = OpCodeVal;
+		CallBackPtr = Get_Command_CallBack( OpCode );
+		if( CallBackPtr != NULL )
 		{
-			return (FALSE);
+			if( CallBackPtr->Status )
+			{
+				CmdAvailable = FALSE; /* This command was already loaded and is waiting for conclusion */
+			}
 		}
 	}
 
-	TRANSFER_DESCRIPTOR TransferDesc;
-	TransferDesc.DataPtr = Search_For_Free_Memory_Buffer(  );
-
-	if( TransferDesc.DataPtr != NULL )
+	if( Operation == 0 ) /* This is for buffer reservation only */
 	{
-		TransferDesc.CallBack = CallBack;
-		TransferDesc.CallBackMode = CallBackMode;
-		TransferDesc.DataPtr->Size = DataSize;
-		/* The data MUST be ready at the buffer BEFORE the frame is enqueued */
-		memcpy( (uint8_t*)(TransferDesc.DataPtr->Bytes), DataPtr, TransferDesc.DataPtr->Size );
+
+		TxDescPtr->DataPtr = CmdAvailable ? Search_For_Command_Memory_Buffer() : NULL;
+
+		EnterCritical(); /* Critical section enter */
+
+		Acquire = 0;
+
+		ExitCritical(); /* Critical section exit */
+
+		return (TRUE);
+
+	}else if( ( TxDescPtr->DataPtr != NULL ) && ( CmdAvailable ) )
+	{
+		/* Here we have already reserved buffer, we need to enqueued the command in
+		 * the transmit buffer */
+		int8_t Ntries = 3;
+		FRAME_ENQUEUE_STATUS Status;
 
 		do
 		{
 			/* As the buffer could be blocked awaiting another operation, you should try some times. */
-			Status = Bluenrg_Add_Frame( &TransferDesc, 7 );
+			Status = Enqueue_Frame( TxDescPtr, 7, SPI_WRITE, 1 );
+
 			Ntries--;
 		}while( ( Status.EnqueuedAtIndex < 0 ) &&  ( Ntries > 0 ) );
 
-	}else
-	{
-		return (FALSE);
-	}
-
-	if( Status.EnqueuedAtIndex >= 0 ) /* Successfully enqueued */
-	{
-		if( CmdPacket->PacketType == HCI_COMMAND_PACKET )
+		if( Status.EnqueuedAtIndex >= 0 ) /* Successfully enqueued */
 		{
 			Decrement_HCI_Command_Packets(  );
 
 			if( CallBackPtr != NULL )
 			{
-				CallBackPtr->CmdCompleteCallBack = CmdCallBack->CmdCompleteCallBack;
-				CallBackPtr->CmdStatusCallBack = CmdCallBack->CmdStatusCallBack;
+				CallBackPtr->CmdCompleteCallBack = CmdComplete;
+				CallBackPtr->CmdStatusCallBack = CmdStatus;
 				CallBackPtr->Status = BUSY;
 			}
-		}else if ( CmdPacket->PacketType == HCI_ACL_DATA_PACKET )
-		{
-			Decrement_HCI_Data_Packets(  );
-		}
 
-		/* This is the first successfully enqueued write message, so, request transmission */
-		if( ( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) ) || ( Status.RequestTransmission ) )
-		{
-			/* Request transmission */
-			Request_Frame();
-		}
+			/* This is the first successfully enqueued write message, so, request transmission */
+			if( ( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) ) || ( Status.RequestTransmission ) )
+			{
+				/* Request transmission */
+				Request_Frame();
+			}
 
-		return (TRUE);
-	}else
+			EnterCritical(); /* Critical section enter */
+
+			Acquire = 0;
+
+			ExitCritical(); /* Critical section exit */
+
+			return (TRUE);
+
+		}else
+		{
+			TxDescPtr->DataPtr->Size = 0; /* Release the allocated buffer since no available TX buffer was found */
+			if( Status.RequestTransmission )
+			{
+				/* Request transmission */
+				Request_Frame();
+			}
+		}
+	}else if( TxDescPtr->DataPtr != NULL )
 	{
-		TransferDesc.DataPtr->Size = 0; /* Release the allocated buffer since no available TX buffer was found */
-		if( Status.RequestTransmission )
-		{
-			/* Request transmission */
-			Request_Frame();
-		}
-		return (FALSE);
+		TxDescPtr->DataPtr->Size = 0; /* Release the allocated buffer since no available command room was found */
 	}
 
+	EnterCritical(); /* Critical section enter */
+
+	Acquire = 0;
+
+	ExitCritical(); /* Critical section exit */
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* HCI_Transmit_Data()                     		            	*/
+/* Purpose: Higher layers put messages to transmit calling		*/
+/* this function. This function enqueue messages in the 		*/
+/* hardware. 													*/
+/* destination	    											*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+uint8_t HCI_Transmit_Data( TRANSFER_DESCRIPTOR* TxDescPtr )
+{
+	if( TxDescPtr->DataPtr != NULL )
+	{
+		int8_t Ntries = 3;
+
+		do
+		{
+			if( Verify_Data_Availability( TxDescPtr, 1 ) )
+			{
+				return (TRUE);
+			}
+			Ntries--;
+		}while( ( TxDescPtr->DataPtr->Size != 0 ) &&  ( Ntries > 0 ) );
+	}
+
+	return (FALSE);
+}
+
+
+/****************************************************************/
+/* HCI_Get_Data_Transmit_Buffer_Free()       	            	*/
+/* Purpose: Higher layers get free buffer position here.		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+DESC_DATA* HCI_Get_Data_Transmit_Buffer_Free( void )
+{
+	TRANSFER_DESCRIPTOR TransferDesc;
+	int8_t Ntries = 3;
+
+	do
+	{
+		if( Verify_Data_Availability( &TransferDesc, 0 ) )
+		{
+			return (TransferDesc.DataPtr);
+		}
+		Ntries--;
+	}while( Ntries > 0 );
+
+	TransferDesc.DataPtr = NULL;
+
+	return (TransferDesc.DataPtr);
+}
+
+
+/****************************************************************/
+/* Verify_Data_Availability()        			           		*/
+/* Purpose: Thread safe data is available.						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static uint8_t Verify_Data_Availability( TRANSFER_DESCRIPTOR* TxDescPtr, uint8_t Operation )
+{
+	static volatile uint8_t Acquire = 0;
+
+	EnterCritical(); /* Critical section enter */
+
+	Acquire++;
+
+	if( Acquire != 1 ) /* Cannot enqueue while a frame is being released */
+	{
+		ExitCritical(); /* Critical section exit */
+		return (FALSE); /* This function is already being handled and we are not going to mix it up */
+	}
+
+	ExitCritical();
+
+	uint8_t DataAvailable = FALSE;
+
+	if( Check_Data_Packets_Available() )
+	{
+		DataAvailable = TRUE;
+	}
+
+	if( Operation == 0 ) /* This is for buffer reservation only */
+	{
+		TxDescPtr->DataPtr = DataAvailable ? Search_For_Data_Memory_Buffer() : NULL;
+
+		EnterCritical(); /* Critical section enter */
+
+		Acquire = 0;
+
+		ExitCritical(); /* Critical section exit */
+
+		return (TRUE);
+
+	}else if( ( TxDescPtr->DataPtr != NULL ) && ( DataAvailable ) )
+	{
+		/* Here we have already reserved buffer, we need to enqueued the command in
+		 * the transmit buffer */
+		int8_t Ntries = 3;
+		FRAME_ENQUEUE_STATUS Status;
+
+		do
+		{
+			/* As the buffer could be blocked awaiting another operation, you should try some times. */
+			Status = Enqueue_Frame( TxDescPtr, 7, SPI_WRITE, 1 );
+
+			Ntries--;
+		}while( ( Status.EnqueuedAtIndex < 0 ) &&  ( Ntries > 0 ) );
+
+		if( Status.EnqueuedAtIndex >= 0 ) /* Successfully enqueued */
+		{
+			Decrement_HCI_Data_Packets(  );
+
+			/* This is the first successfully enqueued write message, so, request transmission */
+			if( ( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) ) || ( Status.RequestTransmission ) )
+			{
+				/* Request transmission */
+				Request_Frame();
+			}
+
+			EnterCritical(); /* Critical section enter */
+
+			Acquire = 0;
+
+			ExitCritical(); /* Critical section exit */
+
+			return (TRUE);
+
+		}else
+		{
+			TxDescPtr->DataPtr->Size = 0; /* Release the allocated buffer since no available TX buffer was found */
+			if( Status.RequestTransmission )
+			{
+				/* Request transmission */
+				Request_Frame();
+			}
+		}
+	}else if( TxDescPtr->DataPtr != NULL )
+	{
+		TxDescPtr->DataPtr->Size = 0; /* Release the allocated buffer since no available command room was found */
+	}
+
+	EnterCritical(); /* Critical section enter */
+
+	Acquire = 0;
+
+	ExitCritical(); /* Critical section exit */
+
+	return (FALSE);
 }
 
 

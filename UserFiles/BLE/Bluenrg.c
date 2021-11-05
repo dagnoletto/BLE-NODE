@@ -21,6 +21,9 @@
 #define SIZE_OF_FRAME_BUFFER 		  8
 #define SIZE_OF_CALLBACK_BUFFER 	  4
 
+#define SIZE_OF_CMD_MEM_BUFFER 		  4
+#define SIZE_OF_DAT_MEM_BUFFER 		  4
+
 
 /****************************************************************/
 /* Type Defines                                                 */
@@ -117,7 +120,7 @@ inline static void Release_Frame(void) __attribute__((always_inline));
 static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* ManagerPtr);
 inline static CALLBACK_DESC* Search_For_Free_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
 inline static void Release_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
-static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index);
+static void Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index);
 inline static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBACK_MANAGEMENT* ManagerPtr ) __attribute__((always_inline));
 static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE TransferMode);
 
@@ -135,7 +138,8 @@ const SPI_MASTER_HEADER SPIMasterHeaderRead  = { .CTRL = CTRL_READ, .Dummy = {0,
 static BUFFER_MANAGEMENT BufferManager;
 static CALLBACK_MANAGEMENT ReadCallBackManager;
 static CALLBACK_MANAGEMENT WriteCallBackManager;
-static DESC_DATA MemBuffer[SIZE_OF_FRAME_BUFFER];
+static DESC_DATA MemBuffer[SIZE_OF_CMD_MEM_BUFFER];
+static DESC_DATA MemBufferData[SIZE_OF_DAT_MEM_BUFFER];
 static uint8_t DummyByte;
 static uint32_t TimerResetActive = 0;
 static uint8_t ResetBluenrgRequest = TRUE;
@@ -213,21 +217,47 @@ void Run_Bluenrg(void)
 
 
 /****************************************************************/
-/* Search_For_Free_Memory_Buffer()             		         	*/
+/* Search_For_Command_Memory_Buffer()          		         	*/
 /* Purpose: Find free buffer or return NULL						*/
 /* Parameters: none				         						*/
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-DESC_DATA* Search_For_Free_Memory_Buffer(void)
+DESC_DATA* Search_For_Command_Memory_Buffer(void)
 {
-	/* TODO: add here thread safe calling and improve performance */
-	for ( int8_t i = 0; i < SIZE_OF_FRAME_BUFFER; i++ )
+	/* TODO: improve performance */
+	uint16_t Size = sizeof(MemBuffer)/sizeof(DESC_DATA);
+
+	for ( uint16_t i = 0; i < Size; i++ )
 	{
 		if( MemBuffer[i].Size == 0 )
 		{
 			MemBuffer[i].Size = 1; /* Just to lock the buffer */
 			return ( &MemBuffer[i] );
+		}
+	}
+	return ( NULL );
+}
+
+
+/****************************************************************/
+/* Search_For_Data_Memory_Buffer()          		         	*/
+/* Purpose: Find free buffer or return NULL						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+DESC_DATA* Search_For_Data_Memory_Buffer(void)
+{
+	/* TODO: improve performance */
+	uint16_t Size = sizeof(MemBufferData)/sizeof(DESC_DATA);
+
+	for ( uint16_t i = 0; i < Size; i++ )
+	{
+		if( MemBufferData[i].Size == 0 )
+		{
+			MemBufferData[i].Size = 1; /* Just to lock the buffer */
+			return ( &MemBufferData[i] );
 		}
 	}
 	return ( NULL );
@@ -440,24 +470,6 @@ static void Release_Frame(void)
 	FrameHeadReleaseRequest = 0;
 
 	ExitCritical(); /* Critical section exit */
-}
-
-
-/****************************************************************/
-/* Bluenrg_Add_Frame()         	 		              	    	*/
-/* Purpose: Add HCI packet to the transmitting queue			*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-FRAME_ENQUEUE_STATUS Bluenrg_Add_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index)
-{
-	FRAME_ENQUEUE_STATUS Status;
-
-	/* External calls are always write calls. Read calls are triggered by IRQ pin. */
-	Status = Enqueue_Frame(TransferDescPtr, buffer_index, SPI_WRITE, 1);
-
-	return ( Status );
 }
 
 
@@ -1235,7 +1247,8 @@ static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priori
 {
 	TRANSFER_DESCRIPTOR TransferDesc;
 
-	TransferDesc.DataPtr = Search_For_Free_Memory_Buffer(  );
+	/* TODO: add specific buffer? */
+	TransferDesc.DataPtr = Search_For_Command_Memory_Buffer(  );
 
 	if( TransferDesc.DataPtr != NULL )
 	{
@@ -1266,13 +1279,12 @@ static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priori
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
+static void Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 {
-	FRAME_ENQUEUE_STATUS Status;
 	TRANSFER_DESCRIPTOR TransferDesc;
 
-	Status.EnqueuedAtIndex = -1;
-	TransferDesc.DataPtr = Search_For_Free_Memory_Buffer(  );
+	/* TODO: ADD SPECIFIC BUFFER */
+	TransferDesc.DataPtr = Search_For_Command_Memory_Buffer(  );
 
 	if( TransferDesc.DataPtr != NULL )
 	{
@@ -1283,10 +1295,9 @@ static FRAME_ENQUEUE_STATUS Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 		TransferDesc.CallBack = (TransferCallBack)(&Bluenrg_CallBack_Config);
 
 		/* Read calls are triggered by IRQ pin. */
-		Status = Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ, 1 );
+		Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ, 1 );
 
 	}
-	return ( Status );
 }
 
 

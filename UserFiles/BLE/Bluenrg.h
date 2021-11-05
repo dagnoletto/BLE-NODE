@@ -53,9 +53,9 @@ uint8_t Bluenrg_Send_Frame(SPI_TRANSFER_MODE Mode, uint8_t* TxPtr, uint8_t* RxPt
 void Bluenrg_Frame_Status(TRANSFER_STATUS status);
 void Bluenrg_Error(BLUENRG_ERROR_CODES Errorcode);
 void Bluenrg_CallBack_Config(TRANSFER_CALL_BACK_MODE* CallBackMode, HCI_PACKET_TYPE PacketType, uint8_t* DataPtr);
-DESC_DATA* Search_For_Free_Memory_Buffer(void);
+DESC_DATA* Search_For_Command_Memory_Buffer(void);
+DESC_DATA* Search_For_Data_Memory_Buffer(void);
 FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode, uint8_t Priority);
-FRAME_ENQUEUE_STATUS Bluenrg_Add_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index);
 void Request_Frame(void);
 void Clr_Bluenrg_Reset_Pin(void);
 void Set_Bluenrg_Reset_Pin(void);

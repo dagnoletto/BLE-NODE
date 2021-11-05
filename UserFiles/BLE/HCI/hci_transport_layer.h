@@ -133,9 +133,11 @@ typedef struct
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-uint8_t HCI_Transmit(void* DataPtr, uint16_t DataSize,
-		TRANSFER_CALL_BACK_MODE CallBackMode,
-		TransferCallBack CallBack, CMD_CALLBACK* CmdCallBack);
+DESC_DATA* HCI_Get_Command_Transmit_Buffer_Free( uint16_t OpCodeVal );
+uint8_t HCI_Transmit_Command( TRANSFER_DESCRIPTOR* TxDescPtr,
+		void* CmdComplete, void* CmdStatus );
+DESC_DATA* HCI_Get_Data_Transmit_Buffer_Free( void );
+uint8_t HCI_Transmit_Data( TRANSFER_DESCRIPTOR* TxDescPtr );
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
 void Set_Default_Number_Of_HCI_Data_Packets( void );
 void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode );

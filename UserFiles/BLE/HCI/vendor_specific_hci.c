@@ -43,19 +43,26 @@
 /****************************************************************/
 uint8_t ACI_Hal_Get_Fw_Build_Number( HalGetFwBuildNumberComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	uint8_t Status;
+	TRANSFER_DESCRIPTOR TxDesc;
+	TxDesc.DataPtr = HCI_Get_Command_Transmit_Buffer_Free( VS_ACI_HAL_GET_FW_BUILD_NUMBER /*,CompleteCallBack, StatusCallBack */ );
 
-	HCI_SERIAL_COMMAND_PCKT Pckt;
+	if( TxDesc.DataPtr != NULL )
+	{
+		TxDesc.CallBack = NULL;
+		TxDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		TxDesc.DataPtr->Size = sizeof(HCI_SERIAL_COMMAND_PCKT);
 
-	Pckt.PacketType = HCI_COMMAND_PACKET;
-	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_GET_FW_BUILD_NUMBER;
-	Pckt.CmdPacket.Parameter_Total_Length = 0;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc.DataPtr->Bytes[0] );
 
-	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_GET_FW_BUILD_NUMBER;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+		return ( HCI_Transmit_Command( &TxDesc, CompleteCallBack, StatusCallBack ) );
 
-	return (Status);
+	};
+
+	return (FALSE);
 }
 
 
@@ -72,29 +79,34 @@ uint8_t ACI_Hal_Get_Fw_Build_Number( HalGetFwBuildNumberComplete CompleteCallBac
 uint8_t ACI_Hal_Write_Config_Data( uint8_t Offset, uint8_t Length, uint8_t Value[],
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	uint8_t Status;
+	TRANSFER_DESCRIPTOR TxDesc;
+	TxDesc.DataPtr = HCI_Get_Command_Transmit_Buffer_Free( VS_ACI_HAL_WRITE_CONFIG_DATA /*,CompleteCallBack, StatusCallBack */ );
 
-	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + Length + 2;
-	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
-
-	PcktPtr->PacketType = HCI_COMMAND_PACKET;
-	PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_WRITE_CONFIG_DATA;
-	PcktPtr->CmdPacket.Parameter_Total_Length = Length + 2;
-	PcktPtr->CmdPacket.Parameter[0] = Offset;
-	PcktPtr->CmdPacket.Parameter[1] = Length;
-
-	for( uint8_t i = 0; i < Length; i++ )
+	if( TxDesc.DataPtr != NULL )
 	{
-		PcktPtr->CmdPacket.Parameter[i + 2] = Value[i];
-	}
+		TxDesc.CallBack = NULL;
+		TxDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		TxDesc.DataPtr->Size = sizeof(HCI_SERIAL_COMMAND_PCKT) + Length + 2;
 
-	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc.DataPtr->Bytes[0] );
 
-	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_WRITE_CONFIG_DATA;
+		PcktPtr->CmdPacket.Parameter_Total_Length = Length + 2;
+		PcktPtr->CmdPacket.Parameter[0] = Offset;
+		PcktPtr->CmdPacket.Parameter[1] = Length;
 
-	free( PcktPtr );
+		for( uint8_t i = 0; i < Length; i++ )
+		{
+			PcktPtr->CmdPacket.Parameter[i + 2] = Value[i];
+		}
 
-	return (Status);
+		return ( HCI_Transmit_Command( &TxDesc, CompleteCallBack, StatusCallBack ) );
+
+	};
+
+
+	return (FALSE);
 }
 
 
@@ -112,23 +124,27 @@ uint8_t ACI_Hal_Write_Config_Data( uint8_t Offset, uint8_t Length, uint8_t Value
 uint8_t ACI_Hal_Read_Config_Data( uint8_t Offset,
 		HalReadConfigDataComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	uint8_t Status;
+	TRANSFER_DESCRIPTOR TxDesc;
+	TxDesc.DataPtr = HCI_Get_Command_Transmit_Buffer_Free( VS_ACI_HAL_READ_CONFIG_DATA /*,CompleteCallBack, StatusCallBack */ );
 
-	uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 1;
-	HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+	if( TxDesc.DataPtr != NULL )
+	{
+		TxDesc.CallBack = NULL;
+		TxDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		TxDesc.DataPtr->Size = sizeof(HCI_SERIAL_COMMAND_PCKT) + 1;
 
-	PcktPtr->PacketType = HCI_COMMAND_PACKET;
-	PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_READ_CONFIG_DATA;
-	PcktPtr->CmdPacket.Parameter_Total_Length = 1;
-	PcktPtr->CmdPacket.Parameter[0] = Offset;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc.DataPtr->Bytes[0] );
 
-	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_READ_CONFIG_DATA;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 1;
+		PcktPtr->CmdPacket.Parameter[0] = Offset;
 
-	Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+		return ( HCI_Transmit_Command( &TxDesc, CompleteCallBack, StatusCallBack ) );
 
-	free( PcktPtr );
+	};
 
-	return (Status);
+	return (FALSE);
 }
 
 
@@ -146,29 +162,32 @@ uint8_t ACI_Hal_Read_Config_Data( uint8_t Offset,
 uint8_t ACI_Hal_Set_Tx_Power_Level( uint8_t EN_HIGH_POWER, uint8_t PA_LEVEL,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	uint8_t Status = FALSE;
-
 	if( ( EN_HIGH_POWER <= 1 ) && ( PA_LEVEL <= 7 ) )
 	{
+		TRANSFER_DESCRIPTOR TxDesc;
+		TxDesc.DataPtr = HCI_Get_Command_Transmit_Buffer_Free( VS_ACI_HAL_SET_TX_POWER_LEVEL /*,CompleteCallBack, StatusCallBack */ );
 
-		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+		if( TxDesc.DataPtr != NULL )
+		{
+			TxDesc.CallBack = NULL;
+			TxDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+			TxDesc.DataPtr->Size = sizeof(HCI_SERIAL_COMMAND_PCKT) + 2;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_SET_TX_POWER_LEVEL;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 2;
-		PcktPtr->CmdPacket.Parameter[0] = EN_HIGH_POWER;
-		PcktPtr->CmdPacket.Parameter[1] = PA_LEVEL;
+			HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc.DataPtr->Bytes[0] );
 
-		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+			PcktPtr->PacketType = HCI_COMMAND_PACKET;
+			PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_SET_TX_POWER_LEVEL;
+			PcktPtr->CmdPacket.Parameter_Total_Length = 2;
+			PcktPtr->CmdPacket.Parameter[0] = EN_HIGH_POWER;
+			PcktPtr->CmdPacket.Parameter[1] = PA_LEVEL;
 
-		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+			return ( HCI_Transmit_Command( &TxDesc, CompleteCallBack, StatusCallBack ) );
 
-		free( PcktPtr );
+		};
 
 	}
 
-	return (Status);
+	return (FALSE);
 }
 
 
@@ -189,19 +208,26 @@ uint8_t ACI_Hal_Set_Tx_Power_Level( uint8_t EN_HIGH_POWER, uint8_t PA_LEVEL,
 /****************************************************************/
 uint8_t ACI_Hal_Device_Standby( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	uint8_t Status;
+	TRANSFER_DESCRIPTOR TxDesc;
+	TxDesc.DataPtr = HCI_Get_Command_Transmit_Buffer_Free( VS_ACI_HAL_DEVICE_STANDBY /*,CompleteCallBack, StatusCallBack */ );
 
-	HCI_SERIAL_COMMAND_PCKT Pckt;
+	if( TxDesc.DataPtr != NULL )
+	{
+		TxDesc.CallBack = NULL;
+		TxDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		TxDesc.DataPtr->Size = sizeof(HCI_SERIAL_COMMAND_PCKT);
 
-	Pckt.PacketType = HCI_COMMAND_PACKET;
-	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_DEVICE_STANDBY;
-	Pckt.CmdPacket.Parameter_Total_Length = 0;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc.DataPtr->Bytes[0] );
 
-	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_DEVICE_STANDBY;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+		return ( HCI_Transmit_Command( &TxDesc, CompleteCallBack, StatusCallBack ) );
 
-	return (Status);
+	};
+
+	return (FALSE);
 }
 
 
@@ -224,19 +250,26 @@ uint8_t ACI_Hal_Device_Standby( DefCmdComplete CompleteCallBack, DefCmdStatus St
 /****************************************************************/
 uint8_t ACI_Hal_LE_Tx_Test_Packet_Number( HalLETxTestPacketNumberComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	uint8_t Status;
+	TRANSFER_DESCRIPTOR TxDesc;
+	TxDesc.DataPtr = HCI_Get_Command_Transmit_Buffer_Free( VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER /*,CompleteCallBack, StatusCallBack */ );
 
-	HCI_SERIAL_COMMAND_PCKT Pckt;
+	if( TxDesc.DataPtr != NULL )
+	{
+		TxDesc.CallBack = NULL;
+		TxDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		TxDesc.DataPtr->Size = sizeof(HCI_SERIAL_COMMAND_PCKT);
 
-	Pckt.PacketType = HCI_COMMAND_PACKET;
-	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER;
-	Pckt.CmdPacket.Parameter_Total_Length = 0;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc.DataPtr->Bytes[0] );
 
-	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_LE_TX_TEST_PACKET_NUMBER;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+		return ( HCI_Transmit_Command( &TxDesc, CompleteCallBack, StatusCallBack ) );
 
-	return (Status);
+	};
+
+	return (FALSE);
 }
 
 
@@ -257,28 +290,31 @@ uint8_t ACI_Hal_LE_Tx_Test_Packet_Number( HalLETxTestPacketNumberComplete Comple
 uint8_t ACI_Hal_Tone_Start( uint8_t ChannelID,
 		DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	uint8_t Status = FALSE;
-
 	if( ChannelID <= 0x27 ) /* 40 channels: channel 0 to channel 39 */
 	{
+		TRANSFER_DESCRIPTOR TxDesc;
+		TxDesc.DataPtr = HCI_Get_Command_Transmit_Buffer_Free( VS_ACI_HAL_TONE_START /*,CompleteCallBack, StatusCallBack */ );
 
-		uint16_t ByteArraySize = sizeof(HCI_SERIAL_COMMAND_PCKT) + 1;
-		HCI_SERIAL_COMMAND_PCKT* PcktPtr = malloc( ByteArraySize );
+		if( TxDesc.DataPtr != NULL )
+		{
+			TxDesc.CallBack = NULL;
+			TxDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+			TxDesc.DataPtr->Size = sizeof(HCI_SERIAL_COMMAND_PCKT) + 1;
 
-		PcktPtr->PacketType = HCI_COMMAND_PACKET;
-		PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_TONE_START;
-		PcktPtr->CmdPacket.Parameter_Total_Length = 1;
-		PcktPtr->CmdPacket.Parameter[0] = ChannelID;
+			HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc.DataPtr->Bytes[0] );
 
-		CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+			PcktPtr->PacketType = HCI_COMMAND_PACKET;
+			PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_TONE_START;
+			PcktPtr->CmdPacket.Parameter_Total_Length = 1;
+			PcktPtr->CmdPacket.Parameter[0] = ChannelID;
 
-		Status = HCI_Transmit( PcktPtr, ByteArraySize, CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+			return ( HCI_Transmit_Command( &TxDesc, CompleteCallBack, StatusCallBack ) );
 
-		free( PcktPtr );
+		};
 
 	}
 
-	return (Status);
+	return (FALSE);
 }
 
 
@@ -292,19 +328,26 @@ uint8_t ACI_Hal_Tone_Start( uint8_t ChannelID,
 /****************************************************************/
 uint8_t ACI_Hal_Tone_Stop( DefCmdComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	uint8_t Status;
+	TRANSFER_DESCRIPTOR TxDesc;
+	TxDesc.DataPtr = HCI_Get_Command_Transmit_Buffer_Free( VS_ACI_HAL_TONE_STOP /*,CompleteCallBack, StatusCallBack */ );
 
-	HCI_SERIAL_COMMAND_PCKT Pckt;
+	if( TxDesc.DataPtr != NULL )
+	{
+		TxDesc.CallBack = NULL;
+		TxDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		TxDesc.DataPtr->Size = sizeof(HCI_SERIAL_COMMAND_PCKT);
 
-	Pckt.PacketType = HCI_COMMAND_PACKET;
-	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_TONE_STOP;
-	Pckt.CmdPacket.Parameter_Total_Length = 0;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc.DataPtr->Bytes[0] );
 
-	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_TONE_STOP;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+		return ( HCI_Transmit_Command( &TxDesc, CompleteCallBack, StatusCallBack ) );
 
-	return (Status);
+	};
+
+	return (FALSE);
 }
 
 
@@ -318,19 +361,26 @@ uint8_t ACI_Hal_Tone_Stop( DefCmdComplete CompleteCallBack, DefCmdStatus StatusC
 /****************************************************************/
 uint8_t ACI_Hal_Get_Link_Status( HalGetLinkStatusComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	uint8_t Status;
+	TRANSFER_DESCRIPTOR TxDesc;
+	TxDesc.DataPtr = HCI_Get_Command_Transmit_Buffer_Free( VS_ACI_HAL_GET_LINK_STATUS /*,CompleteCallBack, StatusCallBack */ );
 
-	HCI_SERIAL_COMMAND_PCKT Pckt;
+	if( TxDesc.DataPtr != NULL )
+	{
+		TxDesc.CallBack = NULL;
+		TxDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		TxDesc.DataPtr->Size = sizeof(HCI_SERIAL_COMMAND_PCKT);
 
-	Pckt.PacketType = HCI_COMMAND_PACKET;
-	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_GET_LINK_STATUS;
-	Pckt.CmdPacket.Parameter_Total_Length = 0;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc.DataPtr->Bytes[0] );
 
-	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_GET_LINK_STATUS;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+		return ( HCI_Transmit_Command( &TxDesc, CompleteCallBack, StatusCallBack ) );
 
-	return (Status);
+	};
+
+	return (FALSE);
 }
 
 
@@ -345,19 +395,26 @@ uint8_t ACI_Hal_Get_Link_Status( HalGetLinkStatusComplete CompleteCallBack, DefC
 /****************************************************************/
 uint8_t ACI_Hal_Get_Anchor_Period( HalGetAnchorPeriodComplete CompleteCallBack, DefCmdStatus StatusCallBack )
 {
-	uint8_t Status;
+	TRANSFER_DESCRIPTOR TxDesc;
+	TxDesc.DataPtr = HCI_Get_Command_Transmit_Buffer_Free( VS_ACI_HAL_GET_ANCHOR_PERIOD /*,CompleteCallBack, StatusCallBack */ );
 
-	HCI_SERIAL_COMMAND_PCKT Pckt;
+	if( TxDesc.DataPtr != NULL )
+	{
+		TxDesc.CallBack = NULL;
+		TxDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+		TxDesc.DataPtr->Size = sizeof(HCI_SERIAL_COMMAND_PCKT);
 
-	Pckt.PacketType = HCI_COMMAND_PACKET;
-	Pckt.CmdPacket.OpCode.Val = VS_ACI_HAL_GET_ANCHOR_PERIOD;
-	Pckt.CmdPacket.Parameter_Total_Length = 0;
+		HCI_SERIAL_COMMAND_PCKT* PcktPtr = (typeof(PcktPtr))( &TxDesc.DataPtr->Bytes[0] );
 
-	CMD_CALLBACK CmdCallBack = { .CmdCompleteCallBack = CompleteCallBack, .CmdStatusCallBack = StatusCallBack };
+		PcktPtr->PacketType = HCI_COMMAND_PACKET;
+		PcktPtr->CmdPacket.OpCode.Val = VS_ACI_HAL_GET_ANCHOR_PERIOD;
+		PcktPtr->CmdPacket.Parameter_Total_Length = 0;
 
-	Status = HCI_Transmit( &Pckt, sizeof(Pckt), CALL_BACK_AFTER_TRANSFER, NULL, &CmdCallBack );
+		return ( HCI_Transmit_Command( &TxDesc, CompleteCallBack, StatusCallBack ) );
 
-	return (Status);
+	};
+
+	return (FALSE);
 }
 
 
