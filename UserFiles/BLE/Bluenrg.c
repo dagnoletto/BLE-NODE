@@ -262,7 +262,7 @@ DESC_DATA* Search_For_Command_Memory_Buffer(void)
 
 	for ( uint16_t i = 0; i < SIZE_OF_CMD_MEM_BUFFER; i++ )
 	{
-		DescDataPtr = (DESC_DATA*)( &MemBufferCmd[i].Bytes[0] );
+		DescDataPtr = (typeof(DescDataPtr))( &MemBufferCmd[i].Bytes[0] );
 
 		if( DescDataPtr->Size == 0 )
 		{
@@ -288,7 +288,7 @@ DESC_DATA* Search_For_Data_Memory_Buffer(void)
 
 	for ( uint16_t i = 0; i < SIZE_OF_DAT_MEM_BUFFER; i++ )
 	{
-		DescDataPtr = (DESC_DATA*)( &MemBufferData[i].Bytes[0] );
+		DescDataPtr = (typeof(DescDataPtr))( &MemBufferData[i].Bytes[0] );
 
 		if( DescDataPtr->Size == 0 )
 		{
@@ -314,7 +314,7 @@ static DESC_DATA* Search_For_Event_Memory_Buffer(void)
 
 	for ( uint16_t i = 0; i < SIZE_OF_EVT_MEM_BUFFER; i++ )
 	{
-		DescDataPtr = (DESC_DATA*)( &MemBufferEvent[i].Bytes[0] );
+		DescDataPtr = (typeof(DescDataPtr))( &MemBufferEvent[i].Bytes[0] );
 
 		if( DescDataPtr->Size == 0 )
 		{
@@ -1309,7 +1309,7 @@ static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priori
 {
 	TRANSFER_DESCRIPTOR TransferDesc;
 
-	TransferDesc.DataPtr = (DESC_DATA*)( &SPISlaveHeaderBytes[0] );
+	TransferDesc.DataPtr = (typeof(TransferDesc.DataPtr))( &SPISlaveHeaderBytes[0] );
 
 	/* Load transmitting queue position */
 	TransferDesc.DataPtr->Size = sizeof(SPI_SLAVE_HEADER); /* Put always the size of reading buffer to avoid writing in random memory */

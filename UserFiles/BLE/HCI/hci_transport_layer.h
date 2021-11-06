@@ -85,23 +85,33 @@ typedef uint8_t (*TransferCallBack)(void* DataPtr, uint16_t DataSize, TRANSFER_S
 typedef struct
 {
 	uint16_t Size;
-	uint8_t Bytes[255]; /* TODO: deixar este vetor como vazio quando resolver o problema de travar */
+	uint8_t Bytes[];
 }__attribute__ ((packed)) DESC_DATA;
 
 
 typedef struct
 {
-	DESC_DATA* DataPtr;
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
+	DESC_DATA* DataPtr;
 }TRANSFER_DESCRIPTOR;
 
 
 typedef struct
 {
-	DESC_DATA Data;
+	uint16_t Size;
+	/* The Host shall be able to accept HCI Event packets with up to 255 octets of data excluding
+	the HCI Event packet header. The HCI Event packet header is the first 2 octets of the packet.
+	Location: 1896 Core_v5.2 */
+	uint8_t Bytes[ sizeof( ((DESC_DATA*)(NULL))->Size ) + sizeof(HCI_SERIAL_EVENT_PCKT) + 255 ];
+}__attribute__ ((packed)) CB_DESC_DATA;
+
+
+typedef struct
+{
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
+	CB_DESC_DATA Data;
 }CB_TRANSFER_DESCRIPTOR; /* For the callbacks the data is held in the very descriptor */
 
 
