@@ -21,8 +21,9 @@
 #define SIZE_OF_FRAME_BUFFER 		  8
 #define SIZE_OF_CALLBACK_BUFFER 	  4
 
-#define SIZE_OF_CMD_MEM_BUFFER 		  4
+#define SIZE_OF_CMD_MEM_BUFFER 		  2
 #define SIZE_OF_DAT_MEM_BUFFER 		  4
+#define SIZE_OF_EVT_MEM_BUFFER 		  2
 
 
 /****************************************************************/
@@ -106,6 +107,34 @@ typedef enum
 }SPI_RELEASE;
 
 
+typedef struct
+{
+	/* Controllers shall be able to accept HCI Command packets with up to 255 bytes
+	of data excluding the HCI Command packet header. The HCI Command packet header
+	is the first 3 octets of the packet. Location: 1890 Core_v5.2 */
+	uint8_t Bytes[ sizeof( ((DESC_DATA*)(NULL))->Size ) + sizeof(HCI_SERIAL_COMMAND_PCKT) + 255 ];
+}__attribute__ ((packed)) CmdMemBuffer;
+
+
+typedef struct
+{
+	/* Hosts and Controllers shall be able to accept HCI ACL Data packets with up to
+	27 bytes of data excluding the HCI ACL Data packet header on Connection_Handles
+	associated with an LE-U logical link.The HCI ACL Data packet header is the first
+	4 octets of the packet. Location: 1892 Core_v5.2 */
+	uint8_t Bytes[ sizeof( ((DESC_DATA*)(NULL))->Size ) + sizeof(HCI_SERIAL_ACL_DATA_PCKT) + 27 ];
+}__attribute__ ((packed)) DataMemBuffer;
+
+
+typedef struct
+{
+	/* The Host shall be able to accept HCI Event packets with up to 255 octets of data excluding
+	the HCI Event packet header. The HCI Event packet header is the first 2 octets of the packet.
+	Location: 1896 Core_v5.2 */
+	uint8_t Bytes[ sizeof( ((DESC_DATA*)(NULL))->Size ) + sizeof(HCI_SERIAL_EVENT_PCKT) + 255 ];
+}__attribute__ ((packed)) EventMemBuffer;
+
+
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
@@ -120,9 +149,10 @@ inline static void Release_Frame(void) __attribute__((always_inline));
 static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* ManagerPtr);
 inline static CALLBACK_DESC* Search_For_Free_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
 inline static void Release_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
-static void Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index);
+inline static void Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index) __attribute__((always_inline));
 inline static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBACK_MANAGEMENT* ManagerPtr ) __attribute__((always_inline));
 static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE TransferMode);
+inline static DESC_DATA* Search_For_Event_Memory_Buffer(void) __attribute__((always_inline));
 
 
 /****************************************************************/
@@ -138,8 +168,10 @@ const SPI_MASTER_HEADER SPIMasterHeaderRead  = { .CTRL = CTRL_READ, .Dummy = {0,
 static BUFFER_MANAGEMENT BufferManager;
 static CALLBACK_MANAGEMENT ReadCallBackManager;
 static CALLBACK_MANAGEMENT WriteCallBackManager;
-static DESC_DATA MemBuffer[SIZE_OF_CMD_MEM_BUFFER];
-static DESC_DATA MemBufferData[SIZE_OF_DAT_MEM_BUFFER];
+static CmdMemBuffer MemBufferCmd[SIZE_OF_CMD_MEM_BUFFER];
+static DataMemBuffer MemBufferData[SIZE_OF_DAT_MEM_BUFFER];
+static EventMemBuffer MemBufferEvent[SIZE_OF_EVT_MEM_BUFFER];
+static uint8_t SPISlaveHeaderBytes[ sizeof( ((DESC_DATA*)(NULL))->Size ) + sizeof(SPI_SLAVE_HEADER) ];
 static uint8_t DummyByte;
 static uint32_t TimerResetActive = 0;
 static uint8_t ResetBluenrgRequest = TRUE;
@@ -226,14 +258,16 @@ void Run_Bluenrg(void)
 DESC_DATA* Search_For_Command_Memory_Buffer(void)
 {
 	/* TODO: improve performance */
-	uint16_t Size = sizeof(MemBuffer)/sizeof(DESC_DATA);
+	DESC_DATA* DescDataPtr;
 
-	for ( uint16_t i = 0; i < Size; i++ )
+	for ( uint16_t i = 0; i < SIZE_OF_CMD_MEM_BUFFER; i++ )
 	{
-		if( MemBuffer[i].Size == 0 )
+		DescDataPtr = (DESC_DATA*)( &MemBufferCmd[i].Bytes[0] );
+
+		if( DescDataPtr->Size == 0 )
 		{
-			MemBuffer[i].Size = 1; /* Just to lock the buffer */
-			return ( &MemBuffer[i] );
+			DescDataPtr->Size = 1; /* Just to lock the buffer */
+			return ( DescDataPtr );
 		}
 	}
 	return ( NULL );
@@ -250,14 +284,42 @@ DESC_DATA* Search_For_Command_Memory_Buffer(void)
 DESC_DATA* Search_For_Data_Memory_Buffer(void)
 {
 	/* TODO: improve performance */
-	uint16_t Size = sizeof(MemBufferData)/sizeof(DESC_DATA);
+	DESC_DATA* DescDataPtr;
 
-	for ( uint16_t i = 0; i < Size; i++ )
+	for ( uint16_t i = 0; i < SIZE_OF_DAT_MEM_BUFFER; i++ )
 	{
-		if( MemBufferData[i].Size == 0 )
+		DescDataPtr = (DESC_DATA*)( &MemBufferData[i].Bytes[0] );
+
+		if( DescDataPtr->Size == 0 )
 		{
-			MemBufferData[i].Size = 1; /* Just to lock the buffer */
-			return ( &MemBufferData[i] );
+			DescDataPtr->Size = 1; /* Just to lock the buffer */
+			return ( DescDataPtr );
+		}
+	}
+	return ( NULL );
+}
+
+
+/****************************************************************/
+/* Search_For_Event_Memory_Buffer()          		         	*/
+/* Purpose: Find free buffer or return NULL						*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static DESC_DATA* Search_For_Event_Memory_Buffer(void)
+{
+	/* TODO: improve performance */
+	DESC_DATA* DescDataPtr;
+
+	for ( uint16_t i = 0; i < SIZE_OF_EVT_MEM_BUFFER; i++ )
+	{
+		DescDataPtr = (DESC_DATA*)( &MemBufferEvent[i].Bytes[0] );
+
+		if( DescDataPtr->Size == 0 )
+		{
+			DescDataPtr->Size = 1; /* Just to lock the buffer */
+			return ( DescDataPtr );
 		}
 	}
 	return ( NULL );
@@ -1247,28 +1309,22 @@ static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priori
 {
 	TRANSFER_DESCRIPTOR TransferDesc;
 
-	/* TODO: add specific buffer? */
-	TransferDesc.DataPtr = Search_For_Command_Memory_Buffer(  );
+	TransferDesc.DataPtr = (DESC_DATA*)( &SPISlaveHeaderBytes[0] );
 
-	if( TransferDesc.DataPtr != NULL )
+	/* Load transmitting queue position */
+	TransferDesc.DataPtr->Size = sizeof(SPI_SLAVE_HEADER); /* Put always the size of reading buffer to avoid writing in random memory */
+	TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
+	/* The callback function MUST be configured, although not used in this case */
+	TransferDesc.CallBack = (TransferCallBack)(&Slave_Header_CallBack);
+
+	/* We need to know if we have to read or how much we can write, so put the command in the first position of the queue */
+	/* Acho que não deve empilhar em posição diferente de zero se for um request para slave */
+	if( Enqueue_Frame( &TransferDesc, 0, HeaderMode, Priority ).EnqueuedAtIndex != 0 )
 	{
-		/* Load transmitting queue position */
-		TransferDesc.DataPtr->Size = sizeof(SPI_SLAVE_HEADER); /* Put always the size of reading buffer to avoid writing in random memory */
-		TransferDesc.CallBackMode = CALL_BACK_AFTER_TRANSFER;
-		/* The callback function MUST be configured, although not used in this case */
-		TransferDesc.CallBack = (TransferCallBack)(&Slave_Header_CallBack);
-
-		/* We need to know if we have to read or how much we can write, so put the command in the first position of the queue */
-		/* Acho que não deve empilhar em posição diferente de zero se for um request para slave */
-		if( Enqueue_Frame( &TransferDesc, 0, HeaderMode, Priority ).EnqueuedAtIndex != 0 )
-		{
-			return (FALSE);
-		}
-
-		return (TRUE);
+		return (FALSE);
 	}
 
-	return (FALSE);
+	return (TRUE);
 }
 
 
@@ -1283,8 +1339,7 @@ static void Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 {
 	TRANSFER_DESCRIPTOR TransferDesc;
 
-	/* TODO: ADD SPECIFIC BUFFER */
-	TransferDesc.DataPtr = Search_For_Command_Memory_Buffer(  );
+	TransferDesc.DataPtr = Search_For_Event_Memory_Buffer(  );
 
 	if( TransferDesc.DataPtr != NULL )
 	{
@@ -1297,6 +1352,9 @@ static void Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 		/* Read calls are triggered by IRQ pin. */
 		Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ, 1 );
 
+	}else
+	{
+		Bluenrg_Error( NO_MEMORY_AVAILABLE );
 	}
 }
 

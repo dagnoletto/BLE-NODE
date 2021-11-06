@@ -84,9 +84,9 @@ typedef uint8_t (*TransferCallBack)(void* DataPtr, uint16_t DataSize, TRANSFER_S
 
 typedef struct
 {
-	uint8_t Bytes[255]; /* TODO: Check if this the maximum allowed for HCI */
 	uint16_t Size;
-}__attribute__ ((packed,aligned(1))) DESC_DATA;
+	uint8_t Bytes[255]; /* TODO: deixar este vetor como vazio quando resolver o problema de travar */
+}__attribute__ ((packed)) DESC_DATA;
 
 
 typedef struct
