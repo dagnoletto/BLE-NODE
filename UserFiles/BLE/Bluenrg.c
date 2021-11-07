@@ -149,7 +149,7 @@ inline static void Release_Frame(void) __attribute__((always_inline));
 static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* ManagerPtr);
 inline static CALLBACK_DESC* Search_For_Free_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
 inline static void Release_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
-inline static void Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index) __attribute__((always_inline));
+inline static uint8_t Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index, uint8_t Priority) __attribute__((always_inline));
 inline static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBACK_MANAGEMENT* ManagerPtr ) __attribute__((always_inline));
 static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE TransferMode);
 inline static DESC_DATA* Search_For_Event_Memory_Buffer(void) __attribute__((always_inline));
@@ -910,23 +910,34 @@ void Request_Frame(void)
 				/* When the write is called for the first time, the slave header read is requested to update AllowedWriteSize */
 				if( ( BufferManager.AllowedWriteSize == 0 ) || ( BufferManager.BufferHead->Status == BUFFER_FULL ) )
 				{
-					BufferManager.BufferHead->Status = BUFFER_PAUSED;
-
-					uint8_t Result = Request_Slave_Header( SPI_HEADER_WRITE, 0 );
-
-					if( Result != TRUE )
+					if( ( BufferManager.SizeToRead != 0 ) && ( Get_Bluenrg_IRQ_Pin() ) )
 					{
-						EnterCritical(); /* Critical section enter */
+						/* Enqueue a read command at the first buffer position (index == 0) */
+						if( !Add_Rx_Frame( BufferManager.SizeToRead, 0, 0 ) )
+						{
+							BufferManager.SizeToRead = 0; /* Just to not try a new enqueue sequentially if not successfully in the first time */
+						}
+						goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
+					}else
+					{
+						BufferManager.BufferHead->Status = BUFFER_PAUSED;
 
-						BlockFrameHead = 0;
-						Acquire = 0;
-						BufferManager.BufferHead->Status = BUFFER_FULL; /* Back to previous state */
+						uint8_t Result = Request_Slave_Header( SPI_HEADER_WRITE, 0 );
 
-						ExitCritical(); /* Critical section exit */
-						return;
+						if( Result != TRUE )
+						{
+							EnterCritical(); /* Critical section enter */
+
+							BlockFrameHead = 0;
+							Acquire = 0;
+							BufferManager.BufferHead->Status = BUFFER_FULL; /* Back to previous state */
+
+							ExitCritical(); /* Critical section exit */
+							return;
+						}
+
+						goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
 					}
-
-					goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
 				}else
 				{
 					/* We can write the data, but check if all bytes can be sent at once or not */
@@ -975,6 +986,9 @@ void Request_Frame(void)
 					ExitCritical(); /* Critical section exit */
 					return;
 				}
+
+				BufferManager.SizeToRead = 0;
+
 				break;
 
 			case SPI_HEADER_READ:
@@ -1229,7 +1243,7 @@ static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_T
 			//TODO: verificar se deixar comentado tem algum efeito colateral BufferManager.AllowedWriteSize = 0; /* Just to make sure that an ongoing write transaction will request the header before restart */
 
 			/* Enqueue a read command at the second buffer position (index == 1) and do not release the SPI */
-			Add_Rx_Frame( BufferManager.SizeToRead, 1 );
+			Add_Rx_Frame( BufferManager.SizeToRead, 1, 1 );
 
 			return (DO_NOT_RELEASE_SPI); /* For the read operation, keeps device asserted and send dummy bytes MOSI */
 
@@ -1335,7 +1349,7 @@ static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priori
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
+static uint8_t Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index, uint8_t Priority)
 {
 	TRANSFER_DESCRIPTOR TransferDesc;
 
@@ -1350,12 +1364,16 @@ static void Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index)
 		TransferDesc.CallBack = (TransferCallBack)(&Bluenrg_CallBack_Config);
 
 		/* Read calls are triggered by IRQ pin. */
-		Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ, 1 );
-
+		if( Enqueue_Frame( &TransferDesc, buffer_index, SPI_READ, Priority ).EnqueuedAtIndex >= 0 )
+		{
+			return (TRUE);
+		}
 	}else
 	{
 		Bluenrg_Error( NO_MEMORY_AVAILABLE );
 	}
+
+	return (FALSE);
 }
 
 
