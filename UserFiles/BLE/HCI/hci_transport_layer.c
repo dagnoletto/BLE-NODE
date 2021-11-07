@@ -481,7 +481,7 @@ static uint8_t Verify_Command_Availability( TRANSFER_DESCRIPTOR* TxDescPtr, uint
 			if( ( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) ) || ( Status.RequestTransmission ) )
 			{
 				/* Request transmission */
-				Request_Frame();
+				Request_Frame( 0 );
 			}
 
 			EnterCritical(); /* Critical section enter */
@@ -498,7 +498,7 @@ static uint8_t Verify_Command_Availability( TRANSFER_DESCRIPTOR* TxDescPtr, uint
 			if( Status.RequestTransmission )
 			{
 				/* Request transmission */
-				Request_Frame();
+				Request_Frame( 0 );
 			}
 		}
 	}else if( TxDescPtr->DataPtr != NULL )
@@ -638,7 +638,7 @@ static uint8_t Verify_Data_Availability( TRANSFER_DESCRIPTOR* TxDescPtr, uint8_t
 			if( ( ( Status.EnqueuedAtIndex == 0 ) && ( Status.NumberOfEnqueuedFrames == 1 ) ) || ( Status.RequestTransmission ) )
 			{
 				/* Request transmission */
-				Request_Frame();
+				Request_Frame( 0 );
 			}
 
 			EnterCritical(); /* Critical section enter */
@@ -655,7 +655,7 @@ static uint8_t Verify_Data_Availability( TRANSFER_DESCRIPTOR* TxDescPtr, uint8_t
 			if( Status.RequestTransmission )
 			{
 				/* Request transmission */
-				Request_Frame();
+				Request_Frame( 0 );
 			}
 		}
 	}else if( TxDescPtr->DataPtr != NULL )

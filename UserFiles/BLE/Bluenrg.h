@@ -56,7 +56,7 @@ void Bluenrg_CallBack_Config(TRANSFER_CALL_BACK_MODE* CallBackMode, HCI_PACKET_T
 DESC_DATA* Search_For_Command_Memory_Buffer(void);
 DESC_DATA* Search_For_Data_Memory_Buffer(void);
 FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t buffer_index, SPI_TRANSFER_MODE TransferMode, uint8_t Priority);
-void Request_Frame(void);
+void Request_Frame( uint8_t callsource );
 void Clr_Bluenrg_Reset_Pin(void);
 void Set_Bluenrg_Reset_Pin(void);
 uint8_t Get_Bluenrg_IRQ_Pin(void);

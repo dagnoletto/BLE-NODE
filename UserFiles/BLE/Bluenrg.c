@@ -241,7 +241,7 @@ void Run_Bluenrg(void)
 			if( TimeBase_DelayMs( &BufferManager.HoldCounter, BufferManager.HoldTime, TRUE) )
 			{
 				BufferManager.HoldTime = 0;
-				Request_Frame();
+				Request_Frame( 0 );
 			}
 		}
 	}
@@ -469,7 +469,7 @@ static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr)
 /****************************************************************/
 void Bluenrg_IRQ(void)
 {
-	Request_Frame();
+	Request_Frame( 1 );
 }
 
 
@@ -866,13 +866,16 @@ FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t 
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void Request_Frame(void)
+void Request_Frame( uint8_t callsource )
 {
 	static volatile uint8_t Acquire = 0;
+	static volatile uint8_t BluenrgIRQCall = 0;
 
 	EnterCritical(); /* Critical section enter */
 
 	Acquire++;
+
+	if( callsource ){ BluenrgIRQCall = 1; }
 
 	if( Acquire != 1 )
 	{
@@ -910,10 +913,13 @@ void Request_Frame(void)
 				/* When the write is called for the first time, the slave header read is requested to update AllowedWriteSize */
 				if( ( BufferManager.AllowedWriteSize == 0 ) || ( BufferManager.BufferHead->Status == BUFFER_FULL ) )
 				{
-					if( ( BufferManager.SizeToRead != 0 ) && ( Get_Bluenrg_IRQ_Pin() ) )
+					if( ( BufferManager.SizeToRead != 0 ) && ( Get_Bluenrg_IRQ_Pin() ) && (BluenrgIRQCall) )
 					{
 						/* Enqueue a read command at the first buffer position (index == 0) */
-						if( !Add_Rx_Frame( BufferManager.SizeToRead, 0, 0 ) )
+						if( Add_Rx_Frame( BufferManager.SizeToRead, 0, 0 ) )
+						{
+							BluenrgIRQCall = 0;
+						}else
 						{
 							BufferManager.SizeToRead = 0; /* Just to not try a new enqueue sequentially if not successfully in the first time */
 						}
@@ -1138,7 +1144,7 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 			Release_Frame();
 		}
 
-		Request_Frame();
+		Request_Frame( 0 );
 	}
 }
 
