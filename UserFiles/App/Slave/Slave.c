@@ -54,7 +54,7 @@ void SlaveNode( void )
 		Enter_Standby_Mode();
 		if( TimeBase_DelayMs( &TimerLED, 100, TRUE )  )
 		{
-			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+			//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
 		if( ( Get_BLE_State() == STANDBY_STATE ) && ( TimeBase_DelayMs( &Timer, 5000, TRUE ) ) )
 		{
@@ -75,7 +75,7 @@ void SlaveNode( void )
 	case ADVERTISING_STATE:
 		if( TimeBase_DelayMs( &TimerLED, 500, TRUE )  )
 		{
-			HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
+			//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		}
 		if( TimeBase_DelayMs( &Timer, 10000, TRUE ) )
 		{

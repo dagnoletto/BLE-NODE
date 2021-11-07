@@ -247,13 +247,19 @@ int8_t Standby_Config( void )
 
 			Hosted_Functions_Enter_Standby( );
 
-			OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
-			Clear_Command_CallBack( OpCode );
-
 			OpCode.Val = HCI_LE_SET_ADVERTISING_ENABLE;
 			Clear_Command_CallBack( OpCode );
 
+			OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
+			Clear_Command_CallBack( OpCode );
+
+			OpCode.Val = HCI_LE_CREATE_CONNECTION_CANCEL;
+			Clear_Command_CallBack( OpCode );
+
 			OpCode.Val = HCI_DISCONNECT;
+			Clear_Command_CallBack( OpCode );
+
+			OpCode.Val = VS_ACI_HAL_DEVICE_STANDBY;
 			Clear_Command_CallBack( OpCode );
 
 			StandbyConfig.Actual = StandbyConfig.BaseStep;
