@@ -172,6 +172,48 @@ static CMD_CALLBACK CMD_CALLBACK_NAME_HANDLER(	VS_ACI_HAL_GET_ANCHOR_PERIOD, 			
 
 
 /****************************************************************/
+/* HCI_Reset_Transport_Layer()         							*/
+/* Location: 					 								*/
+/* Purpose: Reset all call backs and available data and command */
+/* packets.														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HCI_Reset_Transport_Layer( void )
+{
+	Reset_Bluenrg( FALSE ); /* software reset mode */
+	Set_Number_Of_HCI_Command_Packets( 1 );
+	Set_Default_Number_Of_HCI_Data_Packets(  );
+
+	HCI_COMMAND_OPCODE OpCode;
+	CMD_CALLBACK* CmdCallback;
+
+	/* Reset bluetooth standard command call backs */
+	for( uint16_t i = HCI_DISCONNECT; i <= HCI_LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT; i++ )
+	{
+		OpCode.Val = i;
+		CmdCallback = Get_Command_CallBack( OpCode );
+		if( CmdCallback != NULL )
+		{
+			CmdCallback->Status = FREE;
+		}
+	}
+
+	/* Reset bluetooth vendor specific command call backs */
+	for( uint16_t i = VS_ACI_HAL_GET_FW_BUILD_NUMBER; i <= VS_ACI_HAL_GET_ANCHOR_PERIOD; i++ )
+	{
+		OpCode.Val = i;
+		CmdCallback = Get_Command_CallBack( OpCode );
+		if( CmdCallback != NULL )
+		{
+			CmdCallback->Status = FREE;
+		}
+	}
+}
+
+
+/****************************************************************/
 /* Set_Default_Number_Of_HCI_Data_Packets()         			*/
 /* Location: 					 								*/
 /* Purpose: 													*/

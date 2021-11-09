@@ -143,6 +143,7 @@ typedef struct
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+void HCI_Reset_Transport_Layer( void );
 DESC_DATA* HCI_Get_Command_Transmit_Buffer_Free( uint16_t OpCodeVal );
 uint8_t HCI_Transmit_Command( TRANSFER_DESCRIPTOR* TxDescPtr,
 		void* CmdComplete, void* CmdStatus );

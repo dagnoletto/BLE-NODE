@@ -226,8 +226,8 @@ static uint8_t Config_Initiating(void)
 	Init.Peer_Address = SlaveInfo.Adv.Address; //SlavePublicAddress;
 	Init.Own_Address_Type = OWN_RESOL_OR_PUBLIC_ADDR;//OWN_PUBLIC_DEV_ADDR;
 	Init.Own_Random_Address_Type = NON_RESOLVABLE_PRIVATE;
-	Init.Connection_Interval_Min = 48; /* 48 * 1.25ms = 60ms */
-	Init.Connection_Interval_Max = 48; /* 48 * 1.25ms = 60ms */
+	Init.Connection_Interval_Min = 6; /* 6 * 1.25ms = 7.5 ms */
+	Init.Connection_Interval_Max = 6; /* 6 * 1.25ms = 7.5 ms */
 	Init.Connection_Latency = 0;
 	Init.Supervision_Timeout = 960; /* 960 * 10ms = 9600ms */
 	Init.Min_CE_Length = 48; /* 48 * 1.25ms = 60ms */

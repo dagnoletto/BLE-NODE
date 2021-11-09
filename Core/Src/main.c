@@ -97,7 +97,7 @@ int main(void)
 	MX_SPI1_Init();
 	/* USER CODE BEGIN 2 */
 	TimeFunctions_Init();
-	Reset_Bluenrg();
+	Reset_Bluenrg( TRUE );
 	App_Init();
 	/* USER CODE END 2 */
 

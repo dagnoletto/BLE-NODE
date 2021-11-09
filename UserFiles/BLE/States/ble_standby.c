@@ -19,9 +19,13 @@ typedef enum
 	DISABLE_SCANNING,
 	DISABLE_INITIATING,
 	DISABLE_ALL_CONNECTIONS,
+	SEND_RESET_CMD,
+	RECONFIG_VENDOR_SPECIFC,
+	REINIT_BLE,
 	SEND_STANDBY_CMD,
 	END_STANDBY_CONFIG,
 	WAIT_OPERATION,
+	WAIT_OPERATION_STBY,
 }STANDBY_CONFIG_STEPS;
 
 
@@ -42,6 +46,7 @@ static void LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status 
 static void LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void Disconnect_Status( CONTROLLER_ERROR_CODES Status );
+static void HCI_Reset_Complete( CONTROLLER_ERROR_CODES Status );
 static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status );
 
 
@@ -224,19 +229,42 @@ int8_t Standby_Config( void )
 		{
 			Remove_Connection_Index( i - 1 );
 		}
-		StandbyConfig.BaseStep = SEND_STANDBY_CMD;
-		StandbyConfig.Actual = SEND_STANDBY_CMD;
+		StandbyConfig.BaseStep = SEND_RESET_CMD;
+		StandbyConfig.Actual = SEND_RESET_CMD;
 	}
 	break;
 
+	case SEND_RESET_CMD:
+		StandbyConfigTimeout = 0;
+		StandbyConfig.BaseStep = SEND_RESET_CMD;
+		StandbyConfig.Actual = WAIT_OPERATION;
+		HCI_Reset( &HCI_Reset_Complete, NULL );
+		break;
+
+	case RECONFIG_VENDOR_SPECIFC:
+		if( Vendor_Specific_Init() )
+		{
+			StandbyConfig.Actual = REINIT_BLE;
+		}
+		break;
+
+	case REINIT_BLE:
+		if( BLE_Init(  ) )
+		{
+			StandbyConfig.Actual = SEND_STANDBY_CMD;
+		}
+		break;
+
 	case SEND_STANDBY_CMD:
 		StandbyConfigTimeout = 0;
-		StandbyConfig.Actual = WAIT_OPERATION;
+		StandbyConfig.Actual = WAIT_OPERATION_STBY;
 		ACI_Hal_Device_Standby( &Hal_Device_Standby_Event, NULL );
 		break;
 
 	case END_STANDBY_CONFIG:
-		StandbyConfig.Actual = StandbyConfig.BaseStep;
+		/* Cancels any ongoing controller's function shared by the host */
+		Hosted_Functions_Enter_Standby( );
+		HCI_Reset_Transport_Layer( );
 		return (TRUE);
 		break;
 
@@ -259,10 +287,19 @@ int8_t Standby_Config( void )
 			OpCode.Val = HCI_DISCONNECT;
 			Clear_Command_CallBack( OpCode );
 
-			OpCode.Val = VS_ACI_HAL_DEVICE_STANDBY;
+			OpCode.Val = HCI_RESET;
 			Clear_Command_CallBack( OpCode );
 
 			StandbyConfig.Actual = StandbyConfig.BaseStep;
+		}
+		break;
+
+	case WAIT_OPERATION_STBY:
+		if( TimeBase_DelayMs( &StandbyConfigTimeout, 1000, TRUE ) )
+		{
+			/* We should finish anyway because the controller may fail to respond after
+			 * he entered stand-by */
+			StandbyConfig.Actual = END_STANDBY_CONFIG;
 		}
 		break;
 
@@ -298,7 +335,7 @@ static void LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status 
 {
 	if( StandbyConfig.Actual == WAIT_OPERATION )
 	{
-		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_STANDBY_CMD : StandbyConfig.BaseStep;
+		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_RESET_CMD : StandbyConfig.BaseStep;
 	}
 }
 
@@ -315,7 +352,7 @@ static void LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	if( StandbyConfig.Actual == WAIT_OPERATION )
 	{
-		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_STANDBY_CMD : StandbyConfig.BaseStep;
+		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_RESET_CMD : StandbyConfig.BaseStep;
 	}
 }
 
@@ -332,7 +369,7 @@ static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	if( StandbyConfig.Actual == WAIT_OPERATION )
 	{
-		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_STANDBY_CMD : StandbyConfig.BaseStep;
+		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS || Status == COMMAND_DISALLOWED ) ? SEND_RESET_CMD : StandbyConfig.BaseStep;
 	}
 }
 
@@ -355,6 +392,23 @@ static void Disconnect_Status( CONTROLLER_ERROR_CODES Status )
 
 
 /****************************************************************/
+/* HCI_Reset_Complete()        	    			   				*/
+/* Location: 					 								*/
+/* Purpose: Complete callback.									*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void HCI_Reset_Complete( CONTROLLER_ERROR_CODES Status )
+{
+	if( StandbyConfig.Actual == WAIT_OPERATION )
+	{
+		StandbyConfig.Actual = ( Status == COMMAND_SUCCESS ) ? RECONFIG_VENDOR_SPECIFC : StandbyConfig.BaseStep;
+	}
+}
+
+
+/****************************************************************/
 /* Hal_Device_Standby_Event()        	    	   				*/
 /* Location: 					 								*/
 /* Purpose: Called to indicate the status of standby command.	*/
@@ -364,12 +418,10 @@ static void Disconnect_Status( CONTROLLER_ERROR_CODES Status )
 /****************************************************************/
 static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status )
 {
-	if( StandbyConfig.Actual == WAIT_OPERATION )
+	if( StandbyConfig.Actual == WAIT_OPERATION_STBY )
 	{
 		if( Status == COMMAND_SUCCESS )
 		{
-			/* Cancels any ongoing controller's function shared by the host */
-			Hosted_Functions_Enter_Standby( );
 			StandbyConfig.Actual = END_STANDBY_CONFIG;
 		}else
 		{

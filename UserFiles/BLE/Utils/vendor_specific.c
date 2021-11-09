@@ -404,8 +404,14 @@ void ACI_Blue_Initialized_Event( REASON_CODE Code )
 {
 	/* Check if initialization was OK */
 	/* Treat all other modes as blocked. If a different mode after
-	* reset is requested, this code must change accordingly */
-	Config.Step = ( Code == FIRMWARE_STARTED_PROPERLY ) ? CONFIG_FREE : CONFIG_BLOCKED;
+	 * reset is requested, this code must change accordingly */
+	if( Config.Step == CONFIG_BLOCKED )
+	{
+		Config.Step = ( Code == FIRMWARE_STARTED_PROPERLY ) ? CONFIG_FREE : CONFIG_BLOCKED;
+	}else if( Code != FIRMWARE_STARTED_PROPERLY )
+	{
+		Config.Step = CONFIG_BLOCKED;
+	}
 }
 
 
@@ -451,7 +457,7 @@ BLE_STATUS Write_Config_Data( CONFIG_DATA* ConfigData, VS_Callback CallBackFun )
 	{
 		BLE_STATES BleState = Get_BLE_State();
 
-		if( BleState == VENDOR_SPECIFIC_INIT )
+		if( ( BleState == VENDOR_SPECIFIC_INIT ) || ( BleState == CONFIG_STANDBY ) )
 		{
 			CONFIG_JOBS* Jobs = All_Job_List( ConfigData );
 			if( Jobs != NULL )
@@ -513,7 +519,7 @@ BLE_STATUS Write_Public_Address( BD_ADDR_TYPE* Public_Address, VS_Callback CallB
 	{
 		BLE_STATES BleState = Get_BLE_State();
 
-		if( BleState == VENDOR_SPECIFIC_INIT )
+		if( ( BleState == VENDOR_SPECIFIC_INIT ) || ( BleState == CONFIG_STANDBY ) )
 		{
 			CONFIG_JOBS* Jobs = Single_Job_List( PUBLIC_ADDRESS_OFFSET, &Public_Address->Bytes[0], sizeof(BD_ADDR_TYPE) );
 			if( Jobs != NULL )

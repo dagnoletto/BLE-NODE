@@ -81,33 +81,22 @@ void Client( void )
 		static uint32_t Timer3 = 0;
 		static uint16_t NTries = 0;
 
-		if( TimeBase_DelayMs( &Timer3, 10, TRUE ) )
+		if( /* TimeBase_DelayMs( &Timer3, 10, TRUE ) */ 1 )
 		{
 
 			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
 
-			uint8_t Data[27];// = { 3, 0, 4, 0, 2, 15, 2 };
+			uint32_t Data;
 			ACLDataPacketHeader.Handle = SlaveInfo.Connection_Handle;
 			ACLDataPacketHeader.PB_Flag = 0x0;
 			ACLDataPacketHeader.BC_Flag = 0x0;
 			ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
-			Data[26] = 2;
-			Data[25] = 1;
-			Data[24] = 0;
 
-			if( HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] ) )
-			{
-				//HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
-				NTries = 5;
-			}else if( NTries )
-			{
-				NTries--;
-				if( !NTries )
-				{
-					NTries = 5;
-					Set_Default_Number_Of_HCI_Data_Packets();
-				}
-			}
+			Data = HAL_GetTick();
+
+			HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data );
+
+			//Set_Default_Number_Of_HCI_Data_Packets();
 		}
 
 		if( TimeBase_DelayMs( &Timer2, 5000, TRUE ) )
@@ -207,6 +196,7 @@ static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
 void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
 {
 	//HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
+	//HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 }
 
 

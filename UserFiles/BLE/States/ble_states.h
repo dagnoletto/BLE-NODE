@@ -44,6 +44,7 @@ typedef enum
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+uint8_t BLE_Init( void );
 void Run_BLE( void );
 BLE_STATES Get_BLE_State( void );
 SUPPORTED_COMMANDS* Get_Supported_Commands( void );

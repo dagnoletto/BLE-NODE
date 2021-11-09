@@ -190,7 +190,7 @@ static volatile uint8_t FrameEnqueueSignal = 0;
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-void Reset_Bluenrg(void)
+void Reset_Bluenrg(uint8_t reset_mode)
 {
 	/* Abort any ongoing transmission */
 	/* This function MUST NOT trigger any interrupt or procedure
@@ -199,11 +199,14 @@ void Reset_Bluenrg(void)
 
 	Release_Bluenrg();
 
-	Clr_Bluenrg_Reset_Pin(); /* Put device in hardware reset state */
+	if( reset_mode ) /* hardware reset mode */
+	{
+		Clr_Bluenrg_Reset_Pin(); /* Put device in hardware reset state */
 
-	ResetBluenrgRequest = TRUE;
+		ResetBluenrgRequest = TRUE;
 
-	TimerResetActive = 0;
+		TimerResetActive = 0;
+	}
 
 	Init_Buffer_Manager();
 }
@@ -370,7 +373,7 @@ static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE 
 /****************************************************************/
 __attribute__((weak)) void Bluenrg_Error(BLUENRG_ERROR_CODES Errorcode)
 {
-	Reset_Bluenrg();
+	Reset_Bluenrg( TRUE );
 }
 
 
@@ -399,6 +402,26 @@ static void Init_Buffer_Manager(void)
 	BufferManager.AllowedWriteSize = 0;
 	BufferManager.SizeToRead = 0;
 	BufferManager.NumberOfFilledBuffers = 0;
+
+	DESC_DATA* DescDataPtr;
+
+	for ( uint16_t i = 0; i < SIZE_OF_CMD_MEM_BUFFER; i++ )
+	{
+		DescDataPtr = (typeof(DescDataPtr))( &MemBufferCmd[i].Bytes[0] );
+		DescDataPtr->Size = 0;
+	}
+
+	for ( uint16_t i = 0; i < SIZE_OF_DAT_MEM_BUFFER; i++ )
+	{
+		DescDataPtr = (typeof(DescDataPtr))( &MemBufferData[i].Bytes[0] );
+		DescDataPtr->Size = 0;
+	}
+
+	for ( uint16_t i = 0; i < SIZE_OF_EVT_MEM_BUFFER; i++ )
+	{
+		DescDataPtr = (typeof(DescDataPtr))( &MemBufferEvent[i].Bytes[0] );
+		DescDataPtr->Size = 0;
+	}
 
 	Init_CallBack_Manager( &ReadCallBackManager );
 	Init_CallBack_Manager( &WriteCallBackManager );
@@ -926,6 +949,10 @@ void Request_Frame( uint8_t callsource )
 						goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
 					}else
 					{
+						/* TODO: HERE OCCURS A BLOCKING SITUATION IF BufferManager.AllowedWriteSize REMAINS ZERO FOREVER:
+						 * - THE HOST WILL ALWAYS ASK FOR THE HEADER TO READ THE ALLOWED WRITE SIZE. WE SHOULD ADD A CONTER
+						 * OR TIMER TO RELEASE THE BUFFER HEAD IN SUCH CASES. AN ALLOWED WRITE SIZE SHOULD NOT KEEP ZERO FOR
+						 * TOO LONG, SO WE ARE NOT ADDING THIS TURN AROUND NOW. */
 						BufferManager.BufferHead->Status = BUFFER_PAUSED;
 
 						uint8_t Result = Request_Slave_Header( SPI_HEADER_WRITE, 0 );
@@ -1246,7 +1273,6 @@ static uint8_t Slave_Header_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, SPI_T
 
 			ErroneousResponseCounter = 0;
 			NoAllowedWriteCounter = 0;
-			//TODO: verificar se deixar comentado tem algum efeito colateral BufferManager.AllowedWriteSize = 0; /* Just to make sure that an ongoing write transaction will request the header before restart */
 
 			/* Enqueue a read command at the second buffer position (index == 1) and do not release the SPI */
 			Add_Rx_Frame( BufferManager.SizeToRead, 1, 1 );

@@ -44,7 +44,7 @@ typedef enum
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
-void Reset_Bluenrg(void);
+void Reset_Bluenrg(uint8_t reset_mode);
 void Run_Bluenrg(void);
 void Bluenrg_IRQ(void);
 void Release_Bluenrg(void);

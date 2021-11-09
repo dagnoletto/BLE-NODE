@@ -196,7 +196,7 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 /****************************************************************/
 void Bluenrg_Error(BLUENRG_ERROR_CODES Errorcode)
 {
-	Reset_Bluenrg();
+	Reset_Bluenrg( TRUE );
 }
 
 

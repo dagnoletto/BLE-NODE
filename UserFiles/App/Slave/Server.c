@@ -81,7 +81,7 @@ void Server( void )
 		static uint16_t NTries = 0;
 		static uint32_t Timer2 = 0;
 
-		if( TimeBase_DelayMs( &Timer, 100, TRUE ) )
+		if( /* TimeBase_DelayMs( &Timer, 100, TRUE ) */ 1 )
 		{
 
 			HCI_ACL_DATA_PCKT_HEADER ACLDataPacketHeader;
@@ -92,19 +92,9 @@ void Server( void )
 			ACLDataPacketHeader.BC_Flag = 0x0;
 			ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
 
-			if( HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] ) )
-			{
-				//HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
-				NTries = 5;
-			}else if( NTries )
-			{
-				NTries--;
-				if( !NTries )
-				{
-					NTries = 5;
-					Set_Default_Number_Of_HCI_Data_Packets();
-				}
-			}
+			HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
+
+			//Set_Default_Number_Of_HCI_Data_Packets();
 		}
 
 		if( TimeBase_DelayMs( &Timer2, 2500, TRUE ) )
@@ -204,6 +194,21 @@ static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
 /****************************************************************/
 void HCI_Controller_ACL_Data( HCI_ACL_DATA_PCKT_HEADER* ACLDataPacketHeader, uint8_t Data[] )
 {
+	static uint32_t Previous = 0;
+	static uint32_t index = 0;
+	static uint32_t Diff[100];
+	uint32_t actual = ( Data[3] << 24 ) | ( Data[2] << 16 ) | ( Data[1] << 8 ) | Data[0];
+
+	Diff[index] = actual - Previous;
+
+	index++;
+	if( index >= ( sizeof(Diff)/sizeof(uint32_t) ) )
+	{
+		index = 0;
+	}
+
+	Previous = actual;
+
 	//HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_RESET );
 	HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 }

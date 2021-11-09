@@ -42,7 +42,6 @@ typedef enum
 void Set_BLE_State( BLE_STATES NewBLEState );
 static uint8_t Reset_Controller( void );
 static void Reset_Complete( CONTROLLER_ERROR_CODES Status );
-static uint8_t BLE_Init( void );
 static void Set_Event_Mask_Complete( CONTROLLER_ERROR_CODES Status );
 static void Clear_White_List_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Address_Resolution_Enable_Complete( CONTROLLER_ERROR_CODES Status );
@@ -291,7 +290,7 @@ LOCAL_VERSION_INFORMATION* Get_Local_Version_Information( void )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t BLE_Init( void )
+uint8_t BLE_Init( void )
 {
 	static uint32_t WaitCmdTimer;
 
