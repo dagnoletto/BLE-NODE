@@ -18,6 +18,8 @@
 #define ERRONEOUS_RESPONSE_THRESHOLD  3 /* Number of erroneous responses (in sequence) to put device in hold mode for DEVICE_HOLD_TIME */
 #define DEVICE_HOLD_TIME			  20UL /* Time in ms to wait until frames are sent to the device again after
 											device not ready for DEVICE_NOT_READY_THRESHOLD times */
+#define NUMBER_OF_WRITE_ATTEMPTS	  3
+
 #define SIZE_OF_FRAME_BUFFER 		  8
 #define SIZE_OF_CALLBACK_BUFFER 	  4
 
@@ -64,6 +66,7 @@ typedef struct
 	uint8_t* RxPtr;
 	uint16_t RemainingBytes;
 	uint16_t Counter;
+	uint8_t WriteAttempts;
 	void* Next;
 	TRANSFER_DESCRIPTOR TransferDesc;
 }BUFFER_DESC;
@@ -145,12 +148,14 @@ static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priori
 static void Init_Buffer_Manager(void);
 static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr);
 inline static BUFFER_DESC* Search_For_Free_Frame(void) __attribute__((always_inline));
-inline static void Release_Frame(void) __attribute__((always_inline));
-static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* ManagerPtr);
+inline static uint8_t Release_Frame( uint8_t ReleaseData ) __attribute__((always_inline));
+static uint8_t Enqueue_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS TransferStatus,
+		CALLBACK_MANAGEMENT* ManagerPtr);
 inline static CALLBACK_DESC* Search_For_Free_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
 inline static void Release_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
 inline static uint8_t Add_Rx_Frame(uint16_t DataSize, int8_t buffer_index, uint8_t Priority) __attribute__((always_inline));
-inline static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBACK_MANAGEMENT* ManagerPtr ) __attribute__((always_inline));
+inline static uint8_t Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS TransferStatus,
+		CALLBACK_MANAGEMENT* ManagerPtr ) __attribute__((always_inline));
 static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE TransferMode);
 inline static DESC_DATA* Search_For_Event_Memory_Buffer(void) __attribute__((always_inline));
 
@@ -503,7 +508,7 @@ void Bluenrg_IRQ(void)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Release_Frame(void)
+static uint8_t Release_Frame( uint8_t ReleaseData )
 {
 	EnterCritical(); /* Critical section enter */
 
@@ -512,7 +517,7 @@ static void Release_Frame(void)
 	if( FrameHeadRelease != 1 )
 	{
 		ExitCritical(); /* Critical section exit */
-		return;
+		return (FALSE);
 	}
 
 	if( FrameEnqueueSignal ) /* Cannot release under frame enqueue */
@@ -520,21 +525,25 @@ static void Release_Frame(void)
 		FrameHeadReleaseRequest++;
 		FrameHeadRelease = 0;
 		ExitCritical(); /* Critical section exit */
-		return;
+		return (FALSE);
 	}
 
 	if( BlockFrameHead ) /* Cannot release the head that is blocked for transmission */
 	{
 		FrameHeadRelease = 0;
 		ExitCritical(); /* Critical section exit */
-		return;
+		return (FALSE);
 	}
 
 	ExitCritical(); /* Critical section exit */
 
 
 	BufferManager.BufferHead->Status = BUFFER_FREE;
-	BufferManager.BufferHead->TransferDesc.DataPtr->Size = 0; /* Free the memory */
+
+	if( ReleaseData )
+	{
+		BufferManager.BufferHead->TransferDesc.DataPtr->Size = 0; /* Free the memory */
+	}
 
 	if( BufferManager.NumberOfFilledBuffers != 0 )
 	{
@@ -555,6 +564,8 @@ static void Release_Frame(void)
 	FrameHeadReleaseRequest = 0;
 
 	ExitCritical(); /* Critical section exit */
+
+	return (TRUE);
 }
 
 
@@ -590,7 +601,7 @@ static void Release_CallBack(CALLBACK_MANAGEMENT* ManagerPtr)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* ManagerPtr)
+static uint8_t Enqueue_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS TransferStatus, CALLBACK_MANAGEMENT* ManagerPtr)
 {
 	/* CallBackTail always represents the last filled callback.
 	 * CallBackHead always represents the first filled callback.
@@ -605,14 +616,14 @@ static uint8_t Enqueue_CallBack(BUFFER_DESC* Buffer, CALLBACK_MANAGEMENT* Manage
 		if( CallBackPtr->Status == BUFFER_FREE ) /* Check if buffer is free */
 		{
 
-			CallBackPtr->TransferDesc.CallBack = Buffer->TransferDesc.CallBack; /* Occupy this buffer */
-			CallBackPtr->TransferDesc.CallBackMode = Buffer->TransferDesc.CallBackMode;
-			CallBackPtr->TransferDesc.Data.Size = Buffer->TransferDesc.DataPtr->Size;
-			memcpy( &CallBackPtr->TransferDesc.Data.Bytes[0], &Buffer->TransferDesc.DataPtr->Bytes[0], CallBackPtr->TransferDesc.Data.Size );
+			CallBackPtr->TransferDesc.CallBack = TransferDescPtr->CallBack; /* Occupy this buffer */
+			CallBackPtr->TransferDesc.CallBackMode = TransferDescPtr->CallBackMode;
+			CallBackPtr->TransferDesc.Data.Size = TransferDescPtr->DataPtr->Size;
+			memcpy( &CallBackPtr->TransferDesc.Data.Bytes[0], &TransferDescPtr->DataPtr->Bytes[0], CallBackPtr->TransferDesc.Data.Size );
 			CallBackPtr->Status = BUFFER_FULL;
 			CallBackPtr->Next = Search_For_Free_CallBack( ManagerPtr );
 
-			CallBackPtr->TransferStatus = Buffer->TransferStatus;
+			CallBackPtr->TransferStatus = TransferStatus;
 
 			ManagerPtr->NumberOfFilledBuffers++;
 
@@ -723,6 +734,7 @@ FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t 
 			{
 				BufferPtr->TxPtr = &BufferPtr->TransferDesc.DataPtr->Bytes[0];
 				BufferPtr->RxPtr = &DummyByte; /* Just to have a valid pointer */
+				BufferPtr->WriteAttempts = NUMBER_OF_WRITE_ATTEMPTS; /* Write attempts before giving up */
 			}else
 			{
 				/* The slave header always precede the read operation, so we don't need a full valid TX dummy buffer */
@@ -849,7 +861,7 @@ FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t 
 			if( FrameHeadReleaseRequest )
 			{
 				ExitCritical();
-				Release_Frame();
+				Release_Frame( 1 );
 				Status.RequestTransmission = TRUE;
 			}
 			EnterCritical();
@@ -949,27 +961,103 @@ void Request_Frame( uint8_t callsource )
 						goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
 					}else
 					{
-						/* TODO: HERE OCCURS A BLOCKING SITUATION IF BufferManager.AllowedWriteSize REMAINS ZERO FOREVER:
-						 * - THE HOST WILL ALWAYS ASK FOR THE HEADER TO READ THE ALLOWED WRITE SIZE. WE SHOULD ADD A CONTER
-						 * OR TIMER TO RELEASE THE BUFFER HEAD IN SUCH CASES. AN ALLOWED WRITE SIZE SHOULD NOT KEEP ZERO FOR
-						 * TOO LONG, SO WE ARE NOT ADDING THIS TURN AROUND NOW. */
-						BufferManager.BufferHead->Status = BUFFER_PAUSED;
+						SPI_Header_Write_Request:
 
-						uint8_t Result = Request_Slave_Header( SPI_HEADER_WRITE, 0 );
-
-						if( Result != TRUE )
+						if( BufferManager.BufferHead->WriteAttempts )
 						{
-							EnterCritical(); /* Critical section enter */
+							BufferManager.BufferHead->WriteAttempts--;
 
-							BlockFrameHead = 0;
-							Acquire = 0;
-							BufferManager.BufferHead->Status = BUFFER_FULL; /* Back to previous state */
+							BufferManager.BufferHead->Status = BUFFER_PAUSED;
 
-							ExitCritical(); /* Critical section exit */
-							return;
+							uint8_t Result = Request_Slave_Header( SPI_HEADER_WRITE, 0 );
+
+							if( Result != TRUE )
+							{
+								EnterCritical(); /* Critical section enter */
+
+								BlockFrameHead = 0;
+								Acquire = 0;
+								BufferManager.BufferHead->Status = BUFFER_FULL; /* Back to previous state */
+								BufferManager.BufferHead->WriteAttempts++; /* Gives an additional chance */
+
+								ExitCritical(); /* Critical section exit */
+								return;
+							}
+
+							goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
+						}else
+						{
+							BUFFER_DESC PreviousHeadBuff = *BufferManager.BufferHead;
+							if( Release_Frame( 0 ) )
+							{
+								/* First enqueue the transfer finished callback (if any) */
+								if( PreviousHeadBuff.TransferDesc.CallBack != NULL ) /* We have callback */
+								{
+									PreviousHeadBuff.TransferDesc.CallBackMode = CALL_BACK_BUFFERED;
+									if( !Safe_Enqueue_CallBack( &PreviousHeadBuff.TransferDesc, TRANSFER_DEV_ERROR, &WriteCallBackManager ) )
+									{
+										/* Release the data */
+										PreviousHeadBuff.TransferDesc.DataPtr->Size = 0;
+										Bluenrg_Error( UNKNOWN_ERROR );
+									}
+								}
+
+								/* Enqueue a response for higher layers to provide the callback */
+								/* Use the same (unreleased) TX buffer to copy the data */
+								HCI_SERIAL_EVENT_PCKT* EventPacketPtr = (typeof(EventPacketPtr))( &PreviousHeadBuff.TransferDesc.DataPtr->Bytes[0] );
+
+								if( EventPacketPtr->PacketType == HCI_COMMAND_PACKET )
+								{
+									HCI_SERIAL_COMMAND_PCKT* CmdPcktPtr = (typeof(CmdPcktPtr))( &PreviousHeadBuff.TransferDesc.DataPtr->Bytes[0] );
+									HCI_COMMAND_OPCODE OpCode;
+									OpCode.Val = CmdPcktPtr->CmdPacket.OpCode.Val;
+
+									EventPacketPtr->PacketType = HCI_EVENT_PACKET;
+									EventPacketPtr->EventPacket.Event_Code = COMMAND_STATUS;
+									EventPacketPtr->EventPacket.Event_Parameter[0] = REPEATED_ATTEMPTS; /* Status */
+									EventPacketPtr->EventPacket.Event_Parameter[1] = 1; /* Num_HCI_Command_Packets */
+									EventPacketPtr->EventPacket.Event_Parameter[2] = OpCode.Val & 0xFF;
+									EventPacketPtr->EventPacket.Event_Parameter[3] = ( OpCode.Val >> 8 ) & 0xFF;
+									EventPacketPtr->EventPacket.Parameter_Total_Length = 4;
+
+									PreviousHeadBuff.TransferDesc.DataPtr->Size = sizeof(HCI_SERIAL_EVENT_PCKT) + EventPacketPtr->EventPacket.Parameter_Total_Length;
+
+									if( !Safe_Enqueue_CallBack( &PreviousHeadBuff.TransferDesc, TRANSFER_DONE, &ReadCallBackManager ) )
+									{
+										PreviousHeadBuff.TransferDesc.DataPtr->Size = 0;
+										Bluenrg_Error( UNKNOWN_ERROR );
+									}
+								}else if( EventPacketPtr->PacketType == HCI_ACL_DATA_PACKET )
+								{
+
+									EventPacketPtr->PacketType = HCI_EVENT_PACKET;
+									EventPacketPtr->EventPacket.Event_Code = NUMBER_OF_COMPLETED_PACKETS;
+									EventPacketPtr->EventPacket.Event_Parameter[0] = 1; /* Num_Handles */
+									EventPacketPtr->EventPacket.Event_Parameter[1] = 0xFF; /* Connection_Handle */
+									EventPacketPtr->EventPacket.Event_Parameter[2] = 0xFF;
+									EventPacketPtr->EventPacket.Event_Parameter[3] = 0; /* Num_Completed_Packets */
+									EventPacketPtr->EventPacket.Event_Parameter[4] = 0;
+									EventPacketPtr->EventPacket.Parameter_Total_Length = 5;
+
+									PreviousHeadBuff.TransferDesc.DataPtr->Size = sizeof(HCI_SERIAL_EVENT_PCKT) + EventPacketPtr->EventPacket.Parameter_Total_Length;
+
+									if( !Safe_Enqueue_CallBack( &PreviousHeadBuff.TransferDesc, TRANSFER_DONE, &ReadCallBackManager ) )
+									{
+										PreviousHeadBuff.TransferDesc.DataPtr->Size = 0;
+										Bluenrg_Error( UNKNOWN_ERROR );
+									}
+								}
+
+								/* Release the memory */
+								PreviousHeadBuff.TransferDesc.DataPtr->Size = 0;
+
+								goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
+							}else
+							{
+								BufferManager.BufferHead->WriteAttempts++; /* Gives an additional chance */
+								goto SPI_Header_Write_Request; /* We could not release the head */
+							}
 						}
-
-						goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
 					}
 				}else
 				{
@@ -1114,7 +1202,7 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 						if( Transmitter_Multiplexer( TransferDescPtr->CallBack, &TransferDescPtr->DataPtr->Bytes[0], TransferDescPtr->DataPtr->Size, BufferManager.BufferHead->TransferStatus ) != TRUE )
 						{
 							/* The handler is blocked by some other process. Put the callback in the queue to be processed later. */
-							Safe_Enqueue_CallBack( TransferDescPtr, &WriteCallBackManager );
+							Safe_Enqueue_CallBack( TransferDescPtr, status, &WriteCallBackManager );
 						}
 					}else /* SPI_READ */
 					{
@@ -1126,11 +1214,11 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 						{
 							if( Receiver_Multiplexer( &TransferDescPtr->DataPtr->Bytes[0], TransferDescPtr->DataPtr->Size, BufferManager.BufferHead->TransferStatus ) != TRUE )
 							{
-								Safe_Enqueue_CallBack( TransferDescPtr, &ReadCallBackManager );
+								Safe_Enqueue_CallBack( TransferDescPtr, status, &ReadCallBackManager );
 							}
 						}else
 						{
-							Safe_Enqueue_CallBack( TransferDescPtr, &ReadCallBackManager );
+							Safe_Enqueue_CallBack( TransferDescPtr, status, &ReadCallBackManager );
 						}
 					}
 				}else
@@ -1145,7 +1233,7 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 						ManagerPtr = &ReadCallBackManager;
 					}
 
-					Safe_Enqueue_CallBack( TransferDescPtr, ManagerPtr );
+					Safe_Enqueue_CallBack( TransferDescPtr, status, ManagerPtr );
 				}
 			}
 
@@ -1168,7 +1256,7 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 				Release_Bluenrg();
 			}
 
-			Release_Frame();
+			Release_Frame( 1 );
 		}
 
 		Request_Frame( 0 );
@@ -1183,7 +1271,7 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBACK_MANAGEMENT* ManagerPtr )
+static uint8_t Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS TransferStatus, CALLBACK_MANAGEMENT* ManagerPtr )
 {
 	/* The multiplex function will be called asynchronously */
 	/* Put in the callback queue: the transfer and data must be copied in order to release the transfer buffer */
@@ -1196,14 +1284,15 @@ static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBAC
 	if( Acquire != 1 )
 	{
 		ExitCritical(); /* Critical section exit */
-		return;
+		return (FALSE);
 	}
 
 	ExitCritical(); /* Critical section exit */
 
-	if( Enqueue_CallBack( BufferManager.BufferHead, ManagerPtr ) != TRUE )
+	if( Enqueue_CallBack( TransferDescPtr, TransferStatus, ManagerPtr ) != TRUE )
 	{
 		Bluenrg_Error( QUEUE_IS_FULL );
+		return (FALSE);
 	}
 
 	EnterCritical(); /* Critical section enter */
@@ -1211,6 +1300,8 @@ static void Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPtr, CALLBAC
 	Acquire = 0;
 
 	ExitCritical(); /* Critical section exit */
+
+	return (TRUE);
 }
 
 
