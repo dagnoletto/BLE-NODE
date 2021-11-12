@@ -158,6 +158,7 @@ inline static uint8_t Safe_Enqueue_CallBack( TRANSFER_DESCRIPTOR* TransferDescPt
 		CALLBACK_MANAGEMENT* ManagerPtr ) __attribute__((always_inline));
 static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE TransferMode);
 inline static DESC_DATA* Search_For_Event_Memory_Buffer(void) __attribute__((always_inline));
+inline static void Handle_Transmission_Failure( BUFFER_DESC* BufPtr ) __attribute__((always_inline));
 
 
 /****************************************************************/
@@ -1065,66 +1066,7 @@ void Request_Frame( uint8_t callsource )
 							BUFFER_DESC PreviousHeadBuff = *BufferManager.BufferHead;
 							if( Release_Frame( 0 ) )
 							{
-								/* First enqueue the transfer finished callback (if any) */
-								if( PreviousHeadBuff.TransferDesc.CallBack != NULL ) /* We have callback */
-								{
-									PreviousHeadBuff.TransferDesc.CallBackMode = CALL_BACK_BUFFERED;
-									if( !Safe_Enqueue_CallBack( &PreviousHeadBuff.TransferDesc, TRANSFER_DEV_ERROR, &WriteCallBackManager ) )
-									{
-										/* Release the data */
-										PreviousHeadBuff.TransferDesc.DataPtr->Size = 0;
-										Bluenrg_Error( UNKNOWN_ERROR );
-									}
-								}
-
-								/* Enqueue a response for higher layers to provide the callback */
-								/* Use the same (unreleased) TX buffer to copy the data */
-								HCI_SERIAL_EVENT_PCKT* EventPacketPtr = (typeof(EventPacketPtr))( &PreviousHeadBuff.TransferDesc.DataPtr->Bytes[0] );
-
-								if( EventPacketPtr->PacketType == HCI_COMMAND_PACKET )
-								{
-									HCI_SERIAL_COMMAND_PCKT* CmdPcktPtr = (typeof(CmdPcktPtr))( &PreviousHeadBuff.TransferDesc.DataPtr->Bytes[0] );
-									HCI_COMMAND_OPCODE OpCode;
-									OpCode.Val = CmdPcktPtr->CmdPacket.OpCode.Val;
-
-									EventPacketPtr->PacketType = HCI_EVENT_PACKET;
-									EventPacketPtr->EventPacket.Event_Code = COMMAND_STATUS;
-									EventPacketPtr->EventPacket.Event_Parameter[0] = REPEATED_ATTEMPTS; /* Status */
-									EventPacketPtr->EventPacket.Event_Parameter[1] = 1; /* Num_HCI_Command_Packets */
-									EventPacketPtr->EventPacket.Event_Parameter[2] = OpCode.Val & 0xFF;
-									EventPacketPtr->EventPacket.Event_Parameter[3] = ( OpCode.Val >> 8 ) & 0xFF;
-									EventPacketPtr->EventPacket.Parameter_Total_Length = 4;
-
-									PreviousHeadBuff.TransferDesc.DataPtr->Size = sizeof(HCI_SERIAL_EVENT_PCKT) + EventPacketPtr->EventPacket.Parameter_Total_Length;
-
-									if( !Safe_Enqueue_CallBack( &PreviousHeadBuff.TransferDesc, TRANSFER_DONE, &ReadCallBackManager ) )
-									{
-										PreviousHeadBuff.TransferDesc.DataPtr->Size = 0;
-										Bluenrg_Error( UNKNOWN_ERROR );
-									}
-								}else if( EventPacketPtr->PacketType == HCI_ACL_DATA_PACKET )
-								{
-
-									EventPacketPtr->PacketType = HCI_EVENT_PACKET;
-									EventPacketPtr->EventPacket.Event_Code = NUMBER_OF_COMPLETED_PACKETS;
-									EventPacketPtr->EventPacket.Event_Parameter[0] = 1; /* Num_Handles */
-									EventPacketPtr->EventPacket.Event_Parameter[1] = 0xFF; /* Connection_Handle */
-									EventPacketPtr->EventPacket.Event_Parameter[2] = 0xFF;
-									EventPacketPtr->EventPacket.Event_Parameter[3] = 0; /* Num_Completed_Packets */
-									EventPacketPtr->EventPacket.Event_Parameter[4] = 0;
-									EventPacketPtr->EventPacket.Parameter_Total_Length = 5;
-
-									PreviousHeadBuff.TransferDesc.DataPtr->Size = sizeof(HCI_SERIAL_EVENT_PCKT) + EventPacketPtr->EventPacket.Parameter_Total_Length;
-
-									if( !Safe_Enqueue_CallBack( &PreviousHeadBuff.TransferDesc, TRANSFER_DONE, &ReadCallBackManager ) )
-									{
-										PreviousHeadBuff.TransferDesc.DataPtr->Size = 0;
-										Bluenrg_Error( UNKNOWN_ERROR );
-									}
-								}
-
-								/* Release the memory */
-								PreviousHeadBuff.TransferDesc.DataPtr->Size = 0;
+								Handle_Transmission_Failure( &PreviousHeadBuff );
 
 								goto CheckBufferHead; /* I know, I know, ugly enough. But think of code savings and performance, OK? */
 							}else
@@ -1214,9 +1156,19 @@ void Request_Frame( uint8_t callsource )
 			if( Bluenrg_Send_Frame( BufferManager.BufferHead->TransferMode, TXDataPtr,
 					BufferManager.BufferHead->RxPtr, DataSize ) == FALSE )
 			{
-				/* Failed transmission */
-				//TODO: apply a release here and enqueue the uppers layer handlers
+				if( BufferManager.BufferHead->TransferMode == SPI_WRITE )
+				{
+					/* Failed transmission */
+					BUFFER_DESC PreviousHeadBuff = *BufferManager.BufferHead;
+
+					if( Release_Frame( 0 ) )
+					{
+						Handle_Transmission_Failure( &PreviousHeadBuff );
+					}
+				}
+				/* TODO: Add logic for when the TransferMode is not SPI_WRITE */
 				Release_Bluenrg();
+
 			}else if( BufferManager.BufferHead->TransferMode == SPI_WRITE )
 			{
 				HCI_SERIAL_COMMAND_PCKT* CmdPcktPtr = (typeof(CmdPcktPtr))( &BufferManager.BufferHead->TransferDesc.DataPtr->Bytes[0] );
@@ -1250,6 +1202,78 @@ void Request_Frame( uint8_t callsource )
 	Acquire = 0;
 
 	ExitCritical(); /* Critical section exit */
+}
+
+
+/****************************************************************/
+/* Handle_Transmission_Failure()         	     				*/
+/* Purpose: SPI transmission failure	    		   			*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Handle_Transmission_Failure( BUFFER_DESC* BufPtr )
+{
+	/* First enqueue the transfer finished callback (if any) */
+	if( BufPtr->TransferDesc.CallBack != NULL ) /* We have callback */
+	{
+		BufPtr->TransferDesc.CallBackMode = CALL_BACK_BUFFERED;
+		if( !Safe_Enqueue_CallBack( &BufPtr->TransferDesc, TRANSFER_DEV_ERROR, &WriteCallBackManager ) )
+		{
+			/* Release the data */
+			BufPtr->TransferDesc.DataPtr->Size = 0;
+			Bluenrg_Error( UNKNOWN_ERROR );
+		}
+	}
+
+	/* Enqueue a response for higher layers to provide the callback */
+	/* Use the same (unreleased) TX buffer to copy the data */
+	HCI_SERIAL_EVENT_PCKT* EventPacketPtr = (typeof(EventPacketPtr))( &BufPtr->TransferDesc.DataPtr->Bytes[0] );
+
+	if( EventPacketPtr->PacketType == HCI_COMMAND_PACKET )
+	{
+		HCI_SERIAL_COMMAND_PCKT* CmdPcktPtr = (typeof(CmdPcktPtr))( &BufPtr->TransferDesc.DataPtr->Bytes[0] );
+		HCI_COMMAND_OPCODE OpCode;
+		OpCode.Val = CmdPcktPtr->CmdPacket.OpCode.Val;
+
+		EventPacketPtr->PacketType = HCI_EVENT_PACKET;
+		EventPacketPtr->EventPacket.Event_Code = COMMAND_STATUS;
+		EventPacketPtr->EventPacket.Event_Parameter[0] = REPEATED_ATTEMPTS; /* Status */
+		EventPacketPtr->EventPacket.Event_Parameter[1] = 1; /* Num_HCI_Command_Packets */
+		EventPacketPtr->EventPacket.Event_Parameter[2] = OpCode.Val & 0xFF;
+		EventPacketPtr->EventPacket.Event_Parameter[3] = ( OpCode.Val >> 8 ) & 0xFF;
+		EventPacketPtr->EventPacket.Parameter_Total_Length = 4;
+
+		BufPtr->TransferDesc.DataPtr->Size = sizeof(HCI_SERIAL_EVENT_PCKT) + EventPacketPtr->EventPacket.Parameter_Total_Length;
+
+		if( !Safe_Enqueue_CallBack( &BufPtr->TransferDesc, TRANSFER_DONE, &ReadCallBackManager ) )
+		{
+			BufPtr->TransferDesc.DataPtr->Size = 0;
+			Bluenrg_Error( UNKNOWN_ERROR );
+		}
+	}else if( EventPacketPtr->PacketType == HCI_ACL_DATA_PACKET )
+	{
+
+		EventPacketPtr->PacketType = HCI_EVENT_PACKET;
+		EventPacketPtr->EventPacket.Event_Code = NUMBER_OF_COMPLETED_PACKETS;
+		EventPacketPtr->EventPacket.Event_Parameter[0] = 1; /* Num_Handles */
+		EventPacketPtr->EventPacket.Event_Parameter[1] = 0xFF; /* Connection_Handle */
+		EventPacketPtr->EventPacket.Event_Parameter[2] = 0xFF;
+		EventPacketPtr->EventPacket.Event_Parameter[3] = 0; /* Num_Completed_Packets */
+		EventPacketPtr->EventPacket.Event_Parameter[4] = 0;
+		EventPacketPtr->EventPacket.Parameter_Total_Length = 5;
+
+		BufPtr->TransferDesc.DataPtr->Size = sizeof(HCI_SERIAL_EVENT_PCKT) + EventPacketPtr->EventPacket.Parameter_Total_Length;
+
+		if( !Safe_Enqueue_CallBack( &BufPtr->TransferDesc, TRANSFER_DONE, &ReadCallBackManager ) )
+		{
+			BufPtr->TransferDesc.DataPtr->Size = 0;
+			Bluenrg_Error( UNKNOWN_ERROR );
+		}
+	}
+
+	/* Release the memory */
+	BufPtr->TransferDesc.DataPtr->Size = 0;
 }
 
 
