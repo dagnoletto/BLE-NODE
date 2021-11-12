@@ -33,6 +33,20 @@
 
 
 /****************************************************************/
+/* HAL_IncTick()               			                      	*/
+/* Purpose: Systick increment			    					*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void HAL_IncTick(void)
+{
+  uwTick += uwTickFreq;
+  Bluerng_Command_Timeout(  );
+}
+
+
+/****************************************************************/
 /* HAL_GPIO_EXTI_Callback()                                     */
 /* Purpose: Handler for External Interrupts			    		*/
 /* Parameters: none				         						*/

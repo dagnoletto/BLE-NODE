@@ -161,6 +161,13 @@ inline static DESC_DATA* Search_For_Event_Memory_Buffer(void) __attribute__((alw
 
 
 /****************************************************************/
+/* extern functions declaration                                 */
+/****************************************************************/
+extern CMD_CALLBACK* Get_Command_CallBack( HCI_COMMAND_OPCODE OpCode );
+extern CMD_CALLBACK* Get_Command_Callback_From_Index( uint16_t Index );
+
+
+/****************************************************************/
 /* Global variables definition                                  */
 /****************************************************************/
 
@@ -365,6 +372,74 @@ static void Process_CallBack(CALLBACK_MANAGEMENT* ManagerPtr, SPI_TRANSFER_MODE 
 		Release_CallBack( ManagerPtr );
 
 		NumberOfCallbacksPerCall--;
+	}
+}
+
+
+/****************************************************************/
+/* Bluerng_Command_Timeout()                      	            */
+/* Purpose: Count time in active command callbacks		  		*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+void Bluerng_Command_Timeout( void )
+{
+	/* This function must be called from a privileged function, like a timer interrupt */
+	static uint32_t Tcounter = 10;
+	static uint16_t NumberOfCallbacks;
+	static CMD_CALLBACK* CbPtr;
+	static TRANSFER_DESCRIPTOR TransferDesc;
+	static HCI_SERIAL_EVENT_PCKT* EventPacketPtr;
+	static uint8_t Comand_Status_Bytes[24];
+
+	/* At every 10 ms evaluate the timeout of callbacks */
+	if( Tcounter != 0 )
+	{
+		Tcounter--;
+	}
+	{
+		Tcounter = 10;
+		NumberOfCallbacks = Get_Number_Of_Command_Callbacks( );
+
+		for( uint16_t i = 0; i < NumberOfCallbacks; i++ )
+		{
+			CbPtr = Get_Command_Callback_From_Index( i );
+			if( CbPtr->Status != FREE )
+			{
+				if( CbPtr->Timeout != 0 )
+				{
+					CbPtr->Timeout -= 10; /* Decreases 10 ms */
+					if( CbPtr->Timeout <= 0 )
+					{
+						CbPtr->Timeout = 0;
+
+						TransferDesc.CallBack = NULL;
+						TransferDesc.CallBackMode = CALL_BACK_BUFFERED;
+						TransferDesc.DataPtr = (typeof(TransferDesc.DataPtr))( &Comand_Status_Bytes[0] );
+
+						EventPacketPtr = (typeof(EventPacketPtr))( &TransferDesc.DataPtr->Bytes[0] );
+
+						EventPacketPtr->PacketType = HCI_EVENT_PACKET;
+						EventPacketPtr->EventPacket.Event_Code = COMMAND_STATUS;
+						EventPacketPtr->EventPacket.Event_Parameter[0] = LMP_OR_LL_RESPONSE_TIMEOUT; /* Status */
+						EventPacketPtr->EventPacket.Event_Parameter[1] = 1; /* Num_HCI_Command_Packets */
+						EventPacketPtr->EventPacket.Event_Parameter[2] = CbPtr->OpCode.Val & 0xFF;
+						EventPacketPtr->EventPacket.Event_Parameter[3] = ( CbPtr->OpCode.Val >> 8 ) & 0xFF;
+						EventPacketPtr->EventPacket.Parameter_Total_Length = 4;
+
+						TransferDesc.DataPtr->Size = sizeof(HCI_SERIAL_EVENT_PCKT) + EventPacketPtr->EventPacket.Parameter_Total_Length;
+
+						/* Search for a room in the reception callback queue */
+						if( !Safe_Enqueue_CallBack( &TransferDesc, TRANSFER_DONE, &ReadCallBackManager ) )
+						{
+							/* Gives another chance in the next cycle */
+							CbPtr->Timeout += 10;
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -1139,7 +1214,25 @@ void Request_Frame( uint8_t callsource )
 			if( Bluenrg_Send_Frame( BufferManager.BufferHead->TransferMode, TXDataPtr,
 					BufferManager.BufferHead->RxPtr, DataSize ) == FALSE )
 			{
+				/* Failed transmission */
+				//TODO: apply a release here and enqueue the uppers layer handlers
 				Release_Bluenrg();
+			}else if( BufferManager.BufferHead->TransferMode == SPI_WRITE )
+			{
+				HCI_SERIAL_COMMAND_PCKT* CmdPcktPtr = (typeof(CmdPcktPtr))( &BufferManager.BufferHead->TransferDesc.DataPtr->Bytes[0] );
+				if( CmdPcktPtr->PacketType == HCI_COMMAND_PACKET )
+				{
+					/* Search for the handler */
+					CMD_CALLBACK* CallBackPtr = Get_Command_CallBack( CmdPcktPtr->CmdPacket.OpCode );
+					if( CallBackPtr != NULL )
+					{
+						CallBackPtr->OpCode = CmdPcktPtr->CmdPacket.OpCode;
+						if( !CallBackPtr->Timeout )
+						{
+							CallBackPtr->Timeout = BufferManager.BufferHead->TransferDesc.Timeout;
+						}
+					}
+				}
 			}
 		}else if( ( BufferManager.BufferHead->Status == BUFFER_FREE ) && ( Get_Bluenrg_IRQ_Pin() ) ) /* Check if the IRQ pin is set */
 		{

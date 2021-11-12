@@ -93,6 +93,7 @@ typedef struct
 {
 	TRANSFER_CALL_BACK_MODE CallBackMode;
 	TransferCallBack CallBack; /* Callback called after the operation. If set as NULL is not called. */
+	uint16_t Timeout; /* Timeout (in milliseconds) to detect loss of controller's response */
 	DESC_DATA* DataPtr;
 }TRANSFER_DESCRIPTOR;
 
@@ -134,6 +135,8 @@ typedef enum
 typedef struct
 {
 	CMD_CB_STATUS Status: 8; /* CB_FREE/CB_BUSY/CB_ON_GOING */
+	int32_t Timeout; /* Timeout (in milliseconds) to detect loss of controller's response */
+	HCI_COMMAND_OPCODE OpCode;
 	void* CmdCompleteCallBack; /* Function pointer */
 	void* CmdStatusCallBack; /* Function pointer */
 	void (*CmdCompleteHandler)(void* CmdCallBackFun, HCI_EVENT_PCKT* EventPacketPtr); /* Function pointer */
@@ -143,6 +146,7 @@ typedef struct
 /****************************************************************/
 /* External functions declaration (Interface functions)         */
 /****************************************************************/
+uint16_t Get_Number_Of_Command_Callbacks( void );
 void HCI_Reset_Transport_Layer( void );
 DESC_DATA* HCI_Get_Command_Transmit_Buffer_Free( uint16_t OpCodeVal );
 uint8_t HCI_Transmit_Command( TRANSFER_DESCRIPTOR* TxDescPtr,
