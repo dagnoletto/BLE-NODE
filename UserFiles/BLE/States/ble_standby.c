@@ -46,8 +46,8 @@ static void LE_Create_Connection_Cancel_Complete( CONTROLLER_ERROR_CODES Status 
 static void LE_Set_Scan_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void LE_Set_Advertising_Enable_Complete( CONTROLLER_ERROR_CODES Status );
 static void Disconnect_Status( CONTROLLER_ERROR_CODES Status );
-static void HCI_Reset_Complete( CONTROLLER_ERROR_CODES Status );
 static void Hal_Device_Standby_Event( CONTROLLER_ERROR_CODES Status );
+void HCI_Reset_Complete( CONTROLLER_ERROR_CODES Status );
 
 
 /****************************************************************/
@@ -64,6 +64,7 @@ extern void Remove_Connection_Index( uint8_t Index );
 /****************************************************************/
 /* Defines                                                      */
 /****************************************************************/
+//#define RECONFIG_DURING_STAND_BY
 
 
 /****************************************************************/
@@ -237,8 +238,12 @@ int8_t Standby_Config( void )
 	case SEND_RESET_CMD:
 		StandbyConfigTimeout = 0;
 		StandbyConfig.BaseStep = SEND_RESET_CMD;
+#ifdef RECONFIG_DURING_STAND_BY
 		StandbyConfig.Actual = WAIT_OPERATION;
 		HCI_Reset( &HCI_Reset_Complete, NULL );
+#else
+		StandbyConfig.Actual = SEND_STANDBY_CMD;
+#endif
 		break;
 
 	case RECONFIG_VENDOR_SPECIFC:
@@ -278,7 +283,7 @@ int8_t Standby_Config( void )
 		break;
 
 	case WAIT_OPERATION_STBY:
-		if( TimeBase_DelayMs( &StandbyConfigTimeout, 1000, TRUE ) )
+		if( TimeBase_DelayMs( &StandbyConfigTimeout, 1500, TRUE ) )
 		{
 			/* We should finish anyway because the controller may fail to respond after
 			 * he entered stand-by */
@@ -382,7 +387,7 @@ static void Disconnect_Status( CONTROLLER_ERROR_CODES Status )
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static void HCI_Reset_Complete( CONTROLLER_ERROR_CODES Status )
+void HCI_Reset_Complete( CONTROLLER_ERROR_CODES Status )
 {
 	if( StandbyConfig.Actual == WAIT_OPERATION )
 	{
