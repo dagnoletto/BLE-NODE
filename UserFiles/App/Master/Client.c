@@ -14,8 +14,7 @@ typedef enum
 {
 	READ_REMOTE_VERSION_INFO,
 	READ_REMOTE_FEATURES,
-	SEND_DATA,
-	FORCE_STAND_BY
+	SEND_DATA
 }CLIENT_STATES;
 
 
@@ -96,11 +95,6 @@ void Client( void )
 		}
 	}
 	break;
-
-	case FORCE_STAND_BY:
-		Enter_Standby_Mode( );
-		Reset_Client( );
-		break;
 
 	default:
 		break;
@@ -223,7 +217,7 @@ static void HCI_Disconnect_Status( CONTROLLER_ERROR_CODES Status )
 {
 	if( Status != COMMAND_SUCCESS )
 	{
-		ClientStateMachine = FORCE_STAND_BY;
+
 	}
 }
 
