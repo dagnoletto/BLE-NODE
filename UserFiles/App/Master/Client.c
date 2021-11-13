@@ -15,18 +15,20 @@ typedef enum
 	READ_REMOTE_VERSION_INFO,
 	READ_REMOTE_FEATURES,
 	SEND_DATA,
-	WAIT_COMMAND_TO_FINISH
+	FORCE_STAND_BY
 }CLIENT_STATES;
 
 
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-//static void Command_Status( CONTROLLER_ERROR_CODES Status );
 static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
 		uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
+static void LE_Read_Remote_Features_Status( CONTROLLER_ERROR_CODES Status );
 static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 		REMOTE_VERSION_INFORMATION* Remote_Version_Information );
+static void Read_Remote_VerInfo_Status( CONTROLLER_ERROR_CODES Status );
+static void HCI_Disconnect_Status( CONTROLLER_ERROR_CODES Status );
 
 
 /****************************************************************/
@@ -55,31 +57,20 @@ static CLIENT_STATES ClientStateMachine = READ_REMOTE_VERSION_INFO;
 /****************************************************************/
 void Client( void )
 {
-	static uint32_t Timer = 0;
-
 	switch ( ClientStateMachine )
 	{
 	case READ_REMOTE_VERSION_INFO:
-		if ( !HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, NULL ) && TimeBase_DelayMs( &Timer, 1000, TRUE ) )
-		{
-			HCI_COMMAND_OPCODE OpCode = { .Val = HCI_READ_REMOTE_VERSION_INFORMATION };
-			Clear_Command_CallBack( OpCode );
-		}
+		HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Read_Remote_VerInfo_Status );
 		break;
 
 	case READ_REMOTE_FEATURES:
-		if ( !HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, NULL ) && TimeBase_DelayMs( &Timer, 1000, TRUE ) )
-		{
-			HCI_COMMAND_OPCODE OpCode = { .Val = HCI_LE_READ_REMOTE_FEATURES };
-			Clear_Command_CallBack( OpCode );
-		}
+		HCI_LE_Read_Remote_Features( SlaveInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &LE_Read_Remote_Features_Status );
 		break;
 
 	case SEND_DATA:
 	{
 		static uint32_t Timer2 = 0;
-		static uint32_t Timer3 = 0;
-		static uint16_t NTries = 0;
+		//static uint32_t Timer3 = 0;
 
 		if( /* TimeBase_DelayMs( &Timer3, 10, TRUE ) */ 1 )
 		{
@@ -101,12 +92,14 @@ void Client( void )
 
 		if( TimeBase_DelayMs( &Timer2, 5000, TRUE ) )
 		{
-			HCI_Disconnect( SlaveInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, NULL );
+			HCI_Disconnect( SlaveInfo.Connection_Handle, REMOTE_USER_TERMINATED_CONNECTION, &HCI_Disconnect_Status );
 		}
 	}
 	break;
 
-	case WAIT_COMMAND_TO_FINISH:
+	case FORCE_STAND_BY:
+		Enter_Standby_Mode( );
+		Reset_Client( );
 		break;
 
 	default:
@@ -160,6 +153,23 @@ static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 	if( Status == COMMAND_SUCCESS )
 	{
 		SlaveInfo.Version = *Remote_Version_Information;
+	}
+	ClientStateMachine = READ_REMOTE_FEATURES;
+}
+
+
+/****************************************************************/
+/* Read_Remote_VerInfo_Status()     	   						*/
+/* Location: 					 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Read_Remote_VerInfo_Status( CONTROLLER_ERROR_CODES Status )
+{
+	if( Status != COMMAND_SUCCESS )
+	{
 		ClientStateMachine = READ_REMOTE_FEATURES;
 	}
 }
@@ -179,7 +189,41 @@ static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
 	if( ( Status == COMMAND_SUCCESS ) && ( SlaveInfo.Connection_Handle == Connection_Handle ) )
 	{
 		SlaveInfo.SupFeatures = *LE_Features;
+	}
+	ClientStateMachine = SEND_DATA;
+}
+
+
+/****************************************************************/
+/* LE_Read_Remote_Features_Status()     	   					*/
+/* Location: 					 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Read_Remote_Features_Status( CONTROLLER_ERROR_CODES Status )
+{
+	if( Status != COMMAND_SUCCESS )
+	{
 		ClientStateMachine = SEND_DATA;
+	}
+}
+
+
+/****************************************************************/
+/* HCI_Disconnect_Status()     	   								*/
+/* Location: 					 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void HCI_Disconnect_Status( CONTROLLER_ERROR_CODES Status )
+{
+	if( Status != COMMAND_SUCCESS )
+	{
+		ClientStateMachine = FORCE_STAND_BY;
 	}
 }
 

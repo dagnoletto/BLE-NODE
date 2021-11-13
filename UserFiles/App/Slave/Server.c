@@ -14,19 +14,19 @@ typedef enum
 {
 	READ_REMOTE_VERSION_INFO,
 	READ_REMOTE_FEATURES,
-	SEND_DATA,
-	WAIT_COMMAND_TO_FINISH
+	SEND_DATA
 }SERVER_STATES;
 
 
 /****************************************************************/
 /* Static functions declaration                                 */
 /****************************************************************/
-static void Command_Status( CONTROLLER_ERROR_CODES Status );
 static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
 		uint16_t Connection_Handle, LE_SUPPORTED_FEATURES* LE_Features );
+static void LE_Read_Remote_Features_Status( CONTROLLER_ERROR_CODES Status );
 static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 		REMOTE_VERSION_INFORMATION* Remote_Version_Information );
+static void Read_Remote_VerInfo_Status( CONTROLLER_ERROR_CODES Status );
 
 
 /****************************************************************/
@@ -55,30 +55,19 @@ static SERVER_STATES ServerStateMachine = READ_REMOTE_VERSION_INFO;
 /****************************************************************/
 void Server( void )
 {
-	static uint32_t Timer = 0;
-
 	switch ( ServerStateMachine )
 	{
 	case READ_REMOTE_VERSION_INFO:
-		if ( !HCI_Read_Remote_Version_Information( MasterInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, NULL ) && TimeBase_DelayMs( &Timer, 1000, TRUE ) )
-		{
-			HCI_COMMAND_OPCODE OpCode = { .Val = HCI_READ_REMOTE_VERSION_INFORMATION };
-			Clear_Command_CallBack( OpCode );
-		}
+		HCI_Read_Remote_Version_Information( MasterInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Read_Remote_VerInfo_Status );
 		break;
 
 	case READ_REMOTE_FEATURES:
-		if ( !HCI_LE_Read_Remote_Features( MasterInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, NULL ) && TimeBase_DelayMs( &Timer, 1000, TRUE ) )
-		{
-			HCI_COMMAND_OPCODE OpCode = { .Val = HCI_LE_READ_REMOTE_FEATURES };
-			Clear_Command_CallBack( OpCode );
-		}
+		HCI_LE_Read_Remote_Features( MasterInfo.Connection_Handle, &LE_Read_Remote_Features_Complete, &LE_Read_Remote_Features_Status );
 		break;
 
 	case SEND_DATA:
 	{
-		static uint32_t Timer = 0;
-		static uint16_t NTries = 0;
+		//static uint32_t Timer = 0;
 		static uint32_t Timer2 = 0;
 
 		if( /* TimeBase_DelayMs( &Timer, 100, TRUE ) */ 1 )
@@ -104,9 +93,6 @@ void Server( void )
 	}
 	break;
 
-	case WAIT_COMMAND_TO_FINISH:
-		break;
-
 	default:
 		break;
 	}
@@ -128,23 +114,6 @@ void Reset_Server( void )
 
 
 /****************************************************************/
-/* Command_Status()     	   									*/
-/* Location: 					 								*/
-/* Purpose:														*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Command_Status( CONTROLLER_ERROR_CODES Status )
-{
-	if( Status != COMMAND_SUCCESS && Status != COMMAND_DISALLOWED )
-	{
-
-	}
-}
-
-
-/****************************************************************/
 /* Read_Remote_VerInfo_Complete()     	   						*/
 /* Location: 					 								*/
 /* Purpose:														*/
@@ -158,6 +127,23 @@ static void Read_Remote_VerInfo_Complete( CONTROLLER_ERROR_CODES Status,
 	if( Status == COMMAND_SUCCESS )
 	{
 		MasterInfo.Version = *Remote_Version_Information;
+	}
+	ServerStateMachine = SEND_DATA; //READ_REMOTE_FEATURES; //SEND_DATA; //TODO: READ_REMOTE_FEATURES;
+}
+
+
+/****************************************************************/
+/* Read_Remote_VerInfo_Status()     	 						*/
+/* Location: 					 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void Read_Remote_VerInfo_Status( CONTROLLER_ERROR_CODES Status )
+{
+	if( Status != COMMAND_SUCCESS )
+	{
 		ServerStateMachine = SEND_DATA; //READ_REMOTE_FEATURES; //SEND_DATA; //TODO: READ_REMOTE_FEATURES;
 	}
 }
@@ -178,6 +164,23 @@ static void LE_Read_Remote_Features_Complete( CONTROLLER_ERROR_CODES Status,
 	{
 		/* TODO: For some reason, the unknown connection ID is returned when the LE_Read_Remote_Features is issued: we should investigate */
 		MasterInfo.SupFeatures = *LE_Features;
+	}
+	ServerStateMachine = SEND_DATA;
+}
+
+
+/****************************************************************/
+/* LE_Read_Remote_Features_Status()     	   					*/
+/* Location: 					 								*/
+/* Purpose:														*/
+/* Parameters: none				         						*/
+/* Return: none  												*/
+/* Description:													*/
+/****************************************************************/
+static void LE_Read_Remote_Features_Status( CONTROLLER_ERROR_CODES Status )
+{
+	if( Status != COMMAND_SUCCESS )
+	{
 		ServerStateMachine = SEND_DATA;
 	}
 }
