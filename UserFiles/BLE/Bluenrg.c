@@ -148,7 +148,7 @@ static uint8_t Request_Slave_Header(SPI_TRANSFER_MODE HeaderMode, uint8_t Priori
 static void Init_Buffer_Manager(void);
 static void Init_CallBack_Manager(CALLBACK_MANAGEMENT* ManagerPtr);
 inline static BUFFER_DESC* Search_For_Free_Frame(void) __attribute__((always_inline));
-inline static uint8_t Release_Frame( uint8_t ReleaseData ) __attribute__((always_inline));
+inline static uint8_t Release_Frame( uint8_t ReleaseData, uint8_t ByPassFrameHead ) __attribute__((always_inline));
 static uint8_t Enqueue_CallBack(TRANSFER_DESCRIPTOR* TransferDescPtr, TRANSFER_STATUS TransferStatus,
 		CALLBACK_MANAGEMENT* ManagerPtr);
 inline static CALLBACK_DESC* Search_For_Free_CallBack(CALLBACK_MANAGEMENT* ManagerPtr) __attribute__((always_inline));
@@ -584,7 +584,7 @@ void Bluenrg_IRQ(void)
 /* Return: none  												*/
 /* Description:													*/
 /****************************************************************/
-static uint8_t Release_Frame( uint8_t ReleaseData )
+static uint8_t Release_Frame( uint8_t ReleaseData, uint8_t ByPassFrameHead )
 {
 	EnterCritical(); /* Critical section enter */
 
@@ -604,7 +604,7 @@ static uint8_t Release_Frame( uint8_t ReleaseData )
 		return (FALSE);
 	}
 
-	if( BlockFrameHead ) /* Cannot release the head that is blocked for transmission */
+	if( ( BlockFrameHead ) && ( !ByPassFrameHead ) ) /* Cannot release the head that is blocked for transmission */
 	{
 		FrameHeadRelease = 0;
 		ExitCritical(); /* Critical section exit */
@@ -937,7 +937,7 @@ FRAME_ENQUEUE_STATUS Enqueue_Frame(TRANSFER_DESCRIPTOR* TransferDescPtr, int8_t 
 			if( FrameHeadReleaseRequest )
 			{
 				ExitCritical();
-				Release_Frame( 1 );
+				Release_Frame( TRUE, FALSE );
 				Status.RequestTransmission = TRUE;
 			}
 			EnterCritical();
@@ -1064,7 +1064,7 @@ void Request_Frame( uint8_t callsource )
 						}else
 						{
 							BUFFER_DESC PreviousHeadBuff = *BufferManager.BufferHead;
-							if( Release_Frame( 0 ) )
+							if( Release_Frame( FALSE, TRUE ) )
 							{
 								Handle_Transmission_Failure( &PreviousHeadBuff );
 
@@ -1161,7 +1161,7 @@ void Request_Frame( uint8_t callsource )
 					/* Failed transmission */
 					BUFFER_DESC PreviousHeadBuff = *BufferManager.BufferHead;
 
-					if( Release_Frame( 0 ) )
+					if( Release_Frame( FALSE, TRUE ) )
 					{
 						Handle_Transmission_Failure( &PreviousHeadBuff );
 					}
@@ -1373,7 +1373,7 @@ void Bluenrg_Frame_Status(TRANSFER_STATUS status)
 				Release_Bluenrg();
 			}
 
-			Release_Frame( 1 );
+			Release_Frame( TRUE, FALSE );
 		}
 
 		Request_Frame( 0 );
