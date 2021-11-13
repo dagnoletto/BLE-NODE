@@ -255,9 +255,7 @@ BD_ADDR_TYPE* Generate_Device_Address( SUPPORTED_COMMANDS* HCI_Sup_Cmd, RANDOM_A
 /****************************************************************/
 void Cancel_Device_Address_Generation( void )
 {
-	HCI_COMMAND_OPCODE OpCode = { .Val = HCI_LE_RAND };
 	BD_Config = GENERATE_RANDOM_NUMBER_PART_A;
-	Clear_Command_CallBack( OpCode );
 	Cancel_Private_Address_Resolution();
 }
 
@@ -363,8 +361,6 @@ void Cancel_Private_Address_Resolution( void )
 {
 	if( Encrypt_CallBack != NULL )
 	{
-		HCI_COMMAND_OPCODE OpCode = { .Val = HCI_LE_ENCRYPT };
-		Clear_Command_CallBack( OpCode );
 		Encrypt_CallBack = NULL;
 	}
 }

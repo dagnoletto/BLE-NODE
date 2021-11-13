@@ -269,26 +269,9 @@ int8_t Standby_Config( void )
 		break;
 
 	case WAIT_OPERATION:
-		if( TimeBase_DelayMs( &StandbyConfigTimeout, 1000, TRUE ) )
+		if( TimeBase_DelayMs( &StandbyConfigTimeout, 1500, TRUE ) )
 		{
-			HCI_COMMAND_OPCODE OpCode;
-
 			Hosted_Functions_Enter_Standby( );
-
-			OpCode.Val = HCI_LE_SET_ADVERTISING_ENABLE;
-			Clear_Command_CallBack( OpCode );
-
-			OpCode.Val = HCI_LE_SET_SCAN_ENABLE;
-			Clear_Command_CallBack( OpCode );
-
-			OpCode.Val = HCI_LE_CREATE_CONNECTION_CANCEL;
-			Clear_Command_CallBack( OpCode );
-
-			OpCode.Val = HCI_DISCONNECT;
-			Clear_Command_CallBack( OpCode );
-
-			OpCode.Val = HCI_RESET;
-			Clear_Command_CallBack( OpCode );
 
 			StandbyConfig.Actual = StandbyConfig.BaseStep;
 		}

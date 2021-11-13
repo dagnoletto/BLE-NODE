@@ -378,7 +378,7 @@ int8_t Initiating_Config( void )
 		break;
 
 	case RESOLVE_PEER_RPA:
-		if( TimeBase_DelayMs( &InitConfigTimeout, 500, TRUE ) )
+		if( TimeBase_DelayMs( &InitConfigTimeout, 1200, TRUE ) )
 		{
 			Cancel_Private_Address_Resolution();
 			/* End resolution for this address */

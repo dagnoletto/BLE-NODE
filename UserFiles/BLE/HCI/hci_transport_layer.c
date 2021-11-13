@@ -31,7 +31,6 @@ static void Increment_HCI_Data_Packets( uint16_t Num_Cplt_Packets );
 static void Set_Number_Of_HCI_Command_Packets( uint8_t Num_HCI_Cmd_Packets );
 static uint8_t Check_Command_Packets_Available( void );
 static void Decrement_HCI_Command_Packets( void );
-static void Increment_HCI_Command_Packets( void );
 
 static uint8_t Verify_Command_Availability( TRANSFER_DESCRIPTOR* TxDescPtr, uint16_t OpCodeVal,
 		uint8_t Operation, void* CmdComplete, void* CmdStatus );
@@ -465,27 +464,6 @@ static void Decrement_HCI_Command_Packets( void )
 	if ( Num_HCI_Command_Packets )
 	{
 		Num_HCI_Command_Packets--;
-	}
-
-	ExitCritical();
-}
-
-
-/****************************************************************/
-/* Increment_HCI_Command_Packets()         						*/
-/* Location: 					 								*/
-/* Purpose: Increment available HCI packets.					*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-static void Increment_HCI_Command_Packets( void )
-{
-	EnterCritical();
-
-	if ( !Num_HCI_Command_Packets )
-	{
-		Num_HCI_Command_Packets++;
 	}
 
 	ExitCritical();
@@ -1546,34 +1524,6 @@ static void Finish_Status( TRANSFER_STATUS Status, HCI_COMMAND_OPCODE OpCode,
 	{
 		Delegate_Function_To_Host( OpCode, CmdCallBack, EventPacketPtr );
 	}
-}
-
-
-/****************************************************************/
-/* Clear_Command_CallBack()       	   			  		        */
-/* Purpose: 													*/
-/* Parameters: none				         						*/
-/* Return: none  												*/
-/* Description:													*/
-/****************************************************************/
-void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode )
-{
-	CMD_CALLBACK* CmdCallBack = Get_Command_CallBack( OpCode );
-
-	if ( CmdCallBack != NULL )
-	{
-		EnterCritical();
-
-		if( CmdCallBack->Status != ON_GOING )
-		{
-			CmdCallBack->Timeout = 0;
-			CmdCallBack->Status = FREE;
-		}
-
-		ExitCritical();
-	}
-
-	Increment_HCI_Command_Packets( );
 }
 
 

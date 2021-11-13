@@ -155,7 +155,6 @@ DESC_DATA* HCI_Get_Data_Transmit_Buffer_Free( void );
 uint8_t HCI_Transmit_Data( TRANSFER_DESCRIPTOR* TxDescPtr );
 void HCI_Receive(uint8_t* DataPtr, uint16_t DataSize, TRANSFER_STATUS Status);
 void Set_Default_Number_Of_HCI_Data_Packets( void );
-void Clear_Command_CallBack( HCI_COMMAND_OPCODE OpCode );
 void Command_Status_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
 		HCI_EVENT_PCKT* EventPacketPtr );
 void Command_Complete_Handler( HCI_COMMAND_OPCODE OpCode, CMD_CALLBACK* CmdCallBack,
