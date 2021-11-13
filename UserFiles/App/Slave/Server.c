@@ -43,6 +43,7 @@ static void Read_Remote_VerInfo_Status( CONTROLLER_ERROR_CODES Status );
 /* Local variables definition                                   */
 /****************************************************************/
 static SERVER_STATES ServerStateMachine = READ_REMOTE_VERSION_INFO;
+static uint32_t NoDataPacketRspTimer = 0;
 
 
 /****************************************************************/
@@ -58,6 +59,8 @@ void Server( void )
 	switch ( ServerStateMachine )
 	{
 	case READ_REMOTE_VERSION_INFO:
+		NoDataPacketRspTimer = 0;
+		Set_Default_Number_Of_HCI_Data_Packets();
 		HCI_Read_Remote_Version_Information( MasterInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Read_Remote_VerInfo_Status );
 		break;
 
@@ -81,9 +84,13 @@ void Server( void )
 			ACLDataPacketHeader.BC_Flag = 0x0;
 			ACLDataPacketHeader.Data_Total_Length = sizeof(Data);
 
-			HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data[0] );
-
-			//Set_Default_Number_Of_HCI_Data_Packets();
+			if( HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data ) )
+			{
+				NoDataPacketRspTimer = 0;
+			}else if( TimeBase_DelayMs( &NoDataPacketRspTimer, 500, TRUE ) )
+			{
+				Set_Default_Number_Of_HCI_Data_Packets();
+			}
 		}
 
 		if( TimeBase_DelayMs( &Timer2, 2500, TRUE ) )
@@ -229,6 +236,7 @@ void HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_H
 {
 	if( Num_Handles == 1 )
 	{
+		NoDataPacketRspTimer = 0;
 		//Npackets += Num_Completed_Packets[0];
 	}
 }

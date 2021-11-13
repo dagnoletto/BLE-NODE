@@ -44,6 +44,7 @@ static void HCI_Disconnect_Status( CONTROLLER_ERROR_CODES Status );
 /* Local variables definition                                   */
 /****************************************************************/
 static CLIENT_STATES ClientStateMachine = READ_REMOTE_VERSION_INFO;
+static uint32_t NoDataPacketRspTimer = 0;
 
 
 /****************************************************************/
@@ -59,6 +60,8 @@ void Client( void )
 	switch ( ClientStateMachine )
 	{
 	case READ_REMOTE_VERSION_INFO:
+		NoDataPacketRspTimer = 0;
+		Set_Default_Number_Of_HCI_Data_Packets();
 		HCI_Read_Remote_Version_Information( SlaveInfo.Connection_Handle, &Read_Remote_VerInfo_Complete, &Read_Remote_VerInfo_Status );
 		break;
 
@@ -84,9 +87,13 @@ void Client( void )
 
 			Data = HAL_GetTick();
 
-			HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data );
-
-			//Set_Default_Number_Of_HCI_Data_Packets();
+			if( HCI_Host_ACL_Data( &ACLDataPacketHeader, (uint8_t*)&Data ) )
+			{
+				NoDataPacketRspTimer = 0;
+			}else if( TimeBase_DelayMs( &NoDataPacketRspTimer, 500, TRUE ) )
+			{
+				Set_Default_Number_Of_HCI_Data_Packets();
+			}
 		}
 
 		if( TimeBase_DelayMs( &Timer2, 5000, TRUE ) )
@@ -250,6 +257,8 @@ void HCI_Number_Of_Completed_Packets( uint8_t Num_Handles, uint16_t Connection_H
 {
 	if( Num_Handles == 1 )
 	{
+		NoDataPacketRspTimer = 0;
+
 		//HAL_GPIO_WritePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin, GPIO_PIN_SET );
 		HAL_GPIO_TogglePin( HEART_BEAT_GPIO_Port, HEART_BEAT_Pin );
 		//Npackets += Num_Completed_Packets[0];
